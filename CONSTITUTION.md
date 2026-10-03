@@ -119,3 +119,44 @@ A newer NAIR runtime SHOULD retain decoding of older valid canonical formats whe
 ## C36 — Render Context Must Be Explicit
 
 A program containing render operations SHALL NOT execute through a state-only execution path. Missing render authority/context must be rejected before runtime mutation.
+
+## C37 — Unified Input Semantics
+
+Keyboard, pointer, touch, pen, gamepad and XR interaction SHALL converge on one
+backend-independent semantic event model where their underlying concepts are
+equivalent. Platform APIs translate into NORDOI semantics; they do not define them.
+
+## C38 — Deterministic Interaction Order
+
+Accepted input SHALL receive a deterministic monotonic sequence. Sequence identity
+SHALL NOT silently wrap or depend on platform event-loop implementation details.
+
+## C39 — Lossless Transition Law
+
+Observable transitions such as key/button down and up SHALL NOT be removed by input
+coalescing. An optimization may collapse replaceable state samples but SHALL NOT
+erase interaction history required for correct program meaning.
+
+## C40 — Safe Input Coalescing
+
+Input coalescing SHALL be limited to semantically replaceable consecutive samples
+on the same route and control. Coalescing MUST preserve the newest accepted state
+and MUST stop across transition/additive-event boundaries.
+
+## C41 — Atomic Input-to-State Commit
+
+A canonical input batch mapped into NAM state SHALL commit through atomic transaction
+semantics. Invalid ownership or binding state MUST be rejected before partial input
+state becomes visible.
+
+## C42 — Authorized Input Adapter Boundary
+
+The Atomic Input Core SHALL NOT imply permission to poll raw devices. Privileged
+hardware acquisition, operating-system permission access and global capture SHALL
+remain outside canonical core input until governed by explicit effect and capability
+contracts.
+
+## C43 — Zero Interaction Work Without Effect
+
+An input batch with no matching semantic binding, or whose resulting values equal
+current NAM state, SHALL create no new downstream NAM work.

@@ -1,75 +1,98 @@
-# NORDOI K0.7 — NAIR 0.2 Native Render Semantics
+# NORDOI K0.8 — Atomic Input & Interaction Core 0.1
 
-K0.7 moves rendering from an external runtime bridge into the canonical NAIR
-instruction set while preserving the single NAM causal frontier introduced in K0.6.
+K0.8 closes the next part of NORDOI's interactive execution loop by introducing a
+single backend-independent input model for keyboard, mouse, touch, pen, gamepad and
+XR interaction.
 
 ```text
-NORDOI / AI / Visual Frontend
-             ↓
-          NAIR 0.2
-   state + native render ops
-             ↓
-             NAM
-             ↓
- canonical atomic work frontier
-             ↓
-    Atomic Render Core 0.1
-             ↓
- deterministic RenderFrame(s)
-             ↓
- Web / Native / GPU / XR backends
+OS / device / XR adapter
+          ↓
+validated normalized event
+          ↓
+ Atomic Input Core 0.1
+          ↓
+deterministic InputBatch
+          ↓
+   InputAtomBridge
+          ↓
+ one atomic NAM transaction
+          ↓
+ canonical NAM frontier
+          ↓
+NAIR / Atomic Render Core
 ```
 
-## What K0.7 adds
+## What K0.8 adds
 
-- `RenderNodeSlot` as a canonical single-assignment NAIR identity.
-- Native NAIR creation of Screen and World render nodes.
-- Native parent/child render hierarchy creation.
-- Native atom-to-render binding with explicit `DirtyMask` semantics.
-- Native visibility, opacity and 3D-position updates.
-- Explicit `RENDER_FLUSH` frame boundaries.
-- A final implicit HALT flush only when real state/render work remains.
-- `execute_nair_with_render()` for programs that contain render instructions.
-- `execute_nair()` remains compatible with state-only programs and rejects render
-  programs before mutation when no render context was supplied.
-- NAIR binary format 0.2 with deterministic render opcode encoding.
-- Backward reading of valid NAIR 0.1 state programs.
-- 0.2 render opcodes cannot be smuggled inside a binary declaring format 0.1.
+- `AtomicInputCore` with deterministic monotonic event sequencing.
+- Unified `InputSource` classes for Keyboard, Mouse, Touch, Pen, Gamepad,
+  XR Controller and XR Hand.
+- Immutable routing through `InputTarget::Global` or
+  `InputTarget::RenderNode(RenderNodeId)`.
+- Focus routing for keyboard/gamepad without retroactively retargeting queued events.
+- Normalized and validated pointer, axis, scroll and XR pose data.
+- Unit-quaternion normalization for XR pose orientation.
+- Safe coalescing of replaceable state samples only.
+- Lossless key/button transitions and scroll boundaries.
+- `InputAtomBridge` from selected input signals into NAM atoms.
+- One atomic transaction per input batch.
+- Ownership validation before an input binding may mutate state.
+- Zero work for unmatched bindings or identical resulting state.
 - Zero external Rust dependencies remain.
 
-## NAIR 0.2 render opcodes
-
-| Opcode | Instruction | Purpose |
-| --- | --- | --- |
-| `0x30` | `CREATE_RENDER_NODE` | Create a root Screen/World node |
-| `0x31` | `CREATE_RENDER_CHILD` | Create a child under an existing node |
-| `0x32` | `BIND_RENDER_ATOM` | Bind NAM atom invalidation to a node |
-| `0x33` | `SET_RENDER_VISIBLE` | Change subtree visibility |
-| `0x34` | `SET_RENDER_OPACITY` | Change normalized opacity |
-| `0x35` | `SET_RENDER_POSITION` | Change finite `[x,y,z]` position |
-| `0x36` | `RENDER_FLUSH` | Emit one deterministic render frame |
-
-The state/transaction opcodes from NAIR 0.1 remain unchanged.
-
-## Frame law
+## Safe coalescing law
 
 ```text
-explicit RENDER_FLUSH
-        = one frame boundary
+pointer move → pointer move → pointer move
+               same route/control
+                       ↓
+                latest position + accumulated delta
+                / latest axis/pose state
 
-HALT
-        = final implicit flush only if pending work exists
+key down → key up
+button down → button up
+scroll A → scroll B
+                       ↓
+                 never discarded
 ```
 
-Therefore an idle halt produces no artificial empty frame, while unflushed valid
-work can never be silently lost.
+Optimization may collapse replaceable state. It may not erase an observable
+transition.
+
+## Atomic input-to-state law
+
+```text
+InputBatch
+   ↓
+match selectors
+   ↓
+stage all resulting atom writes
+   ↓
+one AtomicTransaction
+   ↓
+all-or-nothing NAM commit
+```
+
+Multiple events that map to the same atom collapse inside the transaction to the
+last deterministic **state snapshot**. This bridge is intentionally a state projection,
+not an event-handler system: the complete ordered transitions remain available in
+`InputBatch` for future canonical interaction/action semantics. NAM then preserves the
+existing `No Work Without Effect` law.
+
+## Security boundary
+
+K0.8 does **not** poll raw hardware or request operating-system permissions. The core
+receives semantic events from an already-authorized host adapter. Global key capture,
+raw device access, IME/text composition, haptics and other privileged acquisition
+mechanisms remain unrepresentable until their effect/capability contracts are
+specified.
 
 ## Tests
 
-K0.7 adds **15 native NAIR-render tests** on top of the 47 inherited tests, for a
-total of **62 tests**.
+K0.8 adds **18 Atomic Input tests** on top of the 62 inherited tests, for a total of
+**80 tests**.
 
-The release gate remains mandatory:
+The mandatory release gate remains:
 
 ```bash
 cargo fmt --all -- --check
@@ -78,11 +101,12 @@ cargo check --all-targets
 cargo test --all-targets
 ```
 
-GitHub CI then repeats testing on Linux, macOS and Windows.
+GitHub CI then repeats validation on Linux, macOS and Windows.
 
 ## Specifications
 
-- `docs/NAIR_SPEC_0_1.md` — retained historical contract
+- `docs/INPUT_CORE_SPEC_0_1.md`
+- `docs/NAIR_SPEC_0_1.md`
 - `docs/NAIR_SPEC_0_2.md`
 - `docs/RENDER_CORE_SPEC_0_1.md`
 - `docs/NAIR_RENDER_BRIDGE_SPEC_0_1.md`

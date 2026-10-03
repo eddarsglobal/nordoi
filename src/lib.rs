@@ -5,6 +5,7 @@ pub mod capability;
 pub mod dependency;
 pub mod effect;
 pub mod error;
+pub mod input;
 pub mod kernel;
 pub mod nair;
 pub mod ownership;
@@ -19,6 +20,11 @@ pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use effect::{Effect, EffectSet};
 pub use error::{AtomicError, AtomicResult};
+pub use input::{
+    AtomicInputCore, InputAtomBridge, InputBatch, InputBridgeReport, InputDeviceId, InputError,
+    InputEvent, InputPayload, InputResult, InputSelector, InputSequence, InputSignal, InputSource,
+    InputTarget, PointerId,
+};
 pub use kernel::AtomicKernel;
 pub use nair::{
     execute_nair, execute_nair_with_render, AtomSlot, DomainRef, DomainSlot, Instruction,
