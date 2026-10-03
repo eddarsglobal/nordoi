@@ -5,7 +5,7 @@ fn identical_write_creates_zero_work() {
     let mut kernel = AtomicKernel::new();
     let counter = kernel.create_atom(10_i64);
 
-    assert_eq!(kernel.set(counter, 10_i64).unwrap(), false);
+    assert!(!kernel.set(counter, 10_i64).unwrap());
     assert_eq!(kernel.pending_work(), 0);
     assert_eq!(kernel.version(counter).unwrap(), 0);
 }
@@ -20,7 +20,7 @@ fn only_affected_atoms_are_scheduled() {
 
     kernel.connect(count, label).unwrap();
 
-    assert_eq!(kernel.set(count, 1_i64).unwrap(), true);
+    assert!(kernel.set(count, 1_i64).unwrap());
 
     let work = kernel.flush();
 

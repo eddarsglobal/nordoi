@@ -6,6 +6,7 @@ pub mod dependency;
 pub mod effect;
 pub mod error;
 pub mod kernel;
+pub mod nair;
 pub mod ownership;
 pub mod scheduler;
 pub mod transaction;
@@ -18,6 +19,11 @@ pub use capability::{Capability, CapabilitySet};
 pub use effect::{Effect, EffectSet};
 pub use error::{AtomicError, AtomicResult};
 pub use kernel::AtomicKernel;
+pub use nair::{
+    execute_nair, AtomSlot, DomainRef, DomainSlot, Instruction, NairError, NairExecutionReport,
+    NairProgram, NairResult, RegisterId, TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR,
+    NAIR_MAGIC,
+};
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;

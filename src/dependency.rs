@@ -15,10 +15,7 @@ impl DependencyGraph {
     }
 
     pub fn add_dependency(&mut self, source: AtomId, dependent: AtomId) {
-        self.dependents
-            .entry(source)
-            .or_default()
-            .insert(dependent);
+        self.dependents.entry(source).or_default().insert(dependent);
     }
 
     pub fn direct_dependents(&self, source: AtomId) -> impl Iterator<Item = AtomId> + '_ {

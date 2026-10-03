@@ -1,123 +1,56 @@
-# NORDOI Kernel K0.3
+# NORDOI K0.4 — NAIR Core
 
-**K0.3 — Atomic Transactions & Ownership Boundaries**
+K0.4 introduces the first executable version of **NAIR — NORDOI Atomic Intermediate Representation**.
 
-NORDOI K0.3 builds on the K0.2 effect/capability kernel and introduces the first executable ownership and transaction model for NAM.
-
-## New in K0.3
-
-- Explicit `DomainId` ownership domains.
-- Every atom has an owner.
-- Root-domain compatibility for K0.1/K0.2 code.
-- Domain-owned atom creation.
-- Explicit ownership transfer.
-- `AtomicTransaction` staging with zero mutation before commit.
-- Optimistic version conflict detection.
-- All-or-nothing validation before transaction mutation.
-- Rollback as zero-work.
-- Multiple writes to one atom collapse to one staged write.
-- Dependency invalidations are unioned and scheduled once.
-- GitHub Actions CI definition.
-- `LAW_0001_NORDOI_MASTER_LAW.md` added as a foundational law.
-
-## Transaction path
+NORDOI source syntax is deliberately not frozen yet. K0.4 establishes the machine-facing semantic bridge first.
 
 ```text
-begin(domain)
-   ↓
-stage writes
-   ↓
-ownership check
-   ↓
-version snapshot
-   ↓
-commit
-   ↓
-validate ALL writes first
-   ↓
-compute true change set
-   ↓
-compute dependency union
-   ↓
-apply state atomically
-   ↓
-schedule each affected atom once
+NORDOI / AI / Visual Frontend
+             ↓
+        Semantic Model
+             ↓
+          NAIR 0.1
+             ↓
+             NAM
 ```
 
-If validation fails before commit, staged writes do not partially leak into kernel state.
+## What K0.4 adds
 
-## Ownership rule
+- `NAIR` canonical binary magic and explicit format version `0.1`.
+- Deterministic zero-dependency binary encoding and decoding.
+- SSA-like single-assignment value registers.
+- Domain, atom and transaction slots.
+- Validate-before-execute semantics.
+- NAIR execution directly on the existing NORDOI Atomic Machine kernel.
+- Transaction commit/rollback preservation through NAIR.
+- Rejection of use-before-definition, duplicate identities, active transactions at HALT, immediate self-dependencies and non-finite floats.
+- Safe-by-omission privileged model: NAIR 0.1 cannot yet express network/filesystem/process/GPU/XR effects.
+
+## NAIR 0.1 instructions
 
 ```text
-atom -> exactly one ownership domain
+CONST
+CREATE_DOMAIN
+CREATE_ATOM
+CONNECT
+BEGIN_TX
+TX_SET
+COMMIT
+ROLLBACK
+HALT
 ```
 
-A domain cannot mutate another domain's atom through the normal K0.3 state APIs.
+## Test gate
 
-Ownership transfer is explicit:
-
-```rust
-kernel.transfer_atom(atom, current_owner, new_owner)?;
-```
-
-## Example
-
-```rust
-let wallet = kernel.create_domain("wallet")?;
-let balance = kernel.create_atom_owned(wallet, 100_i64)?;
-
-let mut tx = kernel.begin_transaction(wallet)?;
-tx.set(&kernel, balance, 75_i64)?;
-
-// still 100 here — transaction is not committed
-let report = kernel.commit(tx)?;
-// now 75
-```
-
-## Master Law
-
-See:
-
-```text
-laws/LAW_0001_NORDOI_MASTER_LAW.md
-```
-
-It includes the founder's performance declaration:
-
-> "NORDOI est le plus leger langage au monde et le plus vite dans l'univer"
-
-NORDOI treats this as a performance mission that must progressively be supported by reproducible measurements.
-
-## Tests
+Every version remains subject to the NORDOI Testing & Release Law:
 
 ```bash
+cargo check --all-targets
 cargo test --all-targets
 ```
 
-The provided CI workflow runs the test suite on GitHub.
+GitHub CI then repeats the tests on Linux, macOS and Windows.
 
-## Current kernel layers
+## Specification
 
-```text
-K0.1  Atoms + dependency graph + minimal scheduler
-K0.2  Typed effects + explicit capabilities
-K0.3  Atomic transactions + ownership domains
-```
-
-## Next development direction
-
-K0.4 should begin the first **NAIR core**, but only after the K0.3 ownership/transaction invariants pass CI. NAIR must encode these semantics instead of bypassing them.
-
-## Mandatory version test gate
-
-Every NORDOI version ends with automated tests. The next version begins only after the current version is green in GitHub Actions.
-
-Local gate:
-
-```bash
-./scripts/release_gate.sh
-```
-
-GitHub gate runs `cargo check --all-targets` and `cargo test --all-targets`, with tests on Linux, macOS and Windows.
-
-See `docs/TESTING_AND_RELEASE_LAW.md`.
+See `docs/NAIR_SPEC_0_1.md`.

@@ -43,11 +43,7 @@ impl ActionSpec {
         EffectGuard::new(self.effects.clone(), authority)
     }
 
-    pub fn validate_effect(
-        &self,
-        authority: CapabilitySet,
-        effect: &Effect,
-    ) -> AtomicResult<()> {
+    pub fn validate_effect(&self, authority: CapabilitySet, effect: &Effect) -> AtomicResult<()> {
         self.guard(authority).check(effect)
     }
 }

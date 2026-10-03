@@ -1,11 +1,7 @@
 use std::collections::BTreeMap;
 
 use crate::{
-    atom::AtomId,
-    error::AtomicResult,
-    kernel::AtomicKernel,
-    ownership::DomainId,
-    value::Value,
+    atom::AtomId, error::AtomicResult, kernel::AtomicKernel, ownership::DomainId, value::Value,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

@@ -61,3 +61,15 @@ Mutable state belongs to an explicit ownership domain. Mutation from another dom
 
 ## C20 — Testing & Release Law
 No NORDOI version is complete until its automated regression and invariant tests pass in the repository's GitHub CI test gate. A subsequent version must not be treated as started before the preceding version is green.
+
+## C21 — IR Before Surface Lock-In
+NORDOI must stabilize semantic invariants and NAIR contracts before freezing convenient surface syntax. Syntax serves semantics; semantics do not serve syntax.
+
+## C22 — Validate Before Execute
+Invalid NAIR must be rejected before it can mutate NAM state.
+
+## C23 — Safe By Omission
+A privileged operation that has not yet received a complete effect, authority, validation and execution contract must not be representable in canonical NAIR.
+
+## C24 — Canonical Machine Meaning
+The same valid NAIR program and initial NAM state must have one defined machine meaning. Canonical encoding must not depend on incidental map order, platform syntax or frontend origin.

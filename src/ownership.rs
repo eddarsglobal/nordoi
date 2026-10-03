@@ -59,9 +59,7 @@ impl OwnershipRegistry {
     }
 
     pub fn domain(&self, id: DomainId) -> AtomicResult<&OwnershipDomain> {
-        self.domains
-            .get(&id)
-            .ok_or(AtomicError::UnknownDomain(id))
+        self.domains.get(&id).ok_or(AtomicError::UnknownDomain(id))
     }
 
     pub fn assign(&mut self, atom: AtomId, owner: DomainId) -> AtomicResult<()> {
@@ -92,12 +90,7 @@ impl OwnershipRegistry {
         }
     }
 
-    pub fn transfer(
-        &mut self,
-        atom: AtomId,
-        from: DomainId,
-        to: DomainId,
-    ) -> AtomicResult<()> {
+    pub fn transfer(&mut self, atom: AtomId, from: DomainId, to: DomainId) -> AtomicResult<()> {
         if !self.domain_exists(to) {
             return Err(AtomicError::UnknownDomain(to));
         }
