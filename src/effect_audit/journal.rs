@@ -80,6 +80,16 @@ impl<S> GovernedAuditedEffectJournal<S> {
     pub fn in_doubt_attempt(&self) -> Option<&EffectInDoubtAttempt> {
         self.audit.in_doubt()
     }
+    pub fn capture_checkpoint(&self, outbox: &AtomicEffectOutbox) -> EffectAuditCheckpoint {
+        EffectAuditCheckpoint::capture(
+            self.namespace(),
+            self.policy(),
+            outbox,
+            self.retry.ledger(),
+            &self.audit,
+        )
+    }
+
     pub fn store(&self) -> &S {
         self.retry.store()
     }

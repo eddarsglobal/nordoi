@@ -1,6 +1,6 @@
 # NAIR 0.5 — Native Reaction Semantics
 
-Status: Certified by NORDOI K1.5; inherited unchanged by K1.6.
+Status: Certified by NORDOI K1.5; inherited unchanged through K1.11.
 
 NAIR 0.5 extends NAIR 0.4 with canonical reaction declarations that map directly to
 the certified K1.4 Atomic Reaction & Action Core. It does not redefine K1.4 reaction

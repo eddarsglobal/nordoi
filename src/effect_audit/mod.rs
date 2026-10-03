@@ -1,7 +1,7 @@
 mod error;
 mod event;
 mod format;
-mod hash;
+pub(crate) mod hash;
 mod id;
 mod journal;
 mod ledger;

@@ -1,176 +1,116 @@
-# NORDOI K1.10 — Durable Effect Attempt Audit & In-Doubt Recovery Protocol
+# NORDOI K1.11 — Signed Effect Audit Anchor & Trust Epoch Protocol
 
-K1.10 extends the certified K1.9 retry/dead-letter protocol with a durable, hash-chained record of
-external delivery attempts and an explicit recovery state for the crash window between remote I/O
-and durable outcome publication.
+K1.11 extends certified K1.10 audit/in-doubt recovery with a separate cryptographic attestation layer
+for durable effect-audit checkpoints.
 
-The governed path becomes:
+The governed trust path is:
 
 ```text
-canonical cause
-     ↓
-NAIR 0.5 native reaction
-     ↓
-validated EffectIntent
-     ↓
-AtomicEffectOutbox
-     ↓
-K1.9 retry/dead-letter state
-     ↓
-K1.10 AttemptPrepared durable commit
-     ↓
-external EffectBackend
-     ↓
-terminal audit + delivery-state candidate
-     ↓
-fenced durable commit
-     ↓
-local publication
+K1.10 durable NDEFXA01 checkpoint
+        ↓
+exact durable/live equality check
+        ↓
+canonical EffectAuditAttestationStatement
+        ↓
+host-injected EffectAttestationSigner
+        ↓
+NDEFXT01 signed anchor
+        ↓
+fenced EffectAttestationStore
+        ↓
+independent host verifier
 ```
 
-## What K1.10 adds
+## What K1.11 adds
 
-- `EffectAttemptId` monotonic attempt identity;
-- `EffectAuditSequence` monotonic audit ordering;
-- `EffectAuditHash` SHA-256 chain identity;
-- `EffectAuditEvent` / `EffectAuditRecord` append-only audit model;
-- `EffectInDoubtAttempt` as an explicit unresolved crash-window state;
-- `EffectAuditLedger` with deterministic hash chaining;
-- `EffectAuditCheckpoint` canonical format `NDEFXA01`;
-- migration from K1.9 `NDEFXR01` and K1.7/K1.8 `NDEFXJ01` checkpoints;
-- `GovernedAuditedEffectJournal` integrating K1.8 fencing and K1.9 retry policy;
-- prepare-before-I/O persistence;
-- explicit `assume delivered` resolution after external reconciliation;
-- explicit retry authorization for in-doubt delivery, preserving the original delivery key;
-- audited dead-letter redrive/discard;
-- no automatic redispatch while an attempt is in-doubt;
-- zero new Rust dependencies;
+- `EffectAttestationKeyId` opaque key identity;
+- `EffectAttestationAlgorithmId` replaceable algorithm/profile identity;
+- explicit non-zero `EffectTrustEpoch`;
+- canonical `EffectAuditAttestationStatement`;
+- opaque bounded `EffectAuditAttestation` signature envelope;
+- canonical anchor format `NDEFXT01` with SHA-256 envelope digest;
+- host-injected `EffectAttestationSigner` and `EffectAttestationVerifier`;
+- separate host-injected `EffectAttestationStore`;
+- `GovernedEffectAttestor` for signing and verifying durable K1.10 checkpoints;
+- fenced anchor commits under the active K1.8 lease;
+- monotonic audit-height/root checks;
+- trust-epoch rollback protection while the latest anchor is retained;
+- key/algorithm rotation only on explicit trust-epoch advance;
+- exact live-vs-durable checkpoint comparison before signing;
+- no new Rust dependency;
 - NAIR remains 0.5.
 
-## Why K1.10 exists
+## Why K1.11 exists
 
-K1.9 correctly persists retry/dead-letter state after a backend outcome, but no generic software
-stack can atomically commit one transaction across NORDOI's local journal and an arbitrary remote
-HTTP service, database, file system or process.
+K1.10 gives a SHA-256 hash chain and checkpoint digest, but explicitly does not identify who endorsed
+the root. If an attacker can replace both the checkpoint and its local hash root, hash consistency
+alone cannot authenticate the writer.
 
-The critical failure window is:
-
-```text
-remote side effect succeeds
-        ↓
-process crashes / durable commit fails
-        ↓
-local journal still sees the intent as pending
-```
-
-Blindly retrying that intent can duplicate the external effect. Pretending the operation completed
-can lose it. K1.10 therefore refuses to guess.
-
-## Prepare before external I/O
-
-Before calling an external backend, K1.10 commits an `AttemptPrepared` audit record containing:
+K1.11 signs a canonical statement that binds:
 
 ```text
-attempt ID
-full queued intent
-stable EffectDeliveryKey
-current EffectDeliveryFence
-explicit EffectRetryTick
-previous failed-attempt count
+namespace
+writer
+fence
+trust epoch
+key ID
+algorithm ID
+audit root
+audit record count
+complete K1.10 checkpoint hash
 ```
 
-Only after that commit succeeds may the backend run.
+The private key never enters the NORDOI core.
 
-If prepare persistence fails, backend execution is zero.
+## Separate anchor store
 
-## Terminal outcomes
+`NDEFXT01` does not replace `NDEFXA01`. K1.10 remains the delivery-recovery journal and K1.11 is an
+independent trust anchor. This means signing can be replicated to a secure database, HSM-backed
+service, transparency system or other provider without changing K1.10 recovery bytes.
 
-A successfully persisted attempt ends with exactly one terminal audit event:
+## Durable-state law
+
+The high-level `attest_current` path refuses to sign unless the live event-loop audit checkpoint is
+byte-equivalent to the checkpoint recoverable from the durable K1.10 journal. NORDOI therefore does
+not authenticate state that exists only in process memory.
+
+## Key rotation
+
+Trust rotation is explicit:
 
 ```text
-AttemptDelivered
-AttemptRetryScheduled
-AttemptDeadLettered
-InDoubtAssumedDelivered
-InDoubtRetryAuthorized
+same trust epoch  → same key ID + same algorithm ID
+higher trust epoch → key/algorithm rotation permitted
+lower trust epoch  → rejected
 ```
 
-If the backend runs but the terminal commit fails, `AttemptPrepared` remains the last durable event.
-That is an explicit in-doubt attempt.
+A writer takeover is not a key rotation. Writer ID and fencing token may change independently while
+trust epoch/key remain stable.
 
-## In-doubt recovery
+## Audit progression
 
-Recovery reconstructs the audit chain. If the final durable event is an unresolved
-`AttemptPrepared`, K1.10 exposes `EffectInDoubtAttempt` and blocks automatic dispatch.
+A retained anchor cannot be replaced by one with fewer audit records. At the same audit height, a
+different audit root is rejected as a fork. When the audit grows, the previously signed root must
+appear at the prior height in the new K1.10 chain. A different full checkpoint hash at the same audit
+height is allowed when the audit root is unchanged because new program cycles can change pending
+outbox state without creating a new external-attempt audit event.
 
-The host must choose one of two explicit operations after reconciliation:
+## Security boundary
 
-```text
-assume delivered
-    remove the pending intent without another backend call
+K1.11 does not claim that every signer is secure or that every anchor store is rollback-proof. The
+actual assurance depends on the injected signer, verifier, trust policy and storage backend.
+Hardware-backed keys, revocation, transparency inclusion, threshold signatures and build provenance
+remain future separable layers.
 
-retry authorized
-    keep the same pending intent and allow a later backend call
-    with the same EffectDeliveryKey
-```
+## Replay and NAIR
 
-Retry authorization is intentionally explicit because it may create a duplicate at a destination
-that does not honor idempotency.
+Attestation metadata is host trust metadata and never changes deterministic program replay identity.
 
-## Hash-chained audit
-
-Every record hashes:
-
-```text
-domain separator
-sequence
-previous record hash
-canonical event bytes
-```
-
-using SHA-256. The checkpoint itself is also SHA-256 protected.
-
-This makes accidental or unauthorized mutation detectable when the attacker cannot also replace the
-trusted checkpoint/root reference. It is not a digital signature and does not by itself prove who
-wrote a record. Signed attestations remain a separate future layer.
-
-## Ownership transfer
-
-`EffectDeliveryKey` and `EffectDeliveryFence` retain distinct meanings:
-
-```text
-EffectDeliveryKey   = stable semantic request identity
-EffectDeliveryFence = current writer epoch
-EffectAttemptId     = one durable delivery attempt
-```
-
-After takeover, an in-doubt intent can be explicitly authorized for retry. Its delivery key remains
-stable while the newly prepared attempt carries the newer fence.
-
-## Replay law
-
-Audit sequences, attempt IDs, receipt references, in-doubt state and audit hashes are delivery
-metadata. They do not change deterministic program replay identity.
-
-Recovered semantic pending outbox state continues to affect recovery replay identity under the
-certified K1.7 rule.
-
-## NAIR law
-
-**NAIR remains 0.5 in K1.10.**
-
-Attempt audit, receipt metadata and in-doubt resolution are runtime/host delivery protocol, not new
-program instructions or authority.
+**NAIR remains 0.5.**
 
 ## Tests
 
-K1.10 adds **22 audit/checkpoint/crash-window tests** on top of the **273 certified K1.9 tests**, for an expected suite of **295 tests**. The new
-corpus covers SHA-256 vectors, legacy checkpoint migration, canonical byte stability, tamper
-detection, prepare-before-backend ordering, delivered/retry/dead-letter audit sequences, deferred
-retry behavior, preflight failures, prepare-commit failure, terminal-commit ambiguity, automatic
-redispatch blocking, recovery of in-doubt state, explicit retry authorization, assumed-delivered
-resolution, takeover fence changes with stable delivery keys, audited redrive, audit preservation
-across later cycles and replay independence.
+K1.11 adds **28 attestation/trust-anchor tests** on top of the **295 certified K1.10 tests**, for an expected corpus of **323 tests**. The new coverage includes canonical envelope round-trips, tamper detection, signer/verifier failures, separate anchor storage, durable-state matching, trust-epoch rollback, key/algorithm rotation, audit rollback/fork/non-descendant history, stale fencing, takeover and replay independence.
 
 ## Certification
 
@@ -181,5 +121,5 @@ cargo fmt --all
 ./scripts/release_gate.sh
 ```
 
-K1.10 is certified only after the local release gate and cross-platform GitHub CI are fully green,
-followed by publication of the `k1.10` tag.
+K1.11 is certified only after the local release gate and cross-platform GitHub CI are fully green,
+followed by publication of the `k1.11` tag.

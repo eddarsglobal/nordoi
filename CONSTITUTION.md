@@ -931,3 +931,106 @@ backend.
 K1.10 adds delivery audit and crash-window recovery semantics rather than a new serialized program
 instruction. NAIR SHALL remain format 0.5. Attempt IDs, audit hashes, backend receipts and in-doubt
 resolution authority SHALL NOT be serialized as canonical NAIR program authority.
+
+## C173 — Audit Hashing And Writer Attestation Are Distinct Layers
+
+K1.10 hash chaining SHALL remain an integrity mechanism relative to a trusted root. K1.11
+attestation SHALL be a separate authentication layer and SHALL NOT redefine hash-chain semantics.
+
+## C174 — Signing Authority Is Host-Injected
+
+The canonical core SHALL NOT contain a default private signing key, ambient key lookup, mandatory
+cloud KMS, operating-system keychain dependency or serialized program signing authority. Signers and
+verifiers SHALL be explicit host-provided boundaries.
+
+## C175 — Attestation Binds Exact Durable Audit State
+
+A K1.11 signed statement SHALL bind namespace, writer identity, delivery fence, trust epoch, key ID,
+algorithm ID, K1.10 audit root, audit record count and a cryptographic hash of the complete K1.10
+canonical checkpoint.
+
+## C176 — Only Durable State May Be Attested By The Governed Live Surface
+
+Before signing current runtime state, K1.11 SHALL confirm that the live K1.10 checkpoint exactly
+matches the checkpoint recoverable from the governed durable journal. Missing or divergent durable
+state SHALL fail before signing.
+
+## C177 — Trust Epoch Is Explicit And Non-Zero
+
+Cryptographic trust generation SHALL be represented by an explicit non-zero `EffectTrustEpoch`.
+The core SHALL NOT derive trust generation from wall time, process start time, machine identity or
+ambient configuration.
+
+## C178 — Trust Epoch Shall Not Move Backward
+
+For a retained namespace anchor, a newly committed attestation SHALL NOT use a trust epoch lower
+than the previously retained attestation.
+
+## C179 — Key Or Algorithm Rotation Requires Epoch Advance
+
+Within one trust epoch, attestation key identity and algorithm identity SHALL remain stable. A key or
+algorithm change SHALL require an explicit greater trust epoch.
+
+## C180 — Writer Takeover Does Not Imply Cryptographic Rotation
+
+`EffectJournalWriterId`/`EffectDeliveryFence` ownership and attestation trust epoch/key identity are
+independent. A valid writer takeover MAY produce a newer fence while retaining the same trust epoch
+and signing key.
+
+## C181 — Attestation Anchors Are Fenced
+
+Committing an attestation anchor SHALL carry the active K1.8 lease. A conforming attestation store
+SHALL reject stale writers rather than allowing an obsolete process to publish a new trusted anchor.
+
+## C182 — Signed Audit Progression Is Monotonic
+
+A new retained anchor SHALL NOT attest fewer audit records than the prior anchor. At an equal audit
+record count, the audit root SHALL remain identical. When height increases, the previously attested
+root SHALL appear at the prior height in the current K1.10 chain. Divergence or non-descendant
+history SHALL fail closed.
+
+## C183 — Signature Verification Fails Closed
+
+A rejected signature, verifier backend error, malformed attestation, checkpoint mismatch or broken
+envelope integrity SHALL NOT be treated as authenticated state.
+
+## C184 — Signature Bytes Are Opaque And Bounded
+
+The core SHALL treat signature bytes as opaque host output subject to explicit size bounds. K1.11
+SHALL NOT infer cryptographic strength from signature length or algorithm naming alone.
+
+## C185 — Attestation Storage Is Separate From The K1.10 Journal
+
+K1.11 anchors SHALL NOT replace or mutate the canonical `NDEFXA01` journal format. Effect delivery
+recovery remains governed by K1.10; authentication anchors remain a separate host-replaceable
+storage concern.
+
+## C186 — Unattested State Is Not Silently Authenticated
+
+The absence of a K1.11 anchor SHALL be represented as absence, not as successful verification.
+Legacy K1.10 state MAY remain usable under explicit host policy but SHALL NOT be described as signed
+or authenticated by K1.11.
+
+## C187 — Attestation Does Not Prove Universal Non-Repudiation
+
+K1.11 proves only what the configured signer, verifier, trust policy and anchor store actually
+guarantee. It SHALL NOT claim hardware-backed identity, revocation freshness, transparency inclusion,
+rollback-proof storage or legal non-repudiation without those mechanisms being separately present
+and certified.
+
+## C188 — Trust Metadata Is Not Program Replay Meaning
+
+Key IDs, algorithm IDs, trust epochs, signatures and attestation-store state SHALL NOT alter
+deterministic program replay identity.
+
+## C189 — Attestation Backends Remain Replaceable
+
+The canonical K1.11 interfaces SHALL permit software keys, hardware security modules, platform secure
+enclaves, remote KMS systems, threshold signers and future cryptographic schemes without changing
+canonical program semantics.
+
+## C190 — K1.11 Does Not Increment NAIR Without New Program Semantics
+
+K1.11 adds host trust and audit authentication semantics rather than a serialized program
+instruction. NAIR SHALL remain format 0.5. Signing keys, trust epochs, signatures and verifier policy
+SHALL NOT be serialized as canonical NAIR program authority.

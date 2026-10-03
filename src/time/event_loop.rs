@@ -2,7 +2,15 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     effect::Effect,
-    effect_audit::{EffectAuditDispatchOutcome, EffectAuditResult, GovernedAuditedEffectJournal},
+    effect_attestation::{
+        EffectAttestationCommitReceipt, EffectAttestationResult, EffectAttestationSigner,
+        EffectAttestationStore, EffectAttestationVerifier, EffectAuditAttestation,
+        GovernedEffectAttestor,
+    },
+    effect_audit::{
+        EffectAuditCheckpoint, EffectAuditDispatchOutcome, EffectAuditResult,
+        GovernedAuditedEffectJournal,
+    },
     effect_dispatch::{
         AtomicEffectOutbox, EffectBackend, EffectDeliveryNamespace, EffectDispatchReceipt,
         EffectDispatchResult, EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher,
@@ -359,6 +367,39 @@ impl AtomicEventLoop {
             checkpoint.audit().clone(),
         );
         Ok(true)
+    }
+
+    pub fn current_effect_audit_checkpoint<S>(
+        &self,
+        journal: &GovernedAuditedEffectJournal<S>,
+    ) -> EffectAuditCheckpoint {
+        journal.capture_checkpoint(&self.effect_outbox)
+    }
+
+    pub fn attest_current_effect_audit<
+        J: FencedEffectJournalStore,
+        A: EffectAttestationStore,
+        SIGN: EffectAttestationSigner,
+    >(
+        &self,
+        journal: &mut GovernedAuditedEffectJournal<J>,
+        attestor: &mut GovernedEffectAttestor<A>,
+        signer: &mut SIGN,
+    ) -> EffectAttestationResult<(EffectAuditAttestation, EffectAttestationCommitReceipt)> {
+        attestor.attest_current(journal, &self.effect_outbox, signer)
+    }
+
+    pub fn verify_current_effect_audit_attestation<
+        J: FencedEffectJournalStore,
+        A: EffectAttestationStore,
+        V: EffectAttestationVerifier,
+    >(
+        &self,
+        journal: &mut GovernedAuditedEffectJournal<J>,
+        attestor: &mut GovernedEffectAttestor<A>,
+        verifier: &V,
+    ) -> EffectAttestationResult<Option<EffectAuditAttestation>> {
+        attestor.verify_current(journal, &self.effect_outbox, verifier)
     }
 
     pub fn dispatch_next_effect_with_audited_journal<

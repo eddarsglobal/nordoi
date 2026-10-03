@@ -4,6 +4,7 @@ pub mod authority;
 pub mod capability;
 pub mod dependency;
 pub mod effect;
+pub mod effect_attestation;
 pub mod effect_audit;
 pub mod effect_dispatch;
 pub mod effect_fencing;
@@ -27,6 +28,14 @@ pub use atom::{Atom, AtomId};
 pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use effect::{Effect, EffectSet};
+pub use effect_attestation::{
+    EffectAttestationAlgorithmId, EffectAttestationBackendError, EffectAttestationCommitReceipt,
+    EffectAttestationError, EffectAttestationKeyId, EffectAttestationResult,
+    EffectAttestationSigner, EffectAttestationStore, EffectAttestationStoreError,
+    EffectAttestationVerifier, EffectAuditAttestation, EffectAuditAttestationStatement,
+    EffectTrustEpoch, GovernedEffectAttestor, MAX_EFFECT_ATTESTATION_BYTES,
+    MAX_EFFECT_ATTESTATION_SIGNATURE_BYTES,
+};
 pub use effect_audit::{
     EffectAttemptId, EffectAuditCheckpoint, EffectAuditDispatchOutcome, EffectAuditError,
     EffectAuditEvent, EffectAuditHash, EffectAuditLedger, EffectAuditRecord, EffectAuditResult,

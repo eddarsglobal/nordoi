@@ -1,6 +1,6 @@
 # NORDOI Effect Attempt Audit & In-Doubt Recovery Specification 1.0
 
-Status: K1.10 candidate specification.
+Status: Certified by NORDOI K1.10; inherited unchanged by K1.11.
 
 ## 1. Scope
 
