@@ -1,14 +1,24 @@
 use crate::{
+    input::{InputDeviceId, InputSignal, InputSource},
     render::{DirtyMask, RenderPrimitive, RenderSpace},
     value::Value,
 };
 
-use super::id::{AtomSlot, DomainSlot, RegisterId, RenderNodeSlot, TransactionSlot};
+use super::id::{
+    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DomainRef {
     Root,
     Slot(DomainSlot),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InputTargetRef {
+    Any,
+    Global,
+    RenderNode(RenderNodeSlot),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -74,6 +84,21 @@ pub enum Instruction {
         position: [f32; 3],
     },
     RenderFlush,
+    CreateInputBridge {
+        dst: InputBridgeSlot,
+        domain: DomainRef,
+    },
+    BindInputAtom {
+        bridge: InputBridgeSlot,
+        atom: AtomSlot,
+        source: Option<InputSource>,
+        device: Option<InputDeviceId>,
+        target: InputTargetRef,
+        signal: InputSignal,
+    },
+    ApplyInput {
+        bridge: InputBridgeSlot,
+    },
     Halt,
 }
 
@@ -88,6 +113,13 @@ impl Instruction {
                 | Self::SetRenderOpacity { .. }
                 | Self::SetRenderPosition { .. }
                 | Self::RenderFlush
+        )
+    }
+
+    pub const fn requires_input_context(&self) -> bool {
+        matches!(
+            self,
+            Self::CreateInputBridge { .. } | Self::BindInputAtom { .. } | Self::ApplyInput { .. }
         )
     }
 }

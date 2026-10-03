@@ -1,9 +1,11 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use crate::{error::AtomicError, render::RenderError};
+use crate::{error::AtomicError, input::InputError, render::RenderError};
 
-use super::id::{AtomSlot, DomainSlot, RegisterId, RenderNodeSlot, TransactionSlot};
+use super::id::{
+    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot,
+};
 
 #[derive(Debug, PartialEq)]
 pub enum NairError {
@@ -24,6 +26,9 @@ pub enum NairError {
     InvalidRenderOpacity(f32),
     NonFiniteRenderPosition(RenderNodeSlot),
     RenderContextRequired,
+    DuplicateInputBridgeSlot(InputBridgeSlot),
+    UnknownInputBridgeSlot(InputBridgeSlot),
+    InputContextRequired,
     MissingHalt,
     InstructionAfterHalt { index: usize },
     NonFiniteFloat(RegisterId),
@@ -37,11 +42,16 @@ pub enum NairError {
     InvalidRenderSpaceTag(u8),
     InvalidDirtyMask(u8),
     InvalidBoolTag(u8),
+    InvalidOptionTag(u8),
+    InvalidInputSourceTag(u8),
+    InvalidInputTargetTag(u8),
+    InvalidInputSignalTag(u8),
     InvalidUtf8,
     TrailingBytes(usize),
     LengthOverflow,
     Kernel(AtomicError),
     Render(RenderError),
+    Input(InputError),
 }
 
 impl Display for NairError {
@@ -96,6 +106,16 @@ impl Display for NairError {
                 f,
                 "NAIR program contains render instructions but no render context was provided"
             ),
+            Self::DuplicateInputBridgeSlot(id) => {
+                write!(f, "NAIR input bridge slot {id:?} is defined more than once")
+            }
+            Self::UnknownInputBridgeSlot(id) => {
+                write!(f, "NAIR input bridge slot {id:?} is used before definition")
+            }
+            Self::InputContextRequired => write!(
+                f,
+                "NAIR program contains input instructions but no input batch was provided"
+            ),
             Self::MissingHalt => write!(f, "NAIR program must end with HALT"),
             Self::InstructionAfterHalt { index } => {
                 write!(f, "NAIR instruction at index {index} appears after HALT")
@@ -123,6 +143,16 @@ impl Display for NairError {
                 write!(f, "invalid NAIR render dirty mask 0x{bits:02x}")
             }
             Self::InvalidBoolTag(tag) => write!(f, "invalid NAIR boolean tag 0x{tag:02x}"),
+            Self::InvalidOptionTag(tag) => write!(f, "invalid NAIR option tag 0x{tag:02x}"),
+            Self::InvalidInputSourceTag(tag) => {
+                write!(f, "invalid NAIR input source tag 0x{tag:02x}")
+            }
+            Self::InvalidInputTargetTag(tag) => {
+                write!(f, "invalid NAIR input target tag 0x{tag:02x}")
+            }
+            Self::InvalidInputSignalTag(tag) => {
+                write!(f, "invalid NAIR input signal tag 0x{tag:02x}")
+            }
             Self::InvalidUtf8 => write!(f, "invalid UTF-8 in NAIR binary"),
             Self::TrailingBytes(count) => {
                 write!(f, "NAIR binary contains {count} trailing byte(s)")
@@ -130,6 +160,7 @@ impl Display for NairError {
             Self::LengthOverflow => write!(f, "NAIR value is too large for canonical encoding"),
             Self::Kernel(err) => write!(f, "NAM rejected NAIR execution: {err}"),
             Self::Render(err) => write!(f, "Atomic Render Core rejected NAIR execution: {err}"),
+            Self::Input(err) => write!(f, "Atomic Input Core rejected NAIR execution: {err}"),
         }
     }
 }
@@ -139,6 +170,7 @@ impl Error for NairError {
         match self {
             Self::Kernel(err) => Some(err),
             Self::Render(err) => Some(err),
+            Self::Input(err) => Some(err),
             _ => None,
         }
     }
@@ -153,6 +185,12 @@ impl From<AtomicError> for NairError {
 impl From<RenderError> for NairError {
     fn from(value: RenderError) -> Self {
         Self::Render(value)
+    }
+}
+
+impl From<InputError> for NairError {
+    fn from(value: InputError) -> Self {
+        Self::Input(value)
     }
 }
 

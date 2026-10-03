@@ -160,3 +160,38 @@ contracts.
 
 An input batch with no matching semantic binding, or whose resulting values equal
 current NAM state, SHALL create no new downstream NAM work.
+
+## C44 — Native Interaction Meaning in NAIR
+
+Backend-independent interaction bindings MAY be canonical NAIR semantics. Raw
+hardware and operating-system acquisition APIs SHALL remain outside canonical NAIR
+until governed by explicit effect and capability contracts.
+
+## C45 — Explicit Input Context
+
+A NAIR program containing input operations SHALL NOT execute through a path that
+was not given an explicit normalized input context. Missing input context MUST be
+rejected before program execution begins.
+
+## C46 — Input Bridge Slots Are Semantic Identities
+
+A NAIR `InputBridgeSlot` SHALL be single assignment, SHALL exist before use and
+SHALL resolve only to a bridge created by the exact validated execution.
+
+## C47 — Explicit Atomic Input Boundary
+
+`APPLY_INPUT` SHALL define an explicit deterministic input-to-state boundary. All
+matching state projections for one bridge application SHALL use one atomic NAM
+transaction in that bridge's ownership domain.
+
+## C48 — Render Targets Use Canonical Slot Identity
+
+A native input selector targeting rendered content SHALL reference a NAIR
+`RenderNodeSlot`, never a serialized backend/runtime render identifier. Resolution
+SHALL occur only through the current execution's validated render binding map.
+
+## C49 — Interaction Policy Is Not Device Authority
+
+Declaring an input binding expresses semantic routing intent only. It SHALL NOT
+confer permission to poll devices, install global hooks, capture privileged input
+or bypass host/platform authorization.

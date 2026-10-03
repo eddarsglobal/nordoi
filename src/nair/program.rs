@@ -1,19 +1,20 @@
 use std::collections::BTreeSet;
 
 use crate::{
+    input::{InputDeviceId, InputSignal, InputSource},
     render::{DirtyMask, RenderPrimitive, RenderSpace},
     value::Value,
 };
 
 use super::{
     error::{NairError, NairResult},
-    id::{AtomSlot, DomainSlot, RegisterId, RenderNodeSlot, TransactionSlot},
-    instruction::{DomainRef, Instruction},
+    id::{AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot},
+    instruction::{DomainRef, InputTargetRef, Instruction},
 };
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
-pub const NAIR_FORMAT_MINOR: u16 = 2;
+pub const NAIR_FORMAT_MINOR: u16 = 3;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -53,6 +54,7 @@ impl NairProgram {
         let mut transaction_slots = BTreeSet::new();
         let mut active_transactions = BTreeSet::new();
         let mut render_nodes = BTreeSet::new();
+        let mut input_bridges = BTreeSet::new();
         let mut halt_seen = false;
 
         for (index, instruction) in self.instructions.iter().enumerate() {
@@ -141,6 +143,27 @@ impl NairProgram {
                     }
                 }
                 Instruction::RenderFlush => {}
+                Instruction::CreateInputBridge { dst, domain } => {
+                    validate_domain_ref(*domain, &domains)?;
+                    if !input_bridges.insert(*dst) {
+                        return Err(NairError::DuplicateInputBridgeSlot(*dst));
+                    }
+                }
+                Instruction::BindInputAtom {
+                    bridge,
+                    atom,
+                    target,
+                    ..
+                } => {
+                    require_input_bridge(*bridge, &input_bridges)?;
+                    require_atom(*atom, &atoms)?;
+                    if let InputTargetRef::RenderNode(node) = target {
+                        require_render_node(*node, &render_nodes)?;
+                    }
+                }
+                Instruction::ApplyInput { bridge } => {
+                    require_input_bridge(*bridge, &input_bridges)?;
+                }
                 Instruction::Halt => {
                     halt_seen = true;
                 }
@@ -251,6 +274,17 @@ fn require_active_transaction(
     }
 }
 
+fn require_input_bridge(
+    id: InputBridgeSlot,
+    bridges: &BTreeSet<InputBridgeSlot>,
+) -> NairResult<()> {
+    if bridges.contains(&id) {
+        Ok(())
+    } else {
+        Err(NairError::UnknownInputBridgeSlot(id))
+    }
+}
+
 fn write_u16(out: &mut Vec<u8>, value: u16) {
     out.extend_from_slice(&value.to_le_bytes());
 }
@@ -331,6 +365,75 @@ fn encode_render_space(out: &mut Vec<u8>, space: RenderSpace) {
         RenderSpace::Screen => 0x00,
         RenderSpace::World => 0x01,
     });
+}
+
+fn encode_input_source(out: &mut Vec<u8>, source: InputSource) {
+    out.push(match source {
+        InputSource::Keyboard => 0x00,
+        InputSource::Mouse => 0x01,
+        InputSource::Touch => 0x02,
+        InputSource::Pen => 0x03,
+        InputSource::Gamepad => 0x04,
+        InputSource::XrController => 0x05,
+        InputSource::XrHand => 0x06,
+    });
+}
+
+fn encode_optional_input_source(out: &mut Vec<u8>, source: Option<InputSource>) {
+    match source {
+        None => out.push(0x00),
+        Some(source) => {
+            out.push(0x01);
+            encode_input_source(out, source);
+        }
+    }
+}
+
+fn encode_optional_device(out: &mut Vec<u8>, device: Option<InputDeviceId>) {
+    match device {
+        None => out.push(0x00),
+        Some(device) => {
+            out.push(0x01);
+            write_u64(out, device.0);
+        }
+    }
+}
+
+fn encode_input_target(out: &mut Vec<u8>, target: InputTargetRef) {
+    match target {
+        InputTargetRef::Any => out.push(0x00),
+        InputTargetRef::Global => out.push(0x01),
+        InputTargetRef::RenderNode(node) => {
+            out.push(0x02);
+            write_u32(out, node.0);
+        }
+    }
+}
+
+fn encode_input_signal(out: &mut Vec<u8>, signal: InputSignal) {
+    match signal {
+        InputSignal::KeyPressed { code } => {
+            out.push(0x00);
+            write_u32(out, code);
+        }
+        InputSignal::PointerX => out.push(0x01),
+        InputSignal::PointerY => out.push(0x02),
+        InputSignal::PointerButtonPressed { button } => {
+            out.push(0x03);
+            write_u16(out, button);
+        }
+        InputSignal::ButtonPressed { button } => {
+            out.push(0x04);
+            write_u16(out, button);
+        }
+        InputSignal::Axis { axis } => {
+            out.push(0x05);
+            write_u16(out, axis);
+        }
+        InputSignal::PoseX => out.push(0x06),
+        InputSignal::PoseY => out.push(0x07),
+        InputSignal::PoseZ => out.push(0x08),
+    }
 }
 
 fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResult<()> {
@@ -421,6 +524,31 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             }
         }
         Instruction::RenderFlush => out.push(0x36),
+        Instruction::CreateInputBridge { dst, domain } => {
+            out.push(0x40);
+            write_u32(out, dst.0);
+            encode_domain_ref(out, *domain);
+        }
+        Instruction::BindInputAtom {
+            bridge,
+            atom,
+            source,
+            device,
+            target,
+            signal,
+        } => {
+            out.push(0x41);
+            write_u32(out, bridge.0);
+            write_u32(out, atom.0);
+            encode_optional_input_source(out, *source);
+            encode_optional_device(out, *device);
+            encode_input_target(out, *target);
+            encode_input_signal(out, *signal);
+        }
+        Instruction::ApplyInput { bridge } => {
+            out.push(0x42);
+            write_u32(out, bridge.0);
+        }
         Instruction::Halt => out.push(0xff),
     }
     Ok(())
@@ -497,6 +625,21 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
             position: [input.read_f32()?, input.read_f32()?, input.read_f32()?],
         }),
         0x36 if minor >= 2 => Ok(Instruction::RenderFlush),
+        0x40 if minor >= 3 => Ok(Instruction::CreateInputBridge {
+            dst: InputBridgeSlot(input.read_u32()?),
+            domain: decode_domain_ref(input)?,
+        }),
+        0x41 if minor >= 3 => Ok(Instruction::BindInputAtom {
+            bridge: InputBridgeSlot(input.read_u32()?),
+            atom: AtomSlot(input.read_u32()?),
+            source: decode_optional_input_source(input)?,
+            device: decode_optional_device(input)?,
+            target: decode_input_target(input)?,
+            signal: decode_input_signal(input)?,
+        }),
+        0x42 if minor >= 3 => Ok(Instruction::ApplyInput {
+            bridge: InputBridgeSlot(input.read_u32()?),
+        }),
         0xff => Ok(Instruction::Halt),
         other => Err(NairError::InvalidOpcode(other)),
     }
@@ -537,6 +680,69 @@ fn decode_render_space(input: &mut Decoder<'_>) -> NairResult<RenderSpace> {
         0x00 => Ok(RenderSpace::Screen),
         0x01 => Ok(RenderSpace::World),
         other => Err(NairError::InvalidRenderSpaceTag(other)),
+    }
+}
+
+fn decode_input_source(input: &mut Decoder<'_>) -> NairResult<InputSource> {
+    match input.read_u8()? {
+        0x00 => Ok(InputSource::Keyboard),
+        0x01 => Ok(InputSource::Mouse),
+        0x02 => Ok(InputSource::Touch),
+        0x03 => Ok(InputSource::Pen),
+        0x04 => Ok(InputSource::Gamepad),
+        0x05 => Ok(InputSource::XrController),
+        0x06 => Ok(InputSource::XrHand),
+        other => Err(NairError::InvalidInputSourceTag(other)),
+    }
+}
+
+fn decode_optional_input_source(input: &mut Decoder<'_>) -> NairResult<Option<InputSource>> {
+    match input.read_u8()? {
+        0x00 => Ok(None),
+        0x01 => Ok(Some(decode_input_source(input)?)),
+        other => Err(NairError::InvalidOptionTag(other)),
+    }
+}
+
+fn decode_optional_device(input: &mut Decoder<'_>) -> NairResult<Option<InputDeviceId>> {
+    match input.read_u8()? {
+        0x00 => Ok(None),
+        0x01 => Ok(Some(InputDeviceId(input.read_u64()?))),
+        other => Err(NairError::InvalidOptionTag(other)),
+    }
+}
+
+fn decode_input_target(input: &mut Decoder<'_>) -> NairResult<InputTargetRef> {
+    match input.read_u8()? {
+        0x00 => Ok(InputTargetRef::Any),
+        0x01 => Ok(InputTargetRef::Global),
+        0x02 => Ok(InputTargetRef::RenderNode(RenderNodeSlot(
+            input.read_u32()?,
+        ))),
+        other => Err(NairError::InvalidInputTargetTag(other)),
+    }
+}
+
+fn decode_input_signal(input: &mut Decoder<'_>) -> NairResult<InputSignal> {
+    match input.read_u8()? {
+        0x00 => Ok(InputSignal::KeyPressed {
+            code: input.read_u32()?,
+        }),
+        0x01 => Ok(InputSignal::PointerX),
+        0x02 => Ok(InputSignal::PointerY),
+        0x03 => Ok(InputSignal::PointerButtonPressed {
+            button: input.read_u16()?,
+        }),
+        0x04 => Ok(InputSignal::ButtonPressed {
+            button: input.read_u16()?,
+        }),
+        0x05 => Ok(InputSignal::Axis {
+            axis: input.read_u16()?,
+        }),
+        0x06 => Ok(InputSignal::PoseX),
+        0x07 => Ok(InputSignal::PoseY),
+        0x08 => Ok(InputSignal::PoseZ),
+        other => Err(NairError::InvalidInputSignalTag(other)),
     }
 }
 

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     atom::AtomId,
+    input::{InputAtomBridge, InputBatch, InputBridgeReport, InputSelector, InputTarget},
     kernel::AtomicKernel,
     ownership::DomainId,
     render::{AtomicRenderCore, NairRenderFrame, RenderNodeId},
@@ -11,8 +12,8 @@ use crate::{
 
 use super::{
     error::{NairError, NairResult},
-    id::{AtomSlot, DomainSlot, RegisterId, RenderNodeSlot, TransactionSlot},
-    instruction::{DomainRef, Instruction},
+    id::{AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot},
+    instruction::{DomainRef, InputTargetRef, Instruction},
     program::NairProgram,
 };
 
@@ -46,10 +47,38 @@ impl NairRenderExecutionReport {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NairInputExecutionReport {
+    pub execution: NairExecutionReport,
+    pub created_input_bridges: usize,
+    pub input_applications: Vec<InputBridgeReport>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NairInteractiveExecutionReport {
+    pub execution: NairExecutionReport,
+    pub render_bindings: BTreeMap<RenderNodeSlot, RenderNodeId>,
+    pub frames: Vec<NairRenderFrame>,
+    pub created_input_bridges: usize,
+    pub input_applications: Vec<InputBridgeReport>,
+}
+
+impl NairInteractiveExecutionReport {
+    pub fn created_render_nodes(&self) -> usize {
+        self.render_bindings.len()
+    }
+
+    pub fn last_frame(&self) -> Option<&NairRenderFrame> {
+        self.frames.last()
+    }
+}
+
 struct ExecutionOutcome {
     execution: NairExecutionReport,
     render_bindings: BTreeMap<RenderNodeSlot, RenderNodeId>,
     frames: Vec<NairRenderFrame>,
+    created_input_bridges: usize,
+    input_applications: Vec<InputBridgeReport>,
 }
 
 pub fn execute_nair(
@@ -57,16 +86,8 @@ pub fn execute_nair(
     program: &NairProgram,
 ) -> NairResult<NairExecutionReport> {
     program.validate()?;
-
-    if program
-        .instructions()
-        .iter()
-        .any(Instruction::requires_render_context)
-    {
-        return Err(NairError::RenderContextRequired);
-    }
-
-    Ok(execute_internal(kernel, None, program)?.execution)
+    reject_missing_contexts(program, false, false)?;
+    Ok(execute_internal(kernel, None, None, program)?.execution)
 }
 
 pub fn execute_nair_with_render(
@@ -75,7 +96,8 @@ pub fn execute_nair_with_render(
     program: &NairProgram,
 ) -> NairResult<NairRenderExecutionReport> {
     program.validate()?;
-    let outcome = execute_internal(kernel, Some(render), program)?;
+    reject_missing_contexts(program, true, false)?;
+    let outcome = execute_internal(kernel, Some(render), None, program)?;
 
     Ok(NairRenderExecutionReport {
         execution: outcome.execution,
@@ -84,9 +106,70 @@ pub fn execute_nair_with_render(
     })
 }
 
+pub fn execute_nair_with_input(
+    kernel: &mut AtomicKernel,
+    input_batch: &InputBatch,
+    program: &NairProgram,
+) -> NairResult<NairInputExecutionReport> {
+    program.validate()?;
+    reject_missing_contexts(program, false, true)?;
+    let outcome = execute_internal(kernel, None, Some(input_batch), program)?;
+
+    Ok(NairInputExecutionReport {
+        execution: outcome.execution,
+        created_input_bridges: outcome.created_input_bridges,
+        input_applications: outcome.input_applications,
+    })
+}
+
+pub fn execute_nair_with_render_and_input(
+    kernel: &mut AtomicKernel,
+    render: &mut AtomicRenderCore,
+    input_batch: &InputBatch,
+    program: &NairProgram,
+) -> NairResult<NairInteractiveExecutionReport> {
+    program.validate()?;
+    let outcome = execute_internal(kernel, Some(render), Some(input_batch), program)?;
+
+    Ok(NairInteractiveExecutionReport {
+        execution: outcome.execution,
+        render_bindings: outcome.render_bindings,
+        frames: outcome.frames,
+        created_input_bridges: outcome.created_input_bridges,
+        input_applications: outcome.input_applications,
+    })
+}
+
+fn reject_missing_contexts(
+    program: &NairProgram,
+    has_render: bool,
+    has_input: bool,
+) -> NairResult<()> {
+    if !has_render
+        && program
+            .instructions()
+            .iter()
+            .any(Instruction::requires_render_context)
+    {
+        return Err(NairError::RenderContextRequired);
+    }
+
+    if !has_input
+        && program
+            .instructions()
+            .iter()
+            .any(Instruction::requires_input_context)
+    {
+        return Err(NairError::InputContextRequired);
+    }
+
+    Ok(())
+}
+
 fn execute_internal(
     kernel: &mut AtomicKernel,
     mut render: Option<&mut AtomicRenderCore>,
+    input_batch: Option<&InputBatch>,
     program: &NairProgram,
 ) -> NairResult<ExecutionOutcome> {
     let mut registers: BTreeMap<RegisterId, Value> = BTreeMap::new();
@@ -94,7 +177,9 @@ fn execute_internal(
     let mut atoms: BTreeMap<AtomSlot, AtomId> = BTreeMap::new();
     let mut transactions: BTreeMap<TransactionSlot, AtomicTransaction> = BTreeMap::new();
     let mut render_nodes: BTreeMap<RenderNodeSlot, RenderNodeId> = BTreeMap::new();
+    let mut input_bridges: BTreeMap<InputBridgeSlot, InputAtomBridge> = BTreeMap::new();
     let mut frames = Vec::new();
+    let mut input_applications = Vec::new();
     let mut transaction_reports = Vec::new();
     let mut committed_transactions = 0usize;
     let mut rolled_back_transactions = 0usize;
@@ -229,6 +314,41 @@ fn execute_internal(
                     .ok_or(NairError::RenderContextRequired)?;
                 frames.push(pump_render(kernel, render)?);
             }
+            Instruction::CreateInputBridge { dst, domain } => {
+                let domain = resolve_domain(kernel, *domain, &domains)?;
+                input_bridges.insert(*dst, InputAtomBridge::new(domain));
+            }
+            Instruction::BindInputAtom {
+                bridge,
+                atom,
+                source,
+                device,
+                target,
+                signal,
+            } => {
+                let atom = *atoms.get(atom).ok_or(NairError::UnknownAtomSlot(*atom))?;
+                let target = resolve_input_target(*target, &render_nodes)?;
+                let bridge = input_bridges
+                    .get_mut(bridge)
+                    .ok_or(NairError::UnknownInputBridgeSlot(*bridge))?;
+                bridge.bind(
+                    kernel,
+                    InputSelector {
+                        source: *source,
+                        device: *device,
+                        target,
+                        signal: *signal,
+                    },
+                    atom,
+                )?;
+            }
+            Instruction::ApplyInput { bridge } => {
+                let batch = input_batch.ok_or(NairError::InputContextRequired)?;
+                let bridge = input_bridges
+                    .get(bridge)
+                    .ok_or(NairError::UnknownInputBridgeSlot(*bridge))?;
+                input_applications.push(bridge.apply_batch(kernel, batch)?);
+            }
             Instruction::Halt => {
                 if let Some(render) = render.as_deref_mut() {
                     if kernel.pending_work() > 0 || render.pending_nodes() > 0 {
@@ -254,6 +374,8 @@ fn execute_internal(
         },
         render_bindings: render_nodes,
         frames,
+        created_input_bridges: input_bridges.len(),
+        input_applications,
     })
 }
 
@@ -283,5 +405,21 @@ fn resolve_domain(
             .get(&slot)
             .copied()
             .ok_or(NairError::UnknownDomainSlot(slot)),
+    }
+}
+
+fn resolve_input_target(
+    target: InputTargetRef,
+    render_nodes: &BTreeMap<RenderNodeSlot, RenderNodeId>,
+) -> NairResult<Option<InputTarget>> {
+    match target {
+        InputTargetRef::Any => Ok(None),
+        InputTargetRef::Global => Ok(Some(InputTarget::Global)),
+        InputTargetRef::RenderNode(slot) => render_nodes
+            .get(&slot)
+            .copied()
+            .map(InputTarget::RenderNode)
+            .map(Some)
+            .ok_or(NairError::UnknownRenderNodeSlot(slot)),
     }
 }

@@ -27,8 +27,10 @@ pub use input::{
 };
 pub use kernel::AtomicKernel;
 pub use nair::{
-    execute_nair, execute_nair_with_render, AtomSlot, DomainRef, DomainSlot, Instruction,
-    NairError, NairExecutionReport, NairProgram, NairRenderExecutionReport, NairResult, RegisterId,
+    execute_nair, execute_nair_with_input, execute_nair_with_render,
+    execute_nair_with_render_and_input, AtomSlot, DomainRef, DomainSlot, InputBridgeSlot,
+    InputTargetRef, Instruction, NairError, NairExecutionReport, NairInputExecutionReport,
+    NairInteractiveExecutionReport, NairProgram, NairRenderExecutionReport, NairResult, RegisterId,
     RenderNodeSlot, TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC,
     NAIR_MIN_SUPPORTED_MINOR,
 };
