@@ -390,3 +390,49 @@ be smuggled under an older declared binary contract.
 Canonical native timer declarations and cancellations SHALL contribute to the event
 loop's deterministic replay identity. Equal canonical programs and equal accepted
 logical traces SHALL remain replay-equivalent.
+
+## C83 — Semantic Causes Before Reactions
+
+The canonical Reaction Core SHALL consume only governed semantic causes. Raw device
+polling, wall-clock observation and backend callbacks SHALL NOT define reaction
+meaning directly.
+
+## C84 — Deterministic Reaction Order
+
+For one canonical cause trace, matching reactions SHALL execute in a deterministic
+stable order. Hash-map iteration, platform callback order and host thread scheduling
+SHALL NOT determine NORDOI reaction meaning.
+
+## C85 — Atomic Reaction-Batch Publication
+
+A governed reaction activation SHALL publish its resulting NAM candidate only after
+the complete activation succeeds. Failure of a later reaction SHALL NOT expose state
+mutated only by an earlier candidate reaction from that activation.
+
+## C86 — Reaction Writes Respect Ownership
+
+A reaction SHALL NOT mutate an atom outside its declared ownership domain. Ownership
+MUST be validated before the reaction's state is published.
+
+## C87 — Reaction Effects Require Declaration And Authority
+
+A reaction MAY request an effect only when its action declared that exact effect and
+possesses any capability required for that exact effect scope. Authority without
+declaration and declaration without required authority are both insufficient.
+
+## C88 — Effect Intent Is Not Effect Execution
+
+A core reaction effect intent SHALL NOT itself perform network, filesystem, process,
+device or other privileged platform activity. External execution requires a separate
+governed executor contract.
+
+## C89 — Zero Reaction Work Without Semantic Effect
+
+An unmatched cause SHALL create no NAM transaction. A matched state projection equal
+to current NAM state SHALL create no downstream NAM work.
+
+## C90 — Reaction Semantics Before NAIR Encoding
+
+K1.4 SHALL certify reaction/action semantics independently before canonical NAIR
+reaction opcodes are introduced. Future NAIR encoding MUST implement these certified
+laws rather than redefine them implicitly.

@@ -1,85 +1,91 @@
-# NORDOI K1.3 — NAIR 0.4 Native Time Semantics
+# NORDOI K1.4 — Atomic Reaction & Action Core
 
-K1.3 extends the certified K1.2 Atomic Time & Event Loop by making logical timer
-declarations part of canonical NAIR.
+K1.4 extends the certified K1.3 NAIR 0.4 Native Time foundation with a deterministic,
+transactional reaction layer connecting semantic causes to NAM actions.
 
-It does **not** introduce ambient wall-clock access and does not freeze future `.noi`
-syntax.
+K1.4 deliberately remains **below NAIR**. It certifies reaction/action semantics
+before a future NAIR version encodes them as canonical instructions.
 
 ## Architecture
 
 ```text
-NAIR 0.4
-  ├─ state / ownership
-  ├─ render
-  ├─ input
-  └─ native timer declarations
-              ↓
-        AtomicEventLoop
-              ↓
-       AtomicTimeCore
-              +
- PersistentAtomicRuntime
-              ↓
-        atomic cycles
+Canonical InputBatch              AtomicTimeCore
+        │                              │
+        │ InputEvent                   │ TimerFire
+        └──────────────┬───────────────┘
+                       ↓
+              AtomicReactionCore
+                       │
+          deterministic ReactionId order
+                       │
+             ┌─────────┴─────────┐
+             ↓                   ↓
+     NAM AtomicTransaction   EffectIntent
+             │                   │
+             ↓                   └─ validated only;
+      candidate kernel              no OS/API call
+             │
+             ↓
+      atomic batch publish
 ```
 
-## What K1.3 adds
+## What K1.4 adds
 
-- `TimerSlot(u32)` as a semantic NAIR identity.
-- `SCHEDULE_TIMER_ONCE_AT` (`0x50`).
-- `SCHEDULE_TIMER_REPEATING_AT` (`0x51`).
-- `CANCEL_TIMER` (`0x52`).
-- NAIR format minor 0.4 with backward decode support for 0.1–0.3.
-- native timer bootstrap inside `AtomicEventLoop`.
-- deterministic `TimerSlot → TimerId` bindings.
-- native timer introspection through `native_timer_id()` and `timer_snapshot()`.
-- explicit rejection of native time programs by execution paths without a time context.
-- event-loop replay identity incorporating the canonical native-time program.
+- `AtomicReactionCore`.
+- monotonic `ReactionId` identities.
+- `ReactionTrigger::Input` using the existing canonical `InputSelector` model.
+- `ReactionTrigger::Timer` using deterministic logical `TimerFire` causes.
+- `TimerSelector` for any timer, one timer or one exact occurrence.
+- `ReactionValue` projections from input values and logical timer data.
+- `ReactionStep::Set` for NAM writes through ownership-aware atomic transactions.
+- `ReactionStep::EmitEffect` for validated **effect intents**, never direct platform calls.
+- reuse of K0.2 `ActionSpec`, `Effect`, `CapabilitySet` and exact authority checks.
+- whole-batch candidate-state publication: a late failure publishes none of the earlier
+  candidate reaction mutations.
+- canonical timer ordering by `(deadline, TimerId, occurrence)`.
 - zero new external Rust dependencies.
 
 ## Core law
 
-A program may declare **when a logical timer is due**, but it may not ask the machine
-for the current real-world time.
+A semantic cause may request an action, but a reaction may publish only state it owns
+and may externalize only an effect it both declared and was explicitly authorized to
+request.
 
 ```text
-program: timer at logical tick 100
-                    ↓
-          dormant schedule
-                    ↓
-host explicitly advances logical time
-                    ↓
-          deterministic fire
+cause
+  ↓
+match trigger
+  ↓
+validate ownership + declared effects + authority
+  ↓
+private candidate transactions
+  ↓
+all reactions succeed?
+  ├─ no  → discard candidate
+  └─ yes → publish NAM + return validated effect intents
 ```
 
-## Bootstrap-only scope
+## External effects remain outside the core
 
-K1.3 native timer declarations execute once during `AtomicEventLoop::boot`.
-Persistent NAM/render/input identities are then booted without re-running timer
-declarations on every tick.
+K1.4 can produce a validated `EffectIntent`, for example a scoped network or file
+request. It does not execute that request. Network stacks, filesystems, processes,
+devices and other privileged backends remain outside the canonical Reaction Core.
 
-Timer-triggered actions and dynamic scheduling from event handlers are deliberately
-out of scope until a future reaction/action layer has explicit transaction and effect
-laws.
+## NAIR scope
 
-## Compatibility
-
-- valid NAIR 0.1 binaries decode
-- valid NAIR 0.2 binaries decode
-- valid NAIR 0.3 binaries decode
-- canonical encoding emits NAIR 0.4
-- 0.4 timer opcodes cannot be smuggled under an older minor-version header
+NAIR remains 0.4 in K1.4. No reaction opcode is introduced yet. This is intentional:
+K1.5 can integrate the now-certified reaction semantics into canonical NAIR without
+inventing action opcodes before their transaction and effect laws are proven.
 
 ## Test corpus
 
-K1.3 adds **18 native-time tests** to the 140 inherited K1.2 tests, for a total of
-**158 tests**.
+K1.4 adds **14 dedicated reaction/action tests** to the **158 inherited K1.3 tests**,
+for an expected total of **172 tests** once the full Release Gate runs.
 
-The new tests cover binary compatibility, version gating, slot single assignment,
-zero intervals, cancellation order, canonical round-trip, context rejection,
-native one-shot and repeating bootstrap, deterministic timer IDs, coexistence with
-NAM state, next-deadline execution and replay identity.
+The new tests cover reaction ordering, zero-work matching, input projection,
+identical-state suppression, late-failure atomicity, effect declaration, capability
+authority, intent-only external effects, timer ordering/projection, incompatible value
+sources, public input canonicalization, exact routing and identity non-reuse.
 
 ## Mandatory release gate
 
@@ -90,10 +96,11 @@ cargo check --all-targets
 cargo test --all-targets
 ```
 
-GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.3` can be tagged.
+GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.4` can be tagged.
 
 ## Key specifications
 
+- `docs/REACTION_ACTION_CORE_SPEC_1_0.md`
 - `docs/NAIR_SPEC_0_4.md`
 - `docs/NAIR_NATIVE_TIME_SPEC_0_1.md`
 - `docs/TIME_EVENT_LOOP_SPEC_1_2.md`

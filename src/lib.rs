@@ -9,6 +9,7 @@ pub mod input;
 pub mod kernel;
 pub mod nair;
 pub mod ownership;
+pub mod reaction;
 pub mod render;
 pub mod runtime;
 pub mod scheduler;
@@ -37,6 +38,10 @@ pub use nair::{
     NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
+pub use reaction::{
+    AtomicReactionCore, EffectIntent, ReactionBatchReport, ReactionError, ReactionId,
+    ReactionResult, ReactionSpec, ReactionStep, ReactionTrigger, ReactionValue, TimerSelector,
+};
 pub use render::{
     AtomicRenderCore, DirtyMask, NairRenderBridge, NairRenderBridgeError, NairRenderBridgeResult,
     NairRenderFrame, RenderBackend, RenderBatch, RenderError, RenderNode, RenderNodeId,

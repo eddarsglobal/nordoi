@@ -38,7 +38,7 @@ impl InputSelector {
         }
     }
 
-    fn extract(&self, event: &InputEvent) -> Option<Value> {
+    pub(crate) fn extract(&self, event: &InputEvent) -> Option<Value> {
         if self.source.is_some_and(|source| source != event.source)
             || self.device.is_some_and(|device| device != event.device)
             || self.target.is_some_and(|target| target != event.target)
