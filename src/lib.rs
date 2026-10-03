@@ -27,7 +27,8 @@ pub use nair::{
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use render::{
-    AtomicRenderCore, DirtyMask, RenderBackend, RenderBatch, RenderError, RenderNode, RenderNodeId,
+    AtomicRenderCore, DirtyMask, NairRenderBridge, NairRenderBridgeError, NairRenderBridgeResult,
+    NairRenderFrame, RenderBackend, RenderBatch, RenderError, RenderNode, RenderNodeId,
     RenderPrimitive, RenderResult, RenderSpace, RenderUpdate,
 };
 pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};

@@ -1,8 +1,7 @@
-# NORDOI K0.5 — Atomic Render Core 0.1
+# NORDOI K0.6 — NAIR → Atomic Render Bridge 0.1
 
-K0.5 introduces the first **backend-independent Atomic Render Core**.
-
-NORDOI now has a direct architectural path from atomic state to a minimal render frontier:
+K0.6 connects **NAIR runtime atoms directly to the Atomic Render Core** without
+introducing a second dependency engine.
 
 ```text
 NORDOI / AI / Visual Frontend
@@ -11,41 +10,44 @@ NORDOI / AI / Visual Frontend
              ↓
              NAM
              ↓
-      changed AtomId set
+  deduplicated AtomId frontier
+             ↓
+   NAIR → Render Bridge 0.1
              ↓
     Atomic Render Core 0.1
              ↓
-     minimal RenderBatch
+      minimal RenderBatch
              ↓
  Web / Native / GPU / XR backends
 ```
 
-## What K0.5 adds
+## What K0.6 adds
 
-- One render graph for both `Screen` and `World` space.
-- Semantic primitives: `Group`, `Quad`, `Text`, `Mesh`.
-- Explicit dirty reasons: transform, appearance, content, visibility and structure.
-- Minimal subtree invalidation for hierarchical transform/visibility changes.
-- Atom-to-render bindings for the first NAM → render bridge.
-- Duplicate render invalidation collapse.
-- Deterministic render flush order.
-- Backend-independent `RenderBackend` contract.
-- Rejection of non-finite transforms and invalid normalized opacity.
+- `NairRenderBridge` for canonical `AtomSlot -> AtomId -> RenderNodeId` causality.
+- Binding of semantic NAIR atom slots to render nodes through `NairExecutionReport`.
+- Direct consumption of NAM's already-deduplicated scheduler frontier.
+- Zero render work for identical NAIR writes.
+- Zero render work for rolled-back NAIR transactions.
+- Dependency-driven render invalidation without recomputing dependencies.
+- Dirty-reason merging across the bridge.
+- Shared Screen/World bridge semantics.
+- `NairRenderFrame` reports scheduled atoms and the resulting render batch.
 - Zero external Rust dependencies remain.
 
-## Atomic rendering rule
+## Architectural rule
 
 ```text
-render_work(change)
+render_frontier
     =
-minimum_correct_render_frontier(change)
+RenderBindings(NAM.atomic_work_frontier)
 ```
 
-Unrelated render nodes must remain untouched.
+The bridge must not invent a parallel dependency graph.
 
 ## Tests
 
-K0.5 adds 11 render-core tests on top of the 28 inherited tests, for a total of **39 tests**.
+K0.6 adds **8 NAIR-render bridge tests** on top of the 39 inherited tests, for a
+total of **47 tests**.
 
 The release gate remains mandatory:
 
@@ -62,4 +64,5 @@ GitHub CI then repeats testing on Linux, macOS and Windows.
 
 - `docs/NAIR_SPEC_0_1.md`
 - `docs/RENDER_CORE_SPEC_0_1.md`
+- `docs/NAIR_RENDER_BRIDGE_SPEC_0_1.md`
 - `docs/TESTING_AND_RELEASE_LAW.md`

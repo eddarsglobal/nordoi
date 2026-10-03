@@ -85,3 +85,16 @@ NORDOI render semantics must not depend on DOM, WebGPU, Metal, Vulkan, DirectX o
 
 ## C28 — Invalid Visual State Rejection
 Render values known to be invalid, including non-finite transforms and out-of-range normalized opacity, must be rejected before entering canonical render state.
+
+## C29 — Single Causal Frontier
+
+State-to-render propagation SHALL consume NAM's canonical deduplicated atomic work frontier. NORDOI SHALL NOT introduce a second competing dependency engine for rendering.
+
+## C30 — Zero Render Without State Effect
+
+If a state operation produces no semantic change, the NAIR-to-render bridge SHALL produce no new render work. Transaction rollback SHALL likewise produce no render work.
+
+## C31 — Canonical Slot Binding
+
+A NAIR `AtomSlot` may reach rendering only through the runtime `AtomId` binding emitted by the exact validated NAIR execution that created it. Unknown or foreign slots SHALL be rejected before rendering.
+
