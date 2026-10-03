@@ -1,0 +1,10 @@
+[package]
+name = "nordoi_kernel"
+version = "0.3.0"
+edition = "2021"
+authors = ["EDDARS Global"]
+description = "NORDOI Kernel K0.3 — Atomic Transactions & Ownership Boundaries"
+license = "MIT"
+repository = "https://github.com/eddarsglobal/nordoi"
+
+[dependencies]
