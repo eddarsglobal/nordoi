@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use crate::{
+    effect::Effect,
     input::{InputDeviceId, InputSignal, InputSource},
     render::{DirtyMask, RenderPrimitive, RenderSpace},
     time::{LogicalDuration, LogicalTime},
@@ -10,15 +11,16 @@ use crate::{
 use super::{
     error::{NairError, NairResult},
     id::{
-        AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot,
+        AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
         TransactionSlot,
     },
     instruction::{DomainRef, InputTargetRef, Instruction},
+    reaction::{NairEffectSet, NairReactionStep, NairReactionTrigger, NairReactionValue},
 };
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
-pub const NAIR_FORMAT_MINOR: u16 = 4;
+pub const NAIR_FORMAT_MINOR: u16 = 5;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -60,6 +62,7 @@ impl NairProgram {
         let mut render_nodes = BTreeSet::new();
         let mut input_bridges = BTreeSet::new();
         let mut timer_slots = BTreeSet::new();
+        let mut reaction_slots = BTreeSet::new();
         let mut halt_seen = false;
 
         for (index, instruction) in self.instructions.iter().enumerate() {
@@ -185,6 +188,31 @@ impl NairProgram {
                 Instruction::CancelTimer { timer } => {
                     require_timer_slot(*timer, &timer_slots)?;
                 }
+                Instruction::DefineReaction {
+                    dst,
+                    name,
+                    domain,
+                    trigger,
+                    action_name,
+                    declared_effects,
+                    steps,
+                } => {
+                    validate_domain_ref(*domain, &domains)?;
+                    if !reaction_slots.insert(*dst) {
+                        return Err(NairError::DuplicateReactionSlot(*dst));
+                    }
+                    if name.trim().is_empty() {
+                        return Err(NairError::EmptyReactionName(*dst));
+                    }
+                    if action_name.trim().is_empty() {
+                        return Err(NairError::EmptyReactionActionName(*dst));
+                    }
+                    if steps.is_empty() {
+                        return Err(NairError::EmptyReactionSteps(*dst));
+                    }
+                    validate_reaction_trigger(*dst, *trigger, &render_nodes, &timer_slots)?;
+                    validate_reaction_steps(*dst, *trigger, declared_effects, steps, &atoms)?;
+                }
                 Instruction::Halt => {
                     halt_seen = true;
                 }
@@ -250,6 +278,75 @@ impl NairProgram {
         program.validate()?;
         Ok(program)
     }
+}
+
+fn validate_reaction_trigger(
+    _slot: ReactionSlot,
+    trigger: NairReactionTrigger,
+    render_nodes: &BTreeSet<RenderNodeSlot>,
+    timer_slots: &BTreeSet<TimerSlot>,
+) -> NairResult<()> {
+    match trigger {
+        NairReactionTrigger::Input { target, .. } => {
+            if let InputTargetRef::RenderNode(node) = target {
+                require_render_node(node, render_nodes)?;
+            }
+        }
+        NairReactionTrigger::Timer { timer, .. } => {
+            if let Some(timer) = timer {
+                require_timer_slot(timer, timer_slots)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_reaction_steps(
+    slot: ReactionSlot,
+    trigger: NairReactionTrigger,
+    declared_effects: &NairEffectSet,
+    steps: &[NairReactionStep],
+    atoms: &BTreeSet<AtomSlot>,
+) -> NairResult<()> {
+    for step in steps {
+        match step {
+            NairReactionStep::Set { atom, value } => {
+                require_atom(*atom, atoms)?;
+                if !declared_effects.contains(&Effect::StateWrite) {
+                    return Err(NairError::ReactionUndeclaredEffect {
+                        slot,
+                        effect: Effect::StateWrite,
+                    });
+                }
+                match value {
+                    NairReactionValue::Literal(Value::Float(value)) if !value.is_finite() => {
+                        return Err(NairError::NonFiniteReactionLiteral(slot));
+                    }
+                    NairReactionValue::Literal(_) => {}
+                    NairReactionValue::InputValue
+                        if !matches!(trigger, NairReactionTrigger::Input { .. }) =>
+                    {
+                        return Err(NairError::ReactionValueSourceMismatch(slot));
+                    }
+                    NairReactionValue::TimerOccurrence | NairReactionValue::TimerDeadlineTicks
+                        if !matches!(trigger, NairReactionTrigger::Timer { .. }) =>
+                    {
+                        return Err(NairError::ReactionValueSourceMismatch(slot));
+                    }
+                    _ => {}
+                }
+            }
+            NairReactionStep::EmitEffect { effect } => {
+                if !declared_effects.contains(effect) {
+                    return Err(NairError::ReactionUndeclaredEffect {
+                        slot,
+                        effect: effect.clone(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn validate_domain_ref(domain: DomainRef, domains: &BTreeSet<DomainSlot>) -> NairResult<()> {
@@ -465,6 +562,103 @@ fn encode_input_signal(out: &mut Vec<u8>, signal: InputSignal) {
     }
 }
 
+fn encode_effect(out: &mut Vec<u8>, effect: &Effect) -> NairResult<()> {
+    match effect {
+        Effect::Pure => out.push(0x00),
+        Effect::StateRead => out.push(0x01),
+        Effect::StateWrite => out.push(0x02),
+        Effect::Network(scope) => {
+            out.push(0x10);
+            write_string(out, scope)?;
+        }
+        Effect::FileRead(scope) => {
+            out.push(0x11);
+            write_string(out, scope)?;
+        }
+        Effect::FileWrite(scope) => {
+            out.push(0x12);
+            write_string(out, scope)?;
+        }
+        Effect::Camera => out.push(0x20),
+        Effect::Microphone => out.push(0x21),
+        Effect::Location => out.push(0x22),
+        Effect::Gpu => out.push(0x23),
+        Effect::Xr => out.push(0x24),
+        Effect::Process => out.push(0x25),
+    }
+    Ok(())
+}
+
+fn encode_optional_timer_slot(out: &mut Vec<u8>, timer: Option<TimerSlot>) {
+    match timer {
+        None => out.push(0x00),
+        Some(timer) => {
+            out.push(0x01);
+            write_u32(out, timer.0);
+        }
+    }
+}
+
+fn encode_optional_u64(out: &mut Vec<u8>, value: Option<u64>) {
+    match value {
+        None => out.push(0x00),
+        Some(value) => {
+            out.push(0x01);
+            write_u64(out, value);
+        }
+    }
+}
+
+fn encode_reaction_trigger(out: &mut Vec<u8>, trigger: NairReactionTrigger) {
+    match trigger {
+        NairReactionTrigger::Input {
+            source,
+            device,
+            target,
+            signal,
+        } => {
+            out.push(0x00);
+            encode_optional_input_source(out, source);
+            encode_optional_device(out, device);
+            encode_input_target(out, target);
+            encode_input_signal(out, signal);
+        }
+        NairReactionTrigger::Timer { timer, occurrence } => {
+            out.push(0x01);
+            encode_optional_timer_slot(out, timer);
+            encode_optional_u64(out, occurrence);
+        }
+    }
+}
+
+fn encode_reaction_value(out: &mut Vec<u8>, value: &NairReactionValue) -> NairResult<()> {
+    match value {
+        NairReactionValue::Literal(value) => {
+            out.push(0x00);
+            encode_value(out, value)?;
+        }
+        NairReactionValue::InputValue => out.push(0x01),
+        NairReactionValue::TimerOccurrence => out.push(0x02),
+        NairReactionValue::TimerDeadlineTicks => out.push(0x03),
+    }
+    Ok(())
+}
+
+fn encode_reaction_step(out: &mut Vec<u8>, step: &NairReactionStep) -> NairResult<()> {
+    match step {
+        NairReactionStep::Set { atom, value } => {
+            out.push(0x00);
+            write_u32(out, atom.0);
+            encode_reaction_value(out, value)?;
+        }
+        NairReactionStep::EmitEffect { effect } => {
+            out.push(0x01);
+            encode_effect(out, effect)?;
+        }
+    }
+    Ok(())
+}
+
 fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResult<()> {
     match instruction {
         Instruction::Const { dst, value } => {
@@ -597,6 +791,30 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             out.push(0x52);
             write_u32(out, timer.0);
         }
+        Instruction::DefineReaction {
+            dst,
+            name,
+            domain,
+            trigger,
+            action_name,
+            declared_effects,
+            steps,
+        } => {
+            out.push(0x60);
+            write_u32(out, dst.0);
+            write_string(out, name)?;
+            encode_domain_ref(out, *domain);
+            encode_reaction_trigger(out, *trigger);
+            write_string(out, action_name)?;
+            write_len(out, declared_effects.len())?;
+            for effect in declared_effects.iter() {
+                encode_effect(out, effect)?;
+            }
+            write_len(out, steps.len())?;
+            for step in steps {
+                encode_reaction_step(out, step)?;
+            }
+        }
         Instruction::Halt => out.push(0xff),
     }
     Ok(())
@@ -700,6 +918,32 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
         0x52 if minor >= 4 => Ok(Instruction::CancelTimer {
             timer: TimerSlot(input.read_u32()?),
         }),
+        0x60 if minor >= 5 => {
+            let dst = ReactionSlot(input.read_u32()?);
+            let name = input.read_string()?;
+            let domain = decode_domain_ref(input)?;
+            let trigger = decode_reaction_trigger(input)?;
+            let action_name = input.read_string()?;
+            let effect_count = input.read_u32()? as usize;
+            let mut declared_effects = NairEffectSet::new();
+            for _ in 0..effect_count {
+                declared_effects.declare(decode_effect(input)?);
+            }
+            let step_count = input.read_u32()? as usize;
+            let mut steps = Vec::with_capacity(step_count);
+            for _ in 0..step_count {
+                steps.push(decode_reaction_step(input)?);
+            }
+            Ok(Instruction::DefineReaction {
+                dst,
+                name,
+                domain,
+                trigger,
+                action_name,
+                declared_effects,
+                steps,
+            })
+        }
         0xff => Ok(Instruction::Halt),
         other => Err(NairError::InvalidOpcode(other)),
     }
@@ -803,6 +1047,79 @@ fn decode_input_signal(input: &mut Decoder<'_>) -> NairResult<InputSignal> {
         0x07 => Ok(InputSignal::PoseY),
         0x08 => Ok(InputSignal::PoseZ),
         other => Err(NairError::InvalidInputSignalTag(other)),
+    }
+}
+
+fn decode_effect(input: &mut Decoder<'_>) -> NairResult<Effect> {
+    match input.read_u8()? {
+        0x00 => Ok(Effect::Pure),
+        0x01 => Ok(Effect::StateRead),
+        0x02 => Ok(Effect::StateWrite),
+        0x10 => Ok(Effect::Network(input.read_string()?)),
+        0x11 => Ok(Effect::FileRead(input.read_string()?)),
+        0x12 => Ok(Effect::FileWrite(input.read_string()?)),
+        0x20 => Ok(Effect::Camera),
+        0x21 => Ok(Effect::Microphone),
+        0x22 => Ok(Effect::Location),
+        0x23 => Ok(Effect::Gpu),
+        0x24 => Ok(Effect::Xr),
+        0x25 => Ok(Effect::Process),
+        other => Err(NairError::InvalidEffectTag(other)),
+    }
+}
+
+fn decode_optional_timer_slot(input: &mut Decoder<'_>) -> NairResult<Option<TimerSlot>> {
+    match input.read_u8()? {
+        0x00 => Ok(None),
+        0x01 => Ok(Some(TimerSlot(input.read_u32()?))),
+        other => Err(NairError::InvalidOptionTag(other)),
+    }
+}
+
+fn decode_optional_u64(input: &mut Decoder<'_>) -> NairResult<Option<u64>> {
+    match input.read_u8()? {
+        0x00 => Ok(None),
+        0x01 => Ok(Some(input.read_u64()?)),
+        other => Err(NairError::InvalidOptionTag(other)),
+    }
+}
+
+fn decode_reaction_trigger(input: &mut Decoder<'_>) -> NairResult<NairReactionTrigger> {
+    match input.read_u8()? {
+        0x00 => Ok(NairReactionTrigger::Input {
+            source: decode_optional_input_source(input)?,
+            device: decode_optional_device(input)?,
+            target: decode_input_target(input)?,
+            signal: decode_input_signal(input)?,
+        }),
+        0x01 => Ok(NairReactionTrigger::Timer {
+            timer: decode_optional_timer_slot(input)?,
+            occurrence: decode_optional_u64(input)?,
+        }),
+        other => Err(NairError::InvalidReactionTriggerTag(other)),
+    }
+}
+
+fn decode_reaction_value(input: &mut Decoder<'_>) -> NairResult<NairReactionValue> {
+    match input.read_u8()? {
+        0x00 => Ok(NairReactionValue::Literal(decode_value(input)?)),
+        0x01 => Ok(NairReactionValue::InputValue),
+        0x02 => Ok(NairReactionValue::TimerOccurrence),
+        0x03 => Ok(NairReactionValue::TimerDeadlineTicks),
+        other => Err(NairError::InvalidReactionValueTag(other)),
+    }
+}
+
+fn decode_reaction_step(input: &mut Decoder<'_>) -> NairResult<NairReactionStep> {
+    match input.read_u8()? {
+        0x00 => Ok(NairReactionStep::Set {
+            atom: AtomSlot(input.read_u32()?),
+            value: decode_reaction_value(input)?,
+        }),
+        0x01 => Ok(NairReactionStep::EmitEffect {
+            effect: decode_effect(input)?,
+        }),
+        other => Err(NairError::InvalidReactionStepTag(other)),
     }
 }
 

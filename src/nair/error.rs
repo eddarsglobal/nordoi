@@ -1,10 +1,14 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use crate::{error::AtomicError, input::InputError, render::RenderError};
+use crate::{
+    effect::Effect, error::AtomicError, input::InputError, reaction::ReactionError,
+    render::RenderError,
+};
 
 use super::id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
+    AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
+    TransactionSlot,
 };
 
 #[derive(Debug, PartialEq)]
@@ -33,6 +37,14 @@ pub enum NairError {
     UnknownTimerSlot(TimerSlot),
     ZeroTimerInterval(TimerSlot),
     TimeContextRequired,
+    DuplicateReactionSlot(ReactionSlot),
+    EmptyReactionName(ReactionSlot),
+    EmptyReactionActionName(ReactionSlot),
+    EmptyReactionSteps(ReactionSlot),
+    ReactionValueSourceMismatch(ReactionSlot),
+    ReactionUndeclaredEffect { slot: ReactionSlot, effect: Effect },
+    NonFiniteReactionLiteral(ReactionSlot),
+    ReactionContextRequired,
     MissingHalt,
     InstructionAfterHalt { index: usize },
     NonFiniteFloat(RegisterId),
@@ -50,135 +62,82 @@ pub enum NairError {
     InvalidInputSourceTag(u8),
     InvalidInputTargetTag(u8),
     InvalidInputSignalTag(u8),
+    InvalidEffectTag(u8),
+    InvalidReactionTriggerTag(u8),
+    InvalidReactionValueTag(u8),
+    InvalidReactionStepTag(u8),
     InvalidUtf8,
     TrailingBytes(usize),
     LengthOverflow,
     Kernel(AtomicError),
     Render(RenderError),
     Input(InputError),
+    Reaction(ReactionError),
 }
 
 impl Display for NairError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::DuplicateRegister(id) => {
-                write!(f, "NAIR register {id:?} is defined more than once")
-            }
-            Self::UnknownRegister(id) => {
-                write!(f, "NAIR register {id:?} is used before definition")
-            }
-            Self::DuplicateDomainSlot(id) => {
-                write!(f, "NAIR domain slot {id:?} is defined more than once")
-            }
-            Self::UnknownDomainSlot(id) => {
-                write!(f, "NAIR domain slot {id:?} is used before definition")
-            }
+            Self::DuplicateRegister(id) => write!(f, "NAIR register {id:?} is defined more than once"),
+            Self::UnknownRegister(id) => write!(f, "NAIR register {id:?} is used before definition"),
+            Self::DuplicateDomainSlot(id) => write!(f, "NAIR domain slot {id:?} is defined more than once"),
+            Self::UnknownDomainSlot(id) => write!(f, "NAIR domain slot {id:?} is used before definition"),
             Self::EmptyDomainName(id) => write!(f, "NAIR domain slot {id:?} has an empty name"),
-            Self::DuplicateAtomSlot(id) => {
-                write!(f, "NAIR atom slot {id:?} is defined more than once")
-            }
-            Self::UnknownAtomSlot(id) => {
-                write!(f, "NAIR atom slot {id:?} is used before definition")
-            }
+            Self::DuplicateAtomSlot(id) => write!(f, "NAIR atom slot {id:?} is defined more than once"),
+            Self::UnknownAtomSlot(id) => write!(f, "NAIR atom slot {id:?} is used before definition"),
             Self::SelfDependency(id) => write!(f, "NAIR atom slot {id:?} cannot depend on itself"),
-            Self::DuplicateTransactionSlot(id) => {
-                write!(f, "NAIR transaction slot {id:?} is defined more than once")
-            }
-            Self::InactiveTransaction(id) => {
-                write!(f, "NAIR transaction slot {id:?} is not active")
-            }
-            Self::UnclosedTransactions(ids) => {
-                write!(f, "NAIR program halts with active transactions: {ids:?}")
-            }
-            Self::DuplicateRenderNodeSlot(id) => {
-                write!(f, "NAIR render node slot {id:?} is defined more than once")
-            }
-            Self::UnknownRenderNodeSlot(id) => {
-                write!(f, "NAIR render node slot {id:?} is used before definition")
-            }
-            Self::EmptyRenderDirtyMask => {
-                write!(f, "NAIR render binding cannot use an empty dirty mask")
-            }
-            Self::InvalidRenderOpacity(value) => write!(
-                f,
-                "NAIR render opacity must be finite and within 0..=1, got {value}"
-            ),
-            Self::NonFiniteRenderPosition(id) => {
-                write!(f, "NAIR render node slot {id:?} has a non-finite position")
-            }
-            Self::RenderContextRequired => write!(
-                f,
-                "NAIR program contains render instructions but no render context was provided"
-            ),
-            Self::DuplicateInputBridgeSlot(id) => {
-                write!(f, "NAIR input bridge slot {id:?} is defined more than once")
-            }
-            Self::UnknownInputBridgeSlot(id) => {
-                write!(f, "NAIR input bridge slot {id:?} is used before definition")
-            }
-            Self::InputContextRequired => write!(
-                f,
-                "NAIR program contains input instructions but no input batch was provided"
-            ),
-            Self::DuplicateTimerSlot(id) => {
-                write!(f, "NAIR timer slot {id:?} is defined more than once")
-            }
-            Self::UnknownTimerSlot(id) => {
-                write!(f, "NAIR timer slot {id:?} is used before definition")
-            }
-            Self::ZeroTimerInterval(id) => write!(
-                f,
-                "NAIR repeating timer slot {id:?} must have a non-zero interval"
-            ),
-            Self::TimeContextRequired => write!(
-                f,
-                "NAIR program contains time instructions but no logical-time context was provided"
-            ),
+            Self::DuplicateTransactionSlot(id) => write!(f, "NAIR transaction slot {id:?} is defined more than once"),
+            Self::InactiveTransaction(id) => write!(f, "NAIR transaction slot {id:?} is not active"),
+            Self::UnclosedTransactions(ids) => write!(f, "NAIR program halts with active transactions: {ids:?}"),
+            Self::DuplicateRenderNodeSlot(id) => write!(f, "NAIR render node slot {id:?} is defined more than once"),
+            Self::UnknownRenderNodeSlot(id) => write!(f, "NAIR render node slot {id:?} is used before definition"),
+            Self::EmptyRenderDirtyMask => write!(f, "NAIR render binding cannot use an empty dirty mask"),
+            Self::InvalidRenderOpacity(value) => write!(f, "NAIR render opacity must be finite and within 0..=1, got {value}"),
+            Self::NonFiniteRenderPosition(id) => write!(f, "NAIR render node slot {id:?} has a non-finite position"),
+            Self::RenderContextRequired => write!(f, "NAIR program contains render instructions but no render context was provided"),
+            Self::DuplicateInputBridgeSlot(id) => write!(f, "NAIR input bridge slot {id:?} is defined more than once"),
+            Self::UnknownInputBridgeSlot(id) => write!(f, "NAIR input bridge slot {id:?} is used before definition"),
+            Self::InputContextRequired => write!(f, "NAIR program contains input instructions but no input batch was provided"),
+            Self::DuplicateTimerSlot(id) => write!(f, "NAIR timer slot {id:?} is defined more than once"),
+            Self::UnknownTimerSlot(id) => write!(f, "NAIR timer slot {id:?} is used before definition"),
+            Self::ZeroTimerInterval(id) => write!(f, "NAIR repeating timer slot {id:?} must have a non-zero interval"),
+            Self::TimeContextRequired => write!(f, "NAIR program contains time instructions but no logical-time context was provided"),
+            Self::DuplicateReactionSlot(id) => write!(f, "NAIR reaction slot {id:?} is defined more than once"),
+            Self::EmptyReactionName(id) => write!(f, "NAIR reaction slot {id:?} has an empty reaction name"),
+            Self::EmptyReactionActionName(id) => write!(f, "NAIR reaction slot {id:?} has an empty action name"),
+            Self::EmptyReactionSteps(id) => write!(f, "NAIR reaction slot {id:?} must contain at least one reaction step"),
+            Self::ReactionValueSourceMismatch(id) => write!(f, "NAIR reaction slot {id:?} uses a value source incompatible with its trigger"),
+            Self::ReactionUndeclaredEffect { slot, effect } => write!(f, "NAIR reaction slot {slot:?} uses undeclared effect {effect:?}"),
+            Self::NonFiniteReactionLiteral(id) => write!(f, "NAIR reaction slot {id:?} contains a non-finite float literal"),
+            Self::ReactionContextRequired => write!(f, "NAIR program contains native reaction declarations but no reaction context was provided"),
             Self::MissingHalt => write!(f, "NAIR program must end with HALT"),
-            Self::InstructionAfterHalt { index } => {
-                write!(f, "NAIR instruction at index {index} appears after HALT")
-            }
-            Self::NonFiniteFloat(id) => {
-                write!(f, "NAIR register {id:?} contains a non-finite float")
-            }
+            Self::InstructionAfterHalt { index } => write!(f, "NAIR instruction at index {index} appears after HALT"),
+            Self::NonFiniteFloat(id) => write!(f, "NAIR register {id:?} contains a non-finite float"),
             Self::InvalidMagic => write!(f, "invalid NAIR magic header"),
-            Self::UnsupportedFormat { major, minor } => {
-                write!(f, "unsupported NAIR format {major}.{minor}")
-            }
+            Self::UnsupportedFormat { major, minor } => write!(f, "unsupported NAIR format {major}.{minor}"),
             Self::UnexpectedEof => write!(f, "unexpected end of NAIR binary"),
             Self::InvalidOpcode(opcode) => write!(f, "invalid NAIR opcode 0x{opcode:02x}"),
             Self::InvalidValueTag(tag) => write!(f, "invalid NAIR value tag 0x{tag:02x}"),
-            Self::InvalidDomainRefTag(tag) => {
-                write!(f, "invalid NAIR domain reference tag 0x{tag:02x}")
-            }
-            Self::InvalidRenderPrimitiveTag(tag) => {
-                write!(f, "invalid NAIR render primitive tag 0x{tag:02x}")
-            }
-            Self::InvalidRenderSpaceTag(tag) => {
-                write!(f, "invalid NAIR render space tag 0x{tag:02x}")
-            }
-            Self::InvalidDirtyMask(bits) => {
-                write!(f, "invalid NAIR render dirty mask 0x{bits:02x}")
-            }
+            Self::InvalidDomainRefTag(tag) => write!(f, "invalid NAIR domain reference tag 0x{tag:02x}"),
+            Self::InvalidRenderPrimitiveTag(tag) => write!(f, "invalid NAIR render primitive tag 0x{tag:02x}"),
+            Self::InvalidRenderSpaceTag(tag) => write!(f, "invalid NAIR render space tag 0x{tag:02x}"),
+            Self::InvalidDirtyMask(bits) => write!(f, "invalid NAIR render dirty mask 0x{bits:02x}"),
             Self::InvalidBoolTag(tag) => write!(f, "invalid NAIR boolean tag 0x{tag:02x}"),
             Self::InvalidOptionTag(tag) => write!(f, "invalid NAIR option tag 0x{tag:02x}"),
-            Self::InvalidInputSourceTag(tag) => {
-                write!(f, "invalid NAIR input source tag 0x{tag:02x}")
-            }
-            Self::InvalidInputTargetTag(tag) => {
-                write!(f, "invalid NAIR input target tag 0x{tag:02x}")
-            }
-            Self::InvalidInputSignalTag(tag) => {
-                write!(f, "invalid NAIR input signal tag 0x{tag:02x}")
-            }
+            Self::InvalidInputSourceTag(tag) => write!(f, "invalid NAIR input source tag 0x{tag:02x}"),
+            Self::InvalidInputTargetTag(tag) => write!(f, "invalid NAIR input target tag 0x{tag:02x}"),
+            Self::InvalidInputSignalTag(tag) => write!(f, "invalid NAIR input signal tag 0x{tag:02x}"),
+            Self::InvalidEffectTag(tag) => write!(f, "invalid NAIR effect tag 0x{tag:02x}"),
+            Self::InvalidReactionTriggerTag(tag) => write!(f, "invalid NAIR reaction trigger tag 0x{tag:02x}"),
+            Self::InvalidReactionValueTag(tag) => write!(f, "invalid NAIR reaction value tag 0x{tag:02x}"),
+            Self::InvalidReactionStepTag(tag) => write!(f, "invalid NAIR reaction step tag 0x{tag:02x}"),
             Self::InvalidUtf8 => write!(f, "invalid UTF-8 in NAIR binary"),
-            Self::TrailingBytes(count) => {
-                write!(f, "NAIR binary contains {count} trailing byte(s)")
-            }
+            Self::TrailingBytes(count) => write!(f, "NAIR binary contains {count} trailing byte(s)"),
             Self::LengthOverflow => write!(f, "NAIR value is too large for canonical encoding"),
             Self::Kernel(err) => write!(f, "NAM rejected NAIR execution: {err}"),
             Self::Render(err) => write!(f, "Atomic Render Core rejected NAIR execution: {err}"),
             Self::Input(err) => write!(f, "Atomic Input Core rejected NAIR execution: {err}"),
+            Self::Reaction(err) => write!(f, "Atomic Reaction Core rejected NAIR bootstrap: {err}"),
         }
     }
 }
@@ -189,6 +148,7 @@ impl Error for NairError {
             Self::Kernel(err) => Some(err),
             Self::Render(err) => Some(err),
             Self::Input(err) => Some(err),
+            Self::Reaction(err) => Some(err),
             _ => None,
         }
     }
@@ -209,6 +169,12 @@ impl From<RenderError> for NairError {
 impl From<InputError> for NairError {
     fn from(value: InputError) -> Self {
         Self::Input(value)
+    }
+}
+
+impl From<ReactionError> for NairError {
+    fn from(value: ReactionError) -> Self {
+        Self::Reaction(value)
     }
 }
 

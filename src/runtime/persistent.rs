@@ -12,7 +12,9 @@ use crate::{
         RenderNodeSlot,
     },
     ownership::DomainId,
+    reaction::{AtomicReactionCore, ReactionBatchReport},
     render::{AtomicRenderCore, NairRenderFrame, RenderNodeId},
+    time::TimerFire,
 };
 
 use super::{
@@ -87,6 +89,21 @@ impl PersistentAtomicRuntime {
     }
 
     pub fn tick(&mut self, input: &InputBatch) -> RuntimeResult<PersistentRuntimeTickReport> {
+        let reactions = AtomicReactionCore::new();
+        let (report, _, _) = self.tick_with_reactions(input, &[], &reactions)?;
+        Ok(report)
+    }
+
+    pub(crate) fn tick_with_reactions(
+        &mut self,
+        input: &InputBatch,
+        timer_fires: &[TimerFire],
+        reactions: &AtomicReactionCore,
+    ) -> RuntimeResult<(
+        PersistentRuntimeTickReport,
+        ReactionBatchReport,
+        ReactionBatchReport,
+    )> {
         let canonical_input = input.canonicalized()?;
         validate_cross_tick_sequence(self.last_input_sequence, &canonical_input)?;
         let input_bytes = canonical_input.canonical_bytes()?;
@@ -102,6 +119,9 @@ impl PersistentAtomicRuntime {
                 .ok_or(RuntimeError::Nair(NairError::UnknownInputBridgeSlot(*slot)))?;
             input_applications.push(bridge.apply_batch(&mut kernel, &canonical_input)?);
         }
+
+        let input_reactions = reactions.apply_input_batch(&mut kernel, &canonical_input)?;
+        let timer_reactions = reactions.apply_timer_fires(&mut kernel, timer_fires)?;
 
         let frame = if kernel.pending_work() > 0 || render.pending_nodes() > 0 {
             let scheduled_atoms = kernel.flush();
@@ -122,6 +142,18 @@ impl PersistentAtomicRuntime {
 
         let mut replay_state = self.replay_state;
         hash_component(&mut replay_state, &input_bytes);
+        if !timer_fires.is_empty() {
+            hash_bytes(
+                &mut replay_state,
+                b"NORDOI-NATIVE-REACTION-TIMER-CAUSES-0.5",
+            );
+            hash_component(&mut replay_state, &(timer_fires.len() as u64).to_le_bytes());
+            for fire in timer_fires {
+                hash_component(&mut replay_state, &fire.timer.0.to_le_bytes());
+                hash_component(&mut replay_state, &fire.deadline.0.to_le_bytes());
+                hash_component(&mut replay_state, &fire.occurrence.to_le_bytes());
+            }
+        }
         let replay_key = RuntimeReplayKey(replay_state);
         let tick = self.tick + 1;
         let last_input_sequence = canonical_input.events.last().map(|event| event.sequence);
@@ -135,14 +167,18 @@ impl PersistentAtomicRuntime {
             self.last_input_sequence = last_input_sequence;
         }
 
-        Ok(PersistentRuntimeTickReport {
-            tick,
-            replay_key,
-            input_events: canonical_input.len(),
-            input_applications,
-            frame,
-            final_atoms,
-        })
+        Ok((
+            PersistentRuntimeTickReport {
+                tick,
+                replay_key,
+                input_events: canonical_input.len(),
+                input_applications,
+                frame,
+                final_atoms,
+            },
+            input_reactions,
+            timer_reactions,
+        ))
     }
 
     pub fn tick_index(&self) -> u64 {
@@ -155,6 +191,10 @@ impl PersistentAtomicRuntime {
 
     pub fn boot_report(&self) -> &NairInteractiveExecutionReport {
         &self.boot_report
+    }
+
+    pub(crate) fn kernel(&self) -> &AtomicKernel {
+        &self.kernel
     }
 
     pub fn snapshot(&self) -> RuntimeResult<BTreeMap<AtomSlot, RuntimeAtomSnapshot>> {

@@ -1,6 +1,6 @@
 # NORDOI Atomic Reaction & Action Core Specification 1.0
 
-Status: K1.4 candidate
+Status: K1.4 certified
 
 ## 1. Purpose
 

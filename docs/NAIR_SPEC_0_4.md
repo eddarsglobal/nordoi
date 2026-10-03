@@ -1,6 +1,6 @@
 # NAIR 0.4 — Native Logical-Time Semantics
 
-Status: K1.3 candidate specification.
+Status: K1.3 certified specification.
 
 NAIR 0.4 extends NAIR 0.3 with deterministic logical-timer declarations. It does
 not read wall-clock time, sleep threads, install operating-system timers or advance

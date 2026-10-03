@@ -2,7 +2,11 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     input::InputBatch,
-    nair::{Instruction, NairError, NairProgram, TimerSlot},
+    nair::{
+        bootstrap_native_reactions, Instruction, NairError, NairProgram, NairReactionAuthority,
+        NairReactionCycleReport, ReactionSlot, TimerSlot,
+    },
+    reaction::{AtomicReactionCore, ReactionId},
     runtime::{
         hash_bytes, hash_component, PersistentAtomicRuntime, PersistentRuntimeTickReport,
         RuntimeAtomSnapshot, RuntimeError, FNV_OFFSET_BASIS,
@@ -17,7 +21,7 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.3";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.5";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -44,6 +48,7 @@ pub struct EventLoopCycleReport {
     pub logical_time: LogicalTime,
     pub time: TimeAdvanceReport,
     pub runtime: PersistentRuntimeTickReport,
+    pub reactions: NairReactionCycleReport,
     pub replay_key: EventLoopReplayKey,
 }
 
@@ -55,16 +60,43 @@ pub struct AtomicEventLoop {
     replay_state: u64,
     replay_key: EventLoopReplayKey,
     native_timer_bindings: BTreeMap<TimerSlot, TimerId>,
+    reactions: AtomicReactionCore,
+    native_reaction_bindings: BTreeMap<ReactionSlot, ReactionId>,
 }
 
 impl AtomicEventLoop {
     pub fn boot(program: &NairProgram) -> EventLoopResult<Self> {
-        Self::boot_with_fire_budget(program, DEFAULT_TIMER_FIRE_BUDGET)
+        let authority = NairReactionAuthority::new();
+        Self::boot_with_fire_budget_and_reaction_authority(
+            program,
+            DEFAULT_TIMER_FIRE_BUDGET,
+            &authority,
+        )
     }
 
     pub fn boot_with_fire_budget(
         program: &NairProgram,
         fire_budget: usize,
+    ) -> EventLoopResult<Self> {
+        let authority = NairReactionAuthority::new();
+        Self::boot_with_fire_budget_and_reaction_authority(program, fire_budget, &authority)
+    }
+
+    pub fn boot_with_reaction_authority(
+        program: &NairProgram,
+        authority: &NairReactionAuthority,
+    ) -> EventLoopResult<Self> {
+        Self::boot_with_fire_budget_and_reaction_authority(
+            program,
+            DEFAULT_TIMER_FIRE_BUDGET,
+            authority,
+        )
+    }
+
+    pub fn boot_with_fire_budget_and_reaction_authority(
+        program: &NairProgram,
+        fire_budget: usize,
+        authority: &NairReactionAuthority,
     ) -> EventLoopResult<Self> {
         program.validate().map_err(RuntimeError::from)?;
         let program_bytes = program.canonical_bytes().map_err(RuntimeError::from)?;
@@ -74,11 +106,23 @@ impl AtomicEventLoop {
             program
                 .instructions()
                 .iter()
-                .filter(|instruction| !instruction.requires_time_context())
+                .filter(|instruction| {
+                    !instruction.requires_time_context() && !instruction.requires_reaction_context()
+                })
                 .cloned()
                 .collect(),
         );
         let runtime = PersistentAtomicRuntime::boot(&runtime_program)?;
+        let (reactions, native_reaction_bindings) = bootstrap_native_reactions(
+            program,
+            runtime.kernel(),
+            &runtime.boot_report().execution.domain_bindings,
+            &runtime.boot_report().execution.atom_bindings,
+            &runtime.boot_report().render_bindings,
+            &native_timer_bindings,
+            authority,
+        )
+        .map_err(RuntimeError::from)?;
 
         let mut replay_state = FNV_OFFSET_BASIS;
         hash_bytes(&mut replay_state, EVENT_LOOP_REPLAY_DOMAIN);
@@ -97,6 +141,8 @@ impl AtomicEventLoop {
             replay_state,
             replay_key,
             native_timer_bindings,
+            reactions,
+            native_reaction_bindings,
         })
     }
 
@@ -122,6 +168,14 @@ impl AtomicEventLoop {
 
     pub fn native_timer_id(&self, slot: TimerSlot) -> Option<TimerId> {
         self.native_timer_bindings.get(&slot).copied()
+    }
+
+    pub fn native_reaction_count(&self) -> usize {
+        self.native_reaction_bindings.len()
+    }
+
+    pub fn native_reaction_id(&self, slot: ReactionSlot) -> Option<ReactionId> {
+        self.native_reaction_bindings.get(&slot).copied()
     }
 
     pub fn timer_snapshot(&self, id: TimerId) -> EventLoopResult<TimerSnapshot> {
@@ -201,7 +255,12 @@ impl AtomicEventLoop {
         let mut runtime = self.runtime.clone();
 
         let time_report = time.advance_to(target)?;
-        let runtime_report = runtime.tick(input)?;
+        let (runtime_report, input_reactions, timer_reactions) =
+            runtime.tick_with_reactions(input, &time_report.fires, &self.reactions)?;
+        let reactions = NairReactionCycleReport {
+            input: input_reactions,
+            timers: timer_reactions,
+        };
         let cycle = self.cycle.checked_add(1).ok_or(TimeError::TimeOverflow)?;
 
         let mut replay_state = self.replay_state;
@@ -234,6 +293,7 @@ impl AtomicEventLoop {
             logical_time: target,
             time: time_report,
             runtime: runtime_report,
+            reactions,
             replay_key,
         })
     }

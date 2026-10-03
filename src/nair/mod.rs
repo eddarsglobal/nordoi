@@ -3,6 +3,7 @@ mod execute;
 mod id;
 mod instruction;
 mod program;
+mod reaction;
 
 pub use error::{NairError, NairResult};
 pub use execute::{
@@ -11,9 +12,16 @@ pub use execute::{
     NairInteractiveExecutionReport, NairRenderExecutionReport,
 };
 pub use id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
+    AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
+    TransactionSlot,
 };
 pub use instruction::{DomainRef, InputTargetRef, Instruction};
 pub use program::{
     NairProgram, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
 };
+pub use reaction::{
+    NairEffectSet, NairReactionAuthority, NairReactionCycleReport, NairReactionStep,
+    NairReactionTrigger, NairReactionValue,
+};
+
+pub(crate) use reaction::bootstrap_native_reactions;

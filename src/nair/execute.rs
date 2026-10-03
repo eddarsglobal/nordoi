@@ -174,6 +174,14 @@ fn reject_missing_contexts(
         return Err(NairError::TimeContextRequired);
     }
 
+    if program
+        .instructions()
+        .iter()
+        .any(Instruction::requires_reaction_context)
+    {
+        return Err(NairError::ReactionContextRequired);
+    }
+
     Ok(())
 }
 
@@ -364,6 +372,9 @@ fn execute_internal(
             | Instruction::ScheduleTimerRepeatingAt { .. }
             | Instruction::CancelTimer { .. } => {
                 return Err(NairError::TimeContextRequired);
+            }
+            Instruction::DefineReaction { .. } => {
+                return Err(NairError::ReactionContextRequired);
             }
             Instruction::Halt => {
                 if let Some(render) = render.as_deref_mut() {

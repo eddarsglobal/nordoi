@@ -436,3 +436,66 @@ to current NAM state SHALL create no downstream NAM work.
 K1.4 SHALL certify reaction/action semantics independently before canonical NAIR
 reaction opcodes are introduced. Future NAIR encoding MUST implement these certified
 laws rather than redefine them implicitly.
+
+## C91 — Native Reactions Implement Certified Reaction Meaning
+
+NAIR native reaction declarations SHALL compile to the certified Atomic Reaction &
+Action Core semantics. Canonical encoding SHALL NOT silently redefine reaction
+ordering, ownership, effect validation, value projection or publication laws.
+
+## C92 — Reaction Slots Are Single-Assignment Semantic Identities
+
+Each NAIR `ReactionSlot` SHALL be defined at most once. Runtime `ReactionId` handles
+SHALL be resolved deterministically from canonical program-definition order and SHALL
+NOT be serialized as substitutes for semantic reaction slots.
+
+## C93 — Canonical Code Declares Effects But Cannot Grant Itself Authority
+
+A canonical NAIR program MAY declare effects required by a reaction action. It SHALL
+NOT encode a capability grant whose presence alone authorizes privileged execution.
+Authority grants MUST originate outside the serialized program under a governed host
+boundary.
+
+## C94 — Native Reaction Authority Is Exact And External
+
+When native reactions require privileged capability, the host-provided authority SHALL
+be matched to the exact semantic effect scope using the existing capability law. An
+absent authority entry SHALL mean no privileged authority.
+
+## C95 — Native Reactions Bootstrap Once
+
+Native NAIR reaction declarations SHALL be resolved and registered once during
+governed event-loop bootstrap. Persistent cycles SHALL reuse the resulting reaction
+identities and SHALL NOT recreate reaction registrations on every tick.
+
+## C96 — Native Reaction Phase Order Is Deterministic
+
+Within one governed K1.5 event-loop cycle, certified input bridge application SHALL
+precede native Input reactions, and native Input reactions SHALL precede native Timer
+reactions. Within each reaction phase the certified K1.4 canonical cause and
+`ReactionId` ordering SHALL remain authoritative.
+
+## C97 — Reaction Failure Aborts The Whole Event-Loop Candidate
+
+A failure during native Input or Timer reaction activation SHALL abort publication of
+the entire candidate cycle. Candidate logical time, timer state, NAM state, render
+state, replay state and effect-intent reports SHALL NOT become observable.
+
+## C98 — Missing Native Reaction Context Fails Before Mutation
+
+Execution surfaces that do not implement native reaction semantics SHALL reject NAIR
+reaction declarations before NAM, render, input or time mutation becomes observable.
+They SHALL NOT ignore reaction declarations as no-ops.
+
+## C99 — NAIR Reaction Version Gating Is Strict
+
+A NAIR binary declaring a format version older than the introduction of native
+reaction opcodes SHALL reject those opcodes. New reaction semantics SHALL NOT be
+smuggled under an older declared canonical contract.
+
+## C100 — Native Reaction Declarations Participate In Replay Identity
+
+Canonical native reaction declarations SHALL participate in the governed event-loop
+replay identity through canonical NAIR program bytes. Reaction-driving timer causes
+SHALL be represented in candidate replay progression before publication. Equal
+canonical programs and equal accepted cause traces SHALL remain replay-equivalent.

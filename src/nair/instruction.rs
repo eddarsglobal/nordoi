@@ -5,8 +5,12 @@ use crate::{
     value::Value,
 };
 
-use super::id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
+use super::{
+    id::{
+        AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
+        TransactionSlot,
+    },
+    reaction::{NairEffectSet, NairReactionStep, NairReactionTrigger},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -15,7 +19,7 @@ pub enum DomainRef {
     Slot(DomainSlot),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum InputTargetRef {
     Any,
     Global,
@@ -112,6 +116,15 @@ pub enum Instruction {
     CancelTimer {
         timer: TimerSlot,
     },
+    DefineReaction {
+        dst: ReactionSlot,
+        name: String,
+        domain: DomainRef,
+        trigger: NairReactionTrigger,
+        action_name: String,
+        declared_effects: NairEffectSet,
+        steps: Vec<NairReactionStep>,
+    },
     Halt,
 }
 
@@ -143,5 +156,9 @@ impl Instruction {
                 | Self::ScheduleTimerRepeatingAt { .. }
                 | Self::CancelTimer { .. }
         )
+    }
+
+    pub const fn requires_reaction_context(&self) -> bool {
+        matches!(self, Self::DefineReaction { .. })
     }
 }

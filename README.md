@@ -1,91 +1,153 @@
-# NORDOI K1.4 — Atomic Reaction & Action Core
+# NORDOI K1.5 — Native NAIR Reaction Semantics
 
-K1.4 extends the certified K1.3 NAIR 0.4 Native Time foundation with a deterministic,
-transactional reaction layer connecting semantic causes to NAM actions.
+K1.5 extends the certified K1.4 Atomic Reaction & Action Core by encoding those
+reaction semantics natively in canonical **NAIR 0.5** and binding them to the
+persistent `AtomicEventLoop`.
 
-K1.4 deliberately remains **below NAIR**. It certifies reaction/action semantics
-before a future NAIR version encodes them as canonical instructions.
+K1.5 does not invent a second reaction engine. NAIR declarations compile directly
+into the already-certified K1.4 `AtomicReactionCore` model.
 
 ## Architecture
 
 ```text
-Canonical InputBatch              AtomicTimeCore
-        │                              │
-        │ InputEvent                   │ TimerFire
-        └──────────────┬───────────────┘
-                       ↓
-              AtomicReactionCore
-                       │
-          deterministic ReactionId order
-                       │
-             ┌─────────┴─────────┐
-             ↓                   ↓
-     NAM AtomicTransaction   EffectIntent
-             │                   │
-             ↓                   └─ validated only;
-      candidate kernel              no OS/API call
-             │
-             ↓
-      atomic batch publish
+                     canonical NAIR 0.5
+                            │
+             ┌──────────────┼───────────────┐
+             ↓              ↓               ↓
+        NAM/render/input  timers       DEFINE_REACTION
+             │              │               │
+             │         TimerSlot→TimerId     │
+             │                              resolve
+             │      Domain/Atom/Render bindings
+             │              │               │
+             └──────────────┴───────┬───────┘
+                                    ↓
+                           AtomicReactionCore
+                                    │
+                     ReactionSlot → ReactionId
+                                    │
+                     persistent AtomicEventLoop
+                                    │
+                  ┌─────────────────┴─────────────────┐
+                  ↓                                   ↓
+             Input causes                        TimerFire causes
+                  │                                   │
+                  └──────────── atomic cycle ─────────┘
 ```
 
-## What K1.4 adds
+## What K1.5 adds
 
-- `AtomicReactionCore`.
-- monotonic `ReactionId` identities.
-- `ReactionTrigger::Input` using the existing canonical `InputSelector` model.
-- `ReactionTrigger::Timer` using deterministic logical `TimerFire` causes.
-- `TimerSelector` for any timer, one timer or one exact occurrence.
-- `ReactionValue` projections from input values and logical timer data.
-- `ReactionStep::Set` for NAM writes through ownership-aware atomic transactions.
-- `ReactionStep::EmitEffect` for validated **effect intents**, never direct platform calls.
-- reuse of K0.2 `ActionSpec`, `Effect`, `CapabilitySet` and exact authority checks.
-- whole-batch candidate-state publication: a late failure publishes none of the earlier
-  candidate reaction mutations.
-- canonical timer ordering by `(deadline, TimerId, occurrence)`.
+- NAIR format **0.5**.
+- `ReactionSlot(u32)` symbolic identities.
+- canonical `DEFINE_REACTION` opcode `0x60`.
+- native Input and Timer reaction triggers.
+- native literal/Input/timer reaction-value projections.
+- native `SET` and `EMIT_EFFECT` steps.
+- canonical ordered effect declarations through `NairEffectSet`.
+- `NairReactionAuthority`, supplied by the host and never serialized by code.
+- event-loop bootstrap of reaction declarations exactly once.
+- stable `ReactionSlot -> ReactionId` bindings.
+- native reaction reports on every event-loop cycle.
+- atomic rollback of logical time + runtime if reaction activation fails.
+- deterministic phase order: Input bridges → Input reactions → Timer reactions.
+- strict legacy-executor rejection through `ReactionContextRequired`.
+- strict 0.5 opcode version gating while preserving 0.1–0.4 decoding.
 - zero new external Rust dependencies.
 
-## Core law
+## Security boundary: code declares, host authorizes
 
-A semantic cause may request an action, but a reaction may publish only state it owns
-and may externalize only an effect it both declared and was explicitly authorized to
-request.
+A NAIR program may declare that an action intends to request an effect. It may **not**
+serialize a capability grant to itself.
 
 ```text
-cause
-  ↓
-match trigger
-  ↓
-validate ownership + declared effects + authority
-  ↓
-private candidate transactions
-  ↓
-all reactions succeed?
-  ├─ no  → discard candidate
-  └─ yes → publish NAM + return validated effect intents
+NAIR bytes
+  ├─ declared effect: Network("api.example.test")
+  └─ no authority grant
+
+Host
+  └─ NairReactionAuthority[ReactionSlot]
+       └─ Capability::Network("api.example.test")
 ```
 
-## External effects remain outside the core
+Without the exact externally supplied capability, privileged reaction bootstrap is
+rejected by the existing K0.2 authority law.
 
-K1.4 can produce a validated `EffectIntent`, for example a scoped network or file
-request. It does not execute that request. Network stacks, filesystems, processes,
-devices and other privileged backends remain outside the canonical Reaction Core.
+This keeps least privilege structural rather than conventional.
 
-## NAIR scope
+## Native reaction declaration
 
-NAIR remains 0.4 in K1.4. No reaction opcode is introduced yet. This is intentional:
-K1.5 can integrate the now-certified reaction semantics into canonical NAIR without
-inventing action opcodes before their transaction and effect laws are proven.
+K1.5 uses one complete declaration instruction instead of a mutable reaction builder:
+
+```text
+DEFINE_REACTION
+  slot
+  reaction name
+  ownership domain
+  trigger
+  action name
+  declared effects
+  ordered steps
+```
+
+This prevents partially constructed reaction state from becoming a canonical runtime
+object.
+
+## Event-loop phase order
+
+Within one cycle:
+
+```text
+1. canonicalize input
+2. apply certified InputAtomBridge state projections
+3. execute matching native Input reactions
+4. execute canonical TimerFire reactions
+5. flush NAM/render work
+6. require quiescence
+7. publish time + runtime + replay state together
+```
+
+Input and Timer reaction ordering inside their phase continues to use the K1.4 stable
+`ReactionId` rules.
+
+## Atomic failure example
+
+A timer reaction projecting a logical deadline larger than `i64::MAX` cannot represent
+that value as `Value::Int`. The candidate reaction therefore fails. K1.5 discards the
+entire candidate cycle: logical time does not advance, NAM does not change, timer state
+does not publish, and no effect intent escapes.
+
+## External effects remain intentions
+
+`EMIT_EFFECT` produces a validated K1.4 `EffectIntent`; it does not execute network,
+filesystem, process, camera, microphone, location, GPU, XR or other platform APIs.
+
+## Compatibility
+
+The decoder accepts NAIR 0.1, 0.2, 0.3 and 0.4. Canonical re-encoding emits 0.5.
+A `DEFINE_REACTION` bytecode under a declared version below 0.5 is rejected.
 
 ## Test corpus
 
-K1.4 adds **14 dedicated reaction/action tests** to the **158 inherited K1.3 tests**,
-for an expected total of **172 tests** once the full Release Gate runs.
+K1.5 adds **16 native-reaction tests** to the **172 certified K1.4 tests**, for an
+expected total of **188 tests**.
 
-The new tests cover reaction ordering, zero-work matching, input projection,
-identical-state suppression, late-failure atomicity, effect declaration, capability
-authority, intent-only external effects, timer ordering/projection, incompatible value
-sources, public input canonicalization, exact routing and identity non-reuse.
+The K1.5 tests cover:
+
+- NAIR 0.5 current version and 0.4 compatibility;
+- strict reaction opcode version gating;
+- single-assignment reaction slots;
+- atom/timer reference validation;
+- trigger/value-source compatibility;
+- exact declared-effect validation;
+- canonical binary round trips;
+- legacy executor rejection before mutation;
+- native Input execution;
+- native timer occurrence/deadline projection;
+- program-order reaction identities;
+- denial of privileged effects without host authority;
+- authorized effect intents without backend execution;
+- Input-before-Timer cycle phase ordering;
+- event-loop rollback when a reaction fails.
 
 ## Mandatory release gate
 
@@ -96,10 +158,12 @@ cargo check --all-targets
 cargo test --all-targets
 ```
 
-GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.4` can be tagged.
+GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.5` can be tagged.
 
 ## Key specifications
 
+- `docs/NAIR_SPEC_0_5.md`
+- `docs/NAIR_NATIVE_REACTION_SPEC_0_1.md`
 - `docs/REACTION_ACTION_CORE_SPEC_1_0.md`
 - `docs/NAIR_SPEC_0_4.md`
 - `docs/NAIR_NATIVE_TIME_SPEC_0_1.md`
