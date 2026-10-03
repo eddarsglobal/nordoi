@@ -5,6 +5,7 @@ pub mod capability;
 pub mod dependency;
 pub mod effect;
 pub mod effect_dispatch;
+pub mod effect_persistence;
 pub mod error;
 pub mod input;
 pub mod kernel;
@@ -24,9 +25,16 @@ pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use effect::{Effect, EffectSet};
 pub use effect_dispatch::{
-    AtomicEffectOutbox, EffectBackend, EffectBackendError, EffectBackendReceipt,
-    EffectDispatchAuthority, EffectDispatchError, EffectDispatchReceipt, EffectDispatchResult,
-    EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher, QueuedEffectIntent,
+    AtomicEffectOutbox, EffectBackend, EffectBackendError, EffectBackendReceipt, EffectDeliveryKey,
+    EffectDeliveryNamespace, EffectDispatchAuthority, EffectDispatchError, EffectDispatchReceipt,
+    EffectDispatchRequest, EffectDispatchResult, EffectIntentId, EffectOutboxStageReport,
+    GovernedEffectDispatcher, QueuedEffectIntent,
+};
+pub use effect_persistence::{
+    EffectJournalCommitReceipt, EffectJournalStore, EffectJournalStoreError,
+    EffectOutboxCheckpoint, EffectPersistenceError, EffectPersistenceResult, GovernedEffectJournal,
+    MAX_EFFECT_JOURNAL_CHECKPOINT_BYTES, MAX_EFFECT_JOURNAL_PENDING,
+    MAX_EFFECT_JOURNAL_STRING_BYTES,
 };
 pub use error::{AtomicError, AtomicResult};
 pub use input::{

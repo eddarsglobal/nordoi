@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "1.6.0"
+version = "1.7.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K1.6 — Governed Effect Outbox & Dispatch Core"
+description = "NORDOI K1.7 — Persistent Effect Journal & Recovery Protocol"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

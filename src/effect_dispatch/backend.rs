@@ -5,8 +5,8 @@ use crate::{
 };
 
 use super::{
-    AtomicEffectOutbox, EffectBackendError, EffectDispatchError, EffectDispatchResult,
-    QueuedEffectIntent,
+    AtomicEffectOutbox, EffectBackendError, EffectDeliveryKey, EffectDispatchError,
+    EffectDispatchResult, QueuedEffectIntent,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -26,6 +26,12 @@ impl EffectBackendReceipt {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EffectDispatchRequest {
+    pub queued: QueuedEffectIntent,
+    pub delivery_key: Option<EffectDeliveryKey>,
+}
+
 pub trait EffectBackend {
     fn supports(&self, effect: &Effect) -> bool;
 
@@ -33,6 +39,18 @@ pub trait EffectBackend {
         &mut self,
         request: &QueuedEffectIntent,
     ) -> Result<EffectBackendReceipt, EffectBackendError>;
+
+    /// K1.7 retry-aware execution surface.
+    ///
+    /// Existing K1.6 backends remain source-compatible through this default adapter.
+    /// Backends that can provide destination-level idempotency may override this method
+    /// and forward `delivery_key` as the destination's client request/idempotency token.
+    fn execute_with_context(
+        &mut self,
+        request: &EffectDispatchRequest,
+    ) -> Result<EffectBackendReceipt, EffectBackendError> {
+        self.execute(&request.queued)
+    }
 }
 
 #[derive(Debug, Clone, Default)]
@@ -79,6 +97,7 @@ impl EffectDispatchAuthority {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EffectDispatchReceipt {
     pub request: QueuedEffectIntent,
+    pub delivery_key: Option<EffectDeliveryKey>,
     pub backend: EffectBackendReceipt,
 }
 
@@ -105,6 +124,15 @@ impl GovernedEffectDispatcher {
         outbox: &mut AtomicEffectOutbox,
         backend: &mut B,
     ) -> EffectDispatchResult<Option<EffectDispatchReceipt>> {
+        self.dispatch_next_with_delivery_key(outbox, backend, None)
+    }
+
+    pub(crate) fn dispatch_next_with_delivery_key<B: EffectBackend>(
+        &self,
+        outbox: &mut AtomicEffectOutbox,
+        backend: &mut B,
+        delivery_key: Option<EffectDeliveryKey>,
+    ) -> EffectDispatchResult<Option<EffectDispatchReceipt>> {
         let Some(request) = outbox.peek().cloned() else {
             return Ok(None);
         };
@@ -118,19 +146,23 @@ impl GovernedEffectDispatcher {
             });
         }
 
-        let backend_receipt =
-            backend
-                .execute(&request)
-                .map_err(|error| EffectDispatchError::BackendFailed {
-                    intent: request.id,
-                    error,
-                })?;
+        let dispatch_request = EffectDispatchRequest {
+            queued: request.clone(),
+            delivery_key,
+        };
+        let backend_receipt = backend
+            .execute_with_context(&dispatch_request)
+            .map_err(|error| EffectDispatchError::BackendFailed {
+                intent: request.id,
+                error,
+            })?;
 
         let acknowledged = outbox.acknowledge(request.id)?;
         debug_assert_eq!(acknowledged, request);
 
         Ok(Some(EffectDispatchReceipt {
             request,
+            delivery_key,
             backend: backend_receipt,
         }))
     }

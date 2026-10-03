@@ -5,8 +5,8 @@ mod outbox;
 
 pub use backend::{
     EffectBackend, EffectBackendReceipt, EffectDispatchAuthority, EffectDispatchReceipt,
-    GovernedEffectDispatcher,
+    EffectDispatchRequest, GovernedEffectDispatcher,
 };
 pub use error::{EffectBackendError, EffectDispatchError, EffectDispatchResult};
-pub use id::EffectIntentId;
+pub use id::{EffectDeliveryKey, EffectDeliveryNamespace, EffectIntentId};
 pub use outbox::{AtomicEffectOutbox, EffectOutboxStageReport, QueuedEffectIntent};

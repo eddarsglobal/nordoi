@@ -584,3 +584,95 @@ certified persistence law defines and proves such guarantees.
 Because K1.6 introduces a host delivery boundary rather than a new serialized program
 instruction, NAIR SHALL remain at format 0.5. Host backend bindings, dispatch authority
 and delivery receipts SHALL NOT be serialized into canonical NAIR 0.5 bytes.
+
+## C115 — Persistent Effect State Uses An Explicit Host Store
+
+K1.7 SHALL NOT obtain ambient filesystem, database or cloud-storage authority. Effect
+journal persistence SHALL cross an explicit host-provided `EffectJournalStore` trust
+boundary.
+
+## C116 — Successful Store Commit Is The Persistence Contract Boundary
+
+For the K1.7 protocol, a host store returning success from checkpoint commit SHALL mean
+that the supplied checkpoint atomically replaced the prior checkpoint and is recoverable
+according to that store's declared durability guarantees. NORDOI SHALL NOT claim to
+prove physical-media durability of an arbitrary host implementation.
+
+## C117 — Journal Checkpoints Are Canonical And Versioned
+
+Persistent effect-outbox state SHALL have one canonical, versioned binary
+representation containing the next semantic intent identity and all pending effect
+envelopes required for recovery. Equal semantic checkpoint state SHALL produce equal
+checkpoint bytes.
+
+## C118 — Persisted Input Fails Closed Under Corruption Or Resource Abuse
+
+Checkpoint recovery SHALL validate magic, version, bounds, canonical intent ordering,
+identities, UTF-8 and checksum before installation. Truncated, corrupt, oversized or
+otherwise invalid checkpoint input SHALL NOT partially mutate the live event loop.
+
+## C119 — Delivery Namespace Is Host Policy, Not Ambient Randomness
+
+The NORDOI core SHALL NOT secretly generate a delivery namespace from ambient clocks,
+randomness, machine identifiers or network state. A persistent journal namespace SHALL
+be explicitly supplied by the host and reused when recovering that same journal.
+
+## C120 — Retry Identity Is Stable Across Journal Recovery
+
+A persistent effect retry SHALL expose a stable `EffectDeliveryKey` derived from the
+explicit journal namespace and the semantic `EffectIntentId`. If acknowledgement
+persistence fails after external backend success, a later retry of that pending intent
+SHALL receive the same delivery key.
+
+## C121 — Stable Retry Identity Does Not Imply Universal Exactly-Once Delivery
+
+A stable delivery key enables cooperating destinations to deduplicate retries. It SHALL
+NOT be described as universal exactly-once execution when the external destination does
+not honor an idempotency/deduplication protocol.
+
+## C122 — Journaled Cycle Publication Is Fail-Closed
+
+When the journal-aware event-loop surface is used, the complete candidate cycle SHALL
+be evaluated privately and its candidate effect-outbox checkpoint SHALL be accepted by
+the journal store before the candidate replaces live event-loop state. Journal commit
+failure SHALL leave the live event loop unchanged.
+
+## C123 — Durable Acknowledgement Is Published After Persistence
+
+Journal-aware effect dispatch SHALL evaluate acknowledgement on a private outbox
+candidate. After backend success, the updated candidate checkpoint SHALL be committed
+to the journal before the live pending intent is removed. Failed acknowledgement
+persistence SHALL preserve the live intent for retry.
+
+## C124 — Recovery Is A Bootstrap Operation
+
+A recovered effect checkpoint MAY be installed into an `AtomicEventLoop` only before
+its first cycle. Recovery SHALL NOT silently overwrite an already-running delivery
+history.
+
+## C125 — Recovery State Participates In Replay; Delivery Namespace Does Not
+
+Recovered pending intent state and the next semantic intent identity SHALL explicitly
+participate in subsequent replay identity because they affect future deterministic
+intent allocation. Host-only delivery namespace and backend receipt metadata SHALL NOT
+change deterministic program meaning.
+
+## C126 — K1.7 Does Not Claim Whole-Runtime Durability
+
+K1.7 certifies effect-journal persistence and recovery protocol semantics. It SHALL NOT
+be interpreted as durable checkpoint/recovery of NAM state, render state, logical time,
+timers or every other runtime subsystem. Whole-runtime durability requires separate
+certification.
+
+## C127 — Journal Backends Remain Replaceable And Non-Canonical
+
+SQLite, native files, databases, remote stores or future platform persistence systems
+MAY implement the K1.7 store contract. No such backend SHALL become mandatory canonical
+NORDOI program semantics or a privileged dependency of the minimal core.
+
+## C128 — K1.7 Does Not Increment NAIR Without New Program Semantics
+
+K1.7 adds persistence, recovery and retry-delivery protocol surfaces rather than a new
+serialized program instruction. NAIR SHALL remain format 0.5. Journal namespace,
+checkpoint storage policy and backend idempotency routing SHALL NOT be serialized as
+canonical NAIR authority.

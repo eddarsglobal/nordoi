@@ -3,7 +3,10 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::{effect_dispatch::EffectDispatchError, runtime::RuntimeError};
+use crate::{
+    effect_dispatch::EffectDispatchError, effect_persistence::EffectPersistenceError,
+    runtime::RuntimeError,
+};
 
 use super::{LogicalTime, TimerId};
 
@@ -62,6 +65,7 @@ pub enum EventLoopError {
     Time(TimeError),
     Runtime(RuntimeError),
     Effect(EffectDispatchError),
+    Persistence(EffectPersistenceError),
 }
 
 impl Display for EventLoopError {
@@ -70,6 +74,9 @@ impl Display for EventLoopError {
             Self::Time(error) => write!(f, "atomic event-loop time failure: {error}"),
             Self::Runtime(error) => write!(f, "atomic event-loop runtime failure: {error}"),
             Self::Effect(error) => write!(f, "atomic event-loop effect failure: {error}"),
+            Self::Persistence(error) => {
+                write!(f, "atomic event-loop effect persistence failure: {error}")
+            }
         }
     }
 }
@@ -80,6 +87,7 @@ impl Error for EventLoopError {
             Self::Time(error) => Some(error),
             Self::Runtime(error) => Some(error),
             Self::Effect(error) => Some(error),
+            Self::Persistence(error) => Some(error),
         }
     }
 }
@@ -99,6 +107,12 @@ impl From<RuntimeError> for EventLoopError {
 impl From<EffectDispatchError> for EventLoopError {
     fn from(value: EffectDispatchError) -> Self {
         Self::Effect(value)
+    }
+}
+
+impl From<EffectPersistenceError> for EventLoopError {
+    fn from(value: EffectPersistenceError) -> Self {
+        Self::Persistence(value)
     }
 }
 

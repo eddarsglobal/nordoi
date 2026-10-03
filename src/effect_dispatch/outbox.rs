@@ -67,6 +67,24 @@ impl AtomicEffectOutbox {
         self.pending.values()
     }
 
+    pub(crate) fn next_intent_id(&self) -> u64 {
+        self.next_intent_id
+    }
+
+    pub(crate) fn from_checkpoint_parts(
+        pending: Vec<QueuedEffectIntent>,
+        next_intent_id: u64,
+    ) -> Self {
+        let pending = pending
+            .into_iter()
+            .map(|request| (request.id, request))
+            .collect();
+        Self {
+            pending,
+            next_intent_id,
+        }
+    }
+
     pub(crate) fn stage_cycle(
         &mut self,
         cycle: u64,

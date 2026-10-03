@@ -3,8 +3,12 @@ use std::fmt::{Display, Formatter};
 use crate::{
     effect::Effect,
     effect_dispatch::{
-        AtomicEffectOutbox, EffectBackend, EffectDispatchReceipt, EffectDispatchResult,
-        EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher, QueuedEffectIntent,
+        AtomicEffectOutbox, EffectBackend, EffectDeliveryNamespace, EffectDispatchReceipt,
+        EffectDispatchResult, EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher,
+        QueuedEffectIntent,
+    },
+    effect_persistence::{
+        EffectJournalStore, EffectOutboxCheckpoint, EffectPersistenceResult, GovernedEffectJournal,
     },
     input::InputBatch,
     nair::{
@@ -26,7 +30,7 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.6";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.7";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -206,6 +210,69 @@ impl AtomicEventLoop {
         dispatcher.dispatch_next(&mut self.effect_outbox, backend)
     }
 
+    pub fn effect_checkpoint(&self, namespace: EffectDeliveryNamespace) -> EffectOutboxCheckpoint {
+        EffectOutboxCheckpoint::capture(namespace, &self.effect_outbox)
+    }
+
+    pub fn restore_effect_checkpoint(
+        &mut self,
+        checkpoint: &EffectOutboxCheckpoint,
+    ) -> EffectPersistenceResult<()> {
+        if self.cycle != 0 {
+            return Err(
+                crate::effect_persistence::EffectPersistenceError::RecoveryAfterCycleStarted {
+                    cycle: self.cycle,
+                },
+            );
+        }
+        self.effect_outbox = checkpoint.to_outbox();
+        hash_bytes(
+            &mut self.replay_state,
+            b"NORDOI-EFFECT-JOURNAL-RECOVERY-1.0",
+        );
+        hash_component(
+            &mut self.replay_state,
+            &checkpoint.next_intent_id().to_le_bytes(),
+        );
+        hash_component(
+            &mut self.replay_state,
+            &(checkpoint.pending().len() as u64).to_le_bytes(),
+        );
+        for queued in checkpoint.pending() {
+            hash_component(&mut self.replay_state, &queued.id.0.to_le_bytes());
+            hash_component(&mut self.replay_state, &queued.cycle.to_le_bytes());
+            hash_component(&mut self.replay_state, &queued.ordinal.to_le_bytes());
+            hash_component(
+                &mut self.replay_state,
+                &queued.intent.reaction.0.to_le_bytes(),
+            );
+            hash_component(&mut self.replay_state, queued.intent.action_name.as_bytes());
+            hash_effect(&mut self.replay_state, &queued.intent.effect);
+        }
+        self.replay_key = EventLoopReplayKey(self.replay_state);
+        Ok(())
+    }
+
+    pub fn recover_effects_from_journal<S: EffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedEffectJournal<S>,
+    ) -> EffectPersistenceResult<bool> {
+        let Some(checkpoint) = journal.recover()? else {
+            return Ok(false);
+        };
+        self.restore_effect_checkpoint(&checkpoint)?;
+        Ok(true)
+    }
+
+    pub fn dispatch_next_effect_with_journal<S: EffectJournalStore, B: EffectBackend>(
+        &mut self,
+        journal: &mut GovernedEffectJournal<S>,
+        dispatcher: &GovernedEffectDispatcher,
+        backend: &mut B,
+    ) -> EffectPersistenceResult<Option<EffectDispatchReceipt>> {
+        journal.dispatch_next(&mut self.effect_outbox, dispatcher, backend)
+    }
+
     pub fn timer_snapshot(&self, id: TimerId) -> EventLoopResult<TimerSnapshot> {
         self.time.timer(id).map_err(Into::into)
     }
@@ -337,6 +404,19 @@ impl AtomicEventLoop {
             effects,
             replay_key,
         })
+    }
+
+    pub fn cycle_to_with_effect_journal<S: EffectJournalStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        journal: &mut GovernedEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        let mut candidate = self.clone();
+        let report = candidate.cycle_to(target, input)?;
+        journal.checkpoint(&candidate.effect_outbox)?;
+        *self = candidate;
+        Ok(report)
     }
 
     pub fn cycle_by(
