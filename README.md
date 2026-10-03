@@ -1,11 +1,10 @@
-# NORDOI K1.7 — Persistent Effect Journal & Recovery Protocol
+# NORDOI K1.8 — Fenced Effect Journal Ownership & Concurrent Dispatch Protocol
 
-K1.7 extends the certified K1.6 governed effect outbox with a crash-recovery protocol
-that can be backed by an explicit host persistence implementation. It preserves the
-core constitutional boundary: NORDOI does not acquire ambient filesystem authority and
-does not pretend that a successful external side effect can always be rolled back.
+K1.8 extends the certified K1.7 persistent effect journal with explicit multi-writer protection.
+K1.7 can recover a durable outbox after crash; K1.8 defines which recovered writer is currently
+authorized to mutate and dispatch that journal when multiple hosts/processes race for ownership.
 
-The delivery path is now:
+The governed path is now:
 
 ```text
 canonical cause
@@ -14,205 +13,178 @@ NAIR 0.5 native reaction
      ↓
 validated EffectIntent
      ↓
-AtomicEffectOutbox candidate
+AtomicEffectOutbox
      ↓
-canonical EffectOutboxCheckpoint
+canonical K1.7 checkpoint
      ↓
-host EffectJournalStore.commit(...)
+FencedEffectJournalStore
      ↓
-local event-loop publication
+EffectJournalLease(writer, fence)
+     ↓
+fenced checkpoint publication
      ↓
 GovernedEffectDispatcher
      ↓
-EffectDispatchRequest + stable EffectDeliveryKey
+EffectDeliveryKey + EffectDeliveryFence
      ↓
 host EffectBackend
      ↓
 external system
 ```
 
-## What K1.7 adds
+## What K1.8 adds
 
-- canonical versioned `EffectOutboxCheckpoint` encoding;
-- explicit `EffectDeliveryNamespace([u8; 16])` supplied by the host;
-- stable `EffectDeliveryKey { namespace, intent }` for retry-aware backends;
-- corruption detection with a deterministic checkpoint checksum;
-- bounded checkpoint, pending-count and string decoding limits;
-- `EffectJournalStore` as a host-injected atomic persistence boundary;
-- `GovernedEffectJournal` for checkpoint, recovery and persisted acknowledgement;
-- event-loop recovery before the first cycle only;
-- recovered outbox state participates explicitly in replay identity;
-- delivery namespace and backend receipt metadata remain outside deterministic program meaning;
-- `cycle_to_with_effect_journal(...)` evaluates on a private clone and publishes locally only
-  after the journal accepts the candidate checkpoint;
-- `dispatch_next_effect_with_journal(...)` executes against a private outbox candidate and
-  persists the acknowledgement before removing the live pending intent;
-- backend success followed by journal failure leaves the live intent pending for retry;
-- the retry receives the same `EffectDeliveryKey`;
-- existing K1.6 `EffectBackend` implementations remain source-compatible through the default
-  `execute_with_context(...)` adapter;
-- no built-in filesystem/database backend and zero new Rust dependencies.
+- explicit `EffectJournalWriterId([u8; 16])` supplied by the host;
+- monotonic `EffectDeliveryFence(u64)` writer epochs;
+- `EffectJournalLease { namespace, writer, fence }`;
+- `FencedEffectJournalStore` host boundary;
+- `GovernedFencedEffectJournal`;
+- stale-writer checks before candidate cycles and before external dispatch;
+- atomic fenced checkpoint commit contract;
+- takeover/recovery under a strictly newer fence;
+- current fence propagated through `EffectDispatchRequest`;
+- current fence exposed in `EffectDispatchReceipt`;
+- stable K1.7 `EffectDeliveryKey` preserved across writer takeover;
+- legacy K1.6/K1.7 effect backends remain source-compatible through the default context adapter;
+- no clock/TTL requirement in the canonical core;
+- zero new Rust dependencies;
+- NAIR remains 0.5.
 
-## Durability boundary
+## Two identities, two jobs
 
-K1.7 certifies the **protocol**, canonical checkpoint format, recovery validation and
-publication ordering. Physical durability depends on the host implementation of
-`EffectJournalStore`.
-
-The store contract is strict: once `commit(bytes)` returns success, that implementation
-is promising that the new checkpoint atomically replaced the previous checkpoint and
-is recoverable according to the durability guarantees advertised by that host.
-
-The NORDOI core can validate the checkpoint bytes and enforce protocol ordering. It
-cannot prove that an arbitrary host backend actually called `fsync`, used a correct
-filesystem, survived power loss, or honestly implemented its contract. A malicious or
-broken host remains a trust boundary.
-
-K1.7 therefore distinguishes:
+K1.8 intentionally separates semantic request identity from writer authority:
 
 ```text
-certified NORDOI journal protocol
-            ≠
-universal physical-media durability
+EffectDeliveryKey   = which semantic effect intent is this?
+EffectDeliveryFence = which writer epoch is currently authorized?
 ```
 
-A host may implement the store with SQLite/WAL, an append-only log, a database
-transaction or another mechanism, but that backend is not part of K1.7 core.
+A takeover therefore changes the fence but not the delivery key of an already-pending intent.
 
-## Candidate publication law
+This distinction matters after a crash or failover. A cooperating destination can deduplicate
+retries by stable key while rejecting stale writers by monotonically increasing fence.
 
-`cycle_to_with_effect_journal(...)` performs:
+## No ambient clock
+
+K1.8 does not manufacture leases from wall time, synchronized clocks, machine IDs, process IDs,
+or hidden randomness. The core accepts an explicit host-provided writer ID and a host-issued
+monotonic fence.
+
+A host may implement lease expiry or heartbeat policy externally, but canonical correctness does
+not depend on time synchronization.
+
+## Fenced store contract
+
+For one `EffectDeliveryNamespace`, a conforming `FencedEffectJournalStore` promises:
 
 ```text
-1. clone current event-loop state
-2. execute the complete candidate cycle on the clone
-3. stage new effect envelopes in the candidate outbox
-4. encode the complete candidate outbox checkpoint
-5. ask the host journal store to commit it
-6. only after successful journal commit, publish the candidate event-loop state
+acquire(writer A) -> fence 1
+acquire(writer B) -> fence 2
+
+writer A + fence 1 => stale
+writer B + fence 2 => current
 ```
 
-If steps 2–5 fail, the live event loop is unchanged.
+Every successful acquisition must return a strictly newer non-zero fence. `assert_active`,
+`load_fenced`, `commit_fenced`, and `release` must reject stale leases. `commit_fenced` must
+validate the fence and replace the checkpoint as one atomic host-side operation.
 
-K1.7 does not yet claim durable recovery of NAM atoms, logical time, render state or
-other runtime state. It certifies durable effect-journal recovery when the host store
-honors its contract. Broader whole-runtime persistence remains a separate future law.
+NORDOI can certify this protocol surface and its local publication ordering. It cannot prove that
+an arbitrary database, coordinator or custom host implementation honestly provides consensus,
+linearizability or durable storage.
 
-## Retry and idempotency law
+## Fenced cycle publication
 
-K1.6 already refused to claim universal exactly-once delivery. K1.7 makes retries safer
-without weakening that rule.
-
-A host provides one stable `EffectDeliveryNamespace` for a journal lifetime. NORDOI
-combines it with the deterministic `EffectIntentId`:
+`cycle_to_with_fenced_effect_journal(...)` performs:
 
 ```text
-EffectDeliveryKey = journal namespace + effect intent id
+1. assert current lease
+2. clone the event loop
+3. evaluate complete candidate cycle
+4. stage candidate effects
+5. encode canonical outbox checkpoint
+6. commit_fenced(current lease, checkpoint)
+7. publish local candidate only after success
 ```
 
-The core never generates the namespace from ambient randomness. The host is responsible
-for provisioning a namespace appropriate for its deployment and reusing the same
-namespace when recovering the same journal.
+If the lease is stale or the fenced commit fails, the live cycle index, replay state, runtime,
+time and outbox remain unchanged.
 
-A retry-aware backend receives:
+## Fenced dispatch
+
+`dispatch_next_effect_with_fenced_journal(...)` performs a stale-writer check before calling the
+backend. The backend receives:
 
 ```text
 EffectDispatchRequest {
     queued,
-    delivery_key: Some(...)
+    delivery_key: Some(stable semantic key),
+    delivery_fence: Some(current writer fence),
 }
 ```
 
-If the destination supports idempotency/client-request tokens, the backend can forward
-this key. If the destination does not support deduplication, duplicate external effects
-remain possible across the classic failure window where the destination completes but
-the local acknowledgement cannot be persisted.
+After backend success, acknowledgement is still persisted on a private outbox candidate before
+the live pending intent is removed.
 
-Therefore K1.7 provides **stable retry identity**, not a universal exactly-once claim.
+## Important distributed-systems limit
 
-## Recovery law
+There is an unavoidable boundary between a local journal and an arbitrary remote system. A writer
+can be current during the pre-dispatch check and lose ownership immediately afterward while a
+remote call is already in flight.
 
-A checkpoint contains:
+Therefore K1.8 does **not** claim universal exactly-once side effects or universal remote fencing.
+A destination that needs those properties must cooperate by honoring the stable delivery key and/or
+the supplied fence.
 
-- format magic and version;
-- effect delivery namespace;
-- next monotonic `EffectIntentId`;
-- every pending `QueuedEffectIntent` in canonical identity order;
-- cycle and ordinal metadata;
-- reaction identity;
-- action name;
-- exact effect scope;
-- deterministic checksum.
+Legacy backends may ignore `delivery_fence`. They remain valid, but they do not become
+fence-aware merely by running under K1.8.
 
-Recovery validates the entire checkpoint before installing it. Corrupt, truncated,
-oversized, version-incompatible or namespace-mismatched checkpoints fail closed.
+## Replay law
 
-Recovery into `AtomicEventLoop` is accepted only before the first cycle. This avoids
-silently replacing a live delivery history after runtime execution has started.
+Writer identity, active lease and fence are host ownership policy. They do not change deterministic
+program meaning and therefore do not enter replay identity.
 
-The recovered outbox content and next intent identity participate in replay identity.
-The host-only delivery namespace does not: two environments may use different delivery
-namespaces without changing the deterministic program meaning of the pending intents.
+Recovered semantic outbox content and next semantic intent ID continue to affect replay exactly as
+certified in K1.7.
 
-## Checkpoint resource limits
+## NAIR law
 
-K1.7 rejects hostile or accidental oversized persisted input before unbounded allocation:
+**NAIR remains 0.5 in K1.8.**
 
-```text
-maximum checkpoint bytes : 64 MiB
-maximum pending intents   : 65,536
-maximum encoded string    : 1 MiB
-```
+K1.8 adds no new program instruction. Writer IDs, leases, fencing epochs, persistence topology and
+coordinator policy must not become serialized canonical program authority.
 
-These are format-decoder safety limits, not application quotas. Future versions may
-make deployment budgets more granular while preserving fail-closed decoding.
+## Tests
 
-## NAIR version
+K1.8 adds **19 fencing/concurrency tests** to the **224 certified K1.7 tests**, for an expected
+suite of **243 tests**.
 
-**NAIR remains 0.5 in K1.7.**
+The new corpus covers:
 
-K1.7 adds host persistence and delivery protocol semantics. It does not add a new
-serialized NORDOI program instruction. Journal stores, namespaces, durability policy,
-idempotency routing and backend receipts are environmental runtime policy and SHALL NOT
-be smuggled into canonical NAIR authority.
+- non-zero monotonically increasing fences;
+- same-journal double-acquire rejection;
+- takeover and stale-writer invalidation;
+- stale checkpoint overwrite prevention;
+- lease-required fail-closed behavior;
+- candidate cycle publication under fencing;
+- recovery by a new writer;
+- stale cycle rejection before publication;
+- fence propagation to external backends;
+- stale dispatch rejection before backend work;
+- stable delivery key across takeover;
+- failed acknowledgement persistence and retry;
+- release semantics;
+- malformed zero/mismatched host leases;
+- explicit host active-check failure;
+- replay independence from fencing epoch.
 
-## External result boundary
+## Certification
 
-K1.7 still does not allow an effect backend to mutate NAM directly. A successful or
-failed environmental result that needs to influence the program must later return
-through a separately governed semantic completion/input mechanism.
-
-That future re-entry mechanism is intentionally not invented inside the persistence
-layer.
-
-## Test corpus
-
-K1.7 adds **19 persistence/recovery tests** to the **205 certified K1.6 tests**, for an
-expected total of **224 tests**.
-
-The new tests cover canonical checkpoint round-trip, byte stability, corruption and
-truncation rejection, store failures, empty recovery, namespace mismatch, persisted
-candidate publication, failed-persistence rollback, pre-cycle recovery, explicit replay
-recovery identity, late-recovery rejection, monotonic IDs after recovery, stable delivery
-keys, retry after acknowledgement-persistence failure, persisted acknowledgement,
-backend failure preservation and namespace-separated delivery identity.
-
-## Mandatory release gate
+Run:
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets -- -D warnings
-cargo check --all-targets
-cargo test --all-targets
+cargo fmt --all
+./scripts/release_gate.sh
 ```
 
-GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.7` can be tagged.
-
-## Key specifications
-
-- `docs/EFFECT_JOURNAL_RECOVERY_SPEC_1_0.md`
-- `docs/EFFECT_OUTBOX_DISPATCH_SPEC_1_0.md`
-- `docs/NAIR_NATIVE_REACTION_SPEC_0_1.md`
-- `docs/NAIR_SPEC_0_5.md`
-- `research/EFFECT_PERSISTENCE_INTELLIGENCE_0_1.md`
-- `docs/TESTING_AND_RELEASE_LAW.md`
+K1.8 is certified only after the local gate and the cross-platform GitHub CI are fully green.

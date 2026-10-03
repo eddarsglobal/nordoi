@@ -676,3 +676,73 @@ K1.7 adds persistence, recovery and retry-delivery protocol surfaces rather than
 serialized program instruction. NAIR SHALL remain format 0.5. Journal namespace,
 checkpoint storage policy and backend idempotency routing SHALL NOT be serialized as
 canonical NAIR authority.
+
+## C129 — Recovered Effect Journals Require Explicit Writer Identity
+
+Concurrent journal ownership SHALL NOT be inferred from process identity, machine identity,
+thread identity or ambient runtime state. A K1.8 writer identity SHALL be explicitly supplied by
+the host.
+
+## C130 — Fencing Epochs Are Monotonic And Non-Zero
+
+Every successful ownership acquisition for one delivery namespace SHALL produce a strictly newer,
+non-zero fencing epoch according to the host fencing authority.
+
+## C131 — Stale Writers Shall Not Mutate The Durable Journal
+
+A fenced journal store SHALL reject checkpoint load, commit, active-assertion and release operations
+performed with a stale lease. A stale writer SHALL NOT overwrite a checkpoint accepted under a
+newer fence.
+
+## C132 — Fenced Commit Is One Atomic Host Boundary
+
+Fence validation and checkpoint replacement SHALL be one atomic operation from the protocol's
+point of view. A host implementation that validates a fence and later writes without protecting
+against takeover does not satisfy the K1.8 contract.
+
+## C133 — Core Correctness Shall Not Depend On Ambient Lease Time
+
+K1.8 SHALL NOT require a wall clock, synchronized clock, implicit TTL or hidden heartbeat in the
+canonical core. Hosts MAY implement expiry policies externally, but NORDOI consumes explicit lease
+results rather than ambient time authority.
+
+## C134 — Stale Writers Are Checked Before External Dispatch
+
+The fenced dispatch surface SHALL validate current journal ownership before invoking an external
+backend. A writer already known to be stale SHALL create zero new backend work through that
+surface.
+
+## C135 — Current Fence Is Exposed To Cooperative Backends
+
+The active fencing epoch SHALL be available in the external dispatch request context so a
+cooperating destination or gateway can reject stale writer epochs beyond the local journal
+boundary.
+
+## C136 — Stable Delivery Identity Survives Ownership Transfer
+
+Ownership takeover SHALL NOT change the semantic `EffectDeliveryKey` of an already-pending intent.
+The delivery key identifies the semantic request; the fencing epoch identifies the current writer
+authority. These identities SHALL remain distinct.
+
+## C137 — Fencing Does Not Create Universal Exactly-Once Semantics
+
+A local pre-dispatch fence check cannot atomically control an arbitrary remote system. If the
+external destination ignores fencing and idempotency keys, duplicate observation across failure or
+takeover boundaries remains possible. NORDOI SHALL state this limit explicitly.
+
+## C138 — Fencing State Is Host Policy, Not Replay Meaning
+
+Writer identity, lease ownership and fencing epoch SHALL NOT alter deterministic program replay
+identity. Semantic recovered outbox state continues to affect replay as defined by K1.7.
+
+## C139 — Legacy Backends Remain Valid But Weaker At The Boundary
+
+Existing effect backends MAY ignore the K1.8 fence through the compatibility adapter. Such a
+backend remains usable but SHALL NOT be described as destination-fenced unless it actually honors
+the supplied epoch.
+
+## C140 — K1.8 Does Not Increment NAIR Without New Program Semantics
+
+K1.8 adds host concurrency-control and delivery-boundary context rather than a new serialized
+program instruction. NAIR SHALL remain format 0.5. Writer identities, leases and fencing epochs
+SHALL NOT be serialized as canonical program authority.

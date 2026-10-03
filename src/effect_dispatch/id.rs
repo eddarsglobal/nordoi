@@ -36,6 +36,25 @@ impl Display for EffectDeliveryNamespace {
     }
 }
 
+/// Monotonic host-issued fencing token for concurrent effect-journal ownership.
+///
+/// A zero fence is invalid for an acquired lease. The token is not part of deterministic
+/// program meaning and may change when journal ownership moves between host instances.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct EffectDeliveryFence(pub u64);
+
+impl EffectDeliveryFence {
+    pub const fn value(self) -> u64 {
+        self.0
+    }
+}
+
+impl Display for EffectDeliveryFence {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:016x}", self.0)
+    }
+}
+
 /// Stable client request identity for retry-aware external backends.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct EffectDeliveryKey {

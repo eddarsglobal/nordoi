@@ -5,8 +5,8 @@ use crate::{
 };
 
 use super::{
-    AtomicEffectOutbox, EffectBackendError, EffectDeliveryKey, EffectDispatchError,
-    EffectDispatchResult, QueuedEffectIntent,
+    AtomicEffectOutbox, EffectBackendError, EffectDeliveryFence, EffectDeliveryKey,
+    EffectDispatchError, EffectDispatchResult, QueuedEffectIntent,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -30,6 +30,9 @@ impl EffectBackendReceipt {
 pub struct EffectDispatchRequest {
     pub queued: QueuedEffectIntent,
     pub delivery_key: Option<EffectDeliveryKey>,
+    /// Optional K1.8 fencing epoch. Fence-aware destinations may reject stale writers.
+    /// Legacy backends may ignore this field through the default adapter.
+    pub delivery_fence: Option<EffectDeliveryFence>,
 }
 
 pub trait EffectBackend {
@@ -40,7 +43,7 @@ pub trait EffectBackend {
         request: &QueuedEffectIntent,
     ) -> Result<EffectBackendReceipt, EffectBackendError>;
 
-    /// K1.7 retry-aware execution surface.
+    /// K1.7 retry-aware / K1.8 fence-aware execution surface.
     ///
     /// Existing K1.6 backends remain source-compatible through this default adapter.
     /// Backends that can provide destination-level idempotency may override this method
@@ -98,6 +101,7 @@ impl EffectDispatchAuthority {
 pub struct EffectDispatchReceipt {
     pub request: QueuedEffectIntent,
     pub delivery_key: Option<EffectDeliveryKey>,
+    pub delivery_fence: Option<EffectDeliveryFence>,
     pub backend: EffectBackendReceipt,
 }
 
@@ -124,7 +128,7 @@ impl GovernedEffectDispatcher {
         outbox: &mut AtomicEffectOutbox,
         backend: &mut B,
     ) -> EffectDispatchResult<Option<EffectDispatchReceipt>> {
-        self.dispatch_next_with_delivery_key(outbox, backend, None)
+        self.dispatch_next_with_delivery_context(outbox, backend, None, None)
     }
 
     pub(crate) fn dispatch_next_with_delivery_key<B: EffectBackend>(
@@ -132,6 +136,16 @@ impl GovernedEffectDispatcher {
         outbox: &mut AtomicEffectOutbox,
         backend: &mut B,
         delivery_key: Option<EffectDeliveryKey>,
+    ) -> EffectDispatchResult<Option<EffectDispatchReceipt>> {
+        self.dispatch_next_with_delivery_context(outbox, backend, delivery_key, None)
+    }
+
+    pub(crate) fn dispatch_next_with_delivery_context<B: EffectBackend>(
+        &self,
+        outbox: &mut AtomicEffectOutbox,
+        backend: &mut B,
+        delivery_key: Option<EffectDeliveryKey>,
+        delivery_fence: Option<EffectDeliveryFence>,
     ) -> EffectDispatchResult<Option<EffectDispatchReceipt>> {
         let Some(request) = outbox.peek().cloned() else {
             return Ok(None);
@@ -149,6 +163,7 @@ impl GovernedEffectDispatcher {
         let dispatch_request = EffectDispatchRequest {
             queued: request.clone(),
             delivery_key,
+            delivery_fence,
         };
         let backend_receipt = backend
             .execute_with_context(&dispatch_request)
@@ -163,6 +178,7 @@ impl GovernedEffectDispatcher {
         Ok(Some(EffectDispatchReceipt {
             request,
             delivery_key,
+            delivery_fence,
             backend: backend_receipt,
         }))
     }

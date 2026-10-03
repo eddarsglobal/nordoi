@@ -536,3 +536,24 @@ The permanent objective is:
 NORDOI is not designed for the limitations of yesterday's computing.
 
 **NORDOI is designed for the intelligence and machines of tomorrow.**
+
+---
+
+## 26. Governed distributed ownership law
+
+Durability alone does not establish exclusive authority. Whenever recoverable NORDOI state may be
+opened by multiple host writers, ownership must be explicit, revocable and stale-writer safe.
+
+For the K1.8 effect journal this means:
+
+```text
+semantic delivery identity != writer ownership epoch
+```
+
+The semantic intent keeps a stable delivery key across recovery. The current host writer carries a
+monotonic fencing epoch. New ownership must supersede old ownership, and protected persistence
+mutations must reject stale epochs.
+
+NORDOI shall not hide this problem behind local mutexes, process IDs, wall-clock assumptions or
+claims of universal exactly-once delivery. Cross-system guarantees require cooperation from every
+boundary that participates in the guarantee.

@@ -5,6 +5,7 @@ pub mod capability;
 pub mod dependency;
 pub mod effect;
 pub mod effect_dispatch;
+pub mod effect_fencing;
 pub mod effect_persistence;
 pub mod error;
 pub mod input;
@@ -25,10 +26,14 @@ pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use effect::{Effect, EffectSet};
 pub use effect_dispatch::{
-    AtomicEffectOutbox, EffectBackend, EffectBackendError, EffectBackendReceipt, EffectDeliveryKey,
-    EffectDeliveryNamespace, EffectDispatchAuthority, EffectDispatchError, EffectDispatchReceipt,
-    EffectDispatchRequest, EffectDispatchResult, EffectIntentId, EffectOutboxStageReport,
-    GovernedEffectDispatcher, QueuedEffectIntent,
+    AtomicEffectOutbox, EffectBackend, EffectBackendError, EffectBackendReceipt,
+    EffectDeliveryFence, EffectDeliveryKey, EffectDeliveryNamespace, EffectDispatchAuthority,
+    EffectDispatchError, EffectDispatchReceipt, EffectDispatchRequest, EffectDispatchResult,
+    EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher, QueuedEffectIntent,
+};
+pub use effect_fencing::{
+    EffectFenceStoreError, EffectFencingError, EffectFencingResult, EffectJournalLease,
+    EffectJournalWriterId, FencedEffectJournalStore, GovernedFencedEffectJournal,
 };
 pub use effect_persistence::{
     EffectJournalCommitReceipt, EffectJournalStore, EffectJournalStoreError,

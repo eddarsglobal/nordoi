@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "1.7.0"
+version = "1.8.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K1.7 — Persistent Effect Journal & Recovery Protocol"
+description = "NORDOI K1.8 — Fenced Effect Journal Ownership & Concurrent Dispatch Protocol"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

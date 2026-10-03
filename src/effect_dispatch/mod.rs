@@ -8,5 +8,5 @@ pub use backend::{
     EffectDispatchRequest, GovernedEffectDispatcher,
 };
 pub use error::{EffectBackendError, EffectDispatchError, EffectDispatchResult};
-pub use id::{EffectDeliveryKey, EffectDeliveryNamespace, EffectIntentId};
+pub use id::{EffectDeliveryFence, EffectDeliveryKey, EffectDeliveryNamespace, EffectIntentId};
 pub use outbox::{AtomicEffectOutbox, EffectOutboxStageReport, QueuedEffectIntent};
