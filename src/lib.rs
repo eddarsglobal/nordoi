@@ -7,6 +7,7 @@ pub mod effect;
 pub mod effect_dispatch;
 pub mod effect_fencing;
 pub mod effect_persistence;
+pub mod effect_retry;
 pub mod error;
 pub mod input;
 pub mod kernel;
@@ -40,6 +41,12 @@ pub use effect_persistence::{
     EffectOutboxCheckpoint, EffectPersistenceError, EffectPersistenceResult, GovernedEffectJournal,
     MAX_EFFECT_JOURNAL_CHECKPOINT_BYTES, MAX_EFFECT_JOURNAL_PENDING,
     MAX_EFFECT_JOURNAL_STRING_BYTES,
+};
+pub use effect_retry::{
+    DeadLetteredEffect, EffectDeadLetterReason, EffectRetryCheckpoint, EffectRetryDispatchOutcome,
+    EffectRetryError, EffectRetryLedger, EffectRetryPolicy, EffectRetryRecord, EffectRetryResult,
+    EffectRetryTick, GovernedRetryEffectJournal, MAX_EFFECT_DEAD_LETTERS,
+    MAX_EFFECT_RETRY_CHECKPOINT_BYTES, MAX_EFFECT_RETRY_ENTRIES,
 };
 pub use error::{AtomicError, AtomicResult};
 pub use input::{

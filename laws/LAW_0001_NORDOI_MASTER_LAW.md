@@ -557,3 +557,32 @@ mutations must reject stale epochs.
 NORDOI shall not hide this problem behind local mutexes, process IDs, wall-clock assumptions or
 claims of universal exactly-once delivery. Cross-system guarantees require cooperation from every
 boundary that participates in the guarantee.
+
+---
+
+## 27. Governed retry and poison-effect law
+
+Durable delivery must distinguish transient failure from permanently or repeatedly failing work.
+NORDOI shall not solve external failure with hidden infinite loops.
+
+For K1.9:
+
+```text
+external failure
+      ↓
+explicit retry classification
+      ↓
+bounded deterministic backoff
+      ↓
+durable retry state
+      ↓
+retry success OR durable dead-letter quarantine
+```
+
+Retry scheduling must remain explicit, fenced and persistence-first. A poison effect may not hold
+unrelated later eligible work hostage forever. Dead-lettering is quarantine, not deletion, and
+redrive must preserve the original semantic delivery identity.
+
+The core must continue to avoid ambient time and ambient randomness. Hosts may map explicit retry
+ticks to real scheduling infrastructure, but policy and state transitions remain inspectable and
+recoverable.

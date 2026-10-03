@@ -746,3 +746,97 @@ the supplied epoch.
 K1.8 adds host concurrency-control and delivery-boundary context rather than a new serialized
 program instruction. NAIR SHALL remain format 0.5. Writer identities, leases and fencing epochs
 SHALL NOT be serialized as canonical program authority.
+
+## C141 — Retry State Is Explicit And Durable
+
+A failed external effect SHALL NOT be retried through hidden process-local counters or implicit
+loops. Retry attempt count and next eligibility SHALL be explicit delivery state and SHALL be
+persisted before becoming published runtime state.
+
+## C142 — Retry Time Is Explicit Host Input, Not Ambient Time
+
+K1.9 retry scheduling SHALL consume an explicit `EffectRetryTick`. The canonical core SHALL NOT
+read wall clocks, synchronized clocks, sleep state or implicit timer services to decide when an
+external effect becomes retry-eligible.
+
+## C143 — Retry Budgets Are Finite
+
+Every K1.9 retry policy SHALL define a finite, non-zero maximum attempt count. Infinite automatic
+retry is not a certified default semantic.
+
+## C144 — Backoff Is Deterministic And Bounded
+
+Retry delay SHALL be computed from explicit policy, stable delivery identity and failure ordinal.
+Exponential growth SHALL be capped. Jitter, when configured, SHALL be deterministic rather than
+ambient-random so that crash recovery and ownership takeover preserve scheduling decisions.
+
+## C145 — Permanent Backend Failure Shall Not Be Retried Automatically
+
+A backend MAY classify an execution failure as permanent. Such a failure SHALL bypass automatic
+retry scheduling and move the intent to durable dead-letter state after the failed attempt is
+persisted.
+
+## C146 — Dead-Lettering Is Quarantine, Not Silent Loss
+
+When retry budget is exhausted or a permanent backend failure occurs, the complete queued effect
+intent, stable delivery key, attempt count, terminal reason and last error SHALL remain durably
+inspectable until explicit redrive or discard.
+
+## C147 — Dead-Letter Redrive Preserves Semantic Delivery Identity
+
+Redriving a dead-lettered effect SHALL restore the original `EffectIntentId` and therefore the same
+`EffectDeliveryKey`. Redrive SHALL NOT manufacture a new semantic request identity for the same
+quarantined effect.
+
+## C148 — Retry Policy Is Part Of Durable Delivery Policy
+
+Once persisted by K1.9, retry policy SHALL be recovered and compared against the configured policy.
+A process restart SHALL NOT silently alter maximum attempts, backoff or jitter. Policy migration
+requires an explicit future protocol.
+
+## C149 — Stale Writers Shall Not Retry Or Redrive
+
+All K1.9 retry execution, dead-letter transition, redrive and discard operations SHALL remain under
+K1.8 fencing authority. A stale writer SHALL create zero new backend retry work through the governed
+surface.
+
+## C150 — Retry Publication Follows Durable Commit
+
+Retry scheduling, dead-letter transition, acknowledgement, redrive and discard SHALL be evaluated
+on private candidates. Local publication SHALL occur only after the fenced durable checkpoint
+commit succeeds.
+
+## C151 — Delayed Intents Shall Not Block Later Eligible Intents
+
+Among currently eligible intents, dispatch order remains ascending by `EffectIntentId`. An older
+intent whose retry eligibility lies in the future SHALL NOT prevent a later already-eligible intent
+from being dispatched.
+
+## C152 — Policy Failures Do Not Consume Backend Retry Budget
+
+Capability denial, unsupported backend selection and other failures that occur before backend
+execution SHALL NOT increment backend attempt counts.
+
+## C153 — Retry Control Is Not Program Replay Meaning
+
+Retry ticks, attempt counts, dead-letter metadata, backend error text and retry policy are host
+delivery policy. They SHALL NOT alter deterministic program replay identity. Recovered semantic
+pending outbox state continues to participate in replay identity under the K1.7 recovery law.
+
+## C154 — Retry Does Not Create Universal Exactly-Once Semantics
+
+A retry protocol cannot atomically control an arbitrary remote system. If a remote destination does
+not honor stable delivery keys and/or fencing, duplicate external observation remains possible
+across timeout, crash, failed acknowledgement persistence or ownership takeover.
+
+## C155 — Legacy Effect Checkpoints Migrate Fail-Closed
+
+Certified K1.7/K1.8 outbox checkpoints MAY be opened by K1.9 as an empty retry/dead-letter ledger.
+K1.9 SHALL preserve the prior namespace, pending intents and next semantic intent identity while
+adding no invented historical attempts.
+
+## C156 — K1.9 Does Not Increment NAIR Without New Program Semantics
+
+K1.9 adds external delivery-control policy rather than a new serialized program instruction. NAIR
+SHALL remain format 0.5. Retry ticks, retry policy, backend error classification, attempt counters
+and dead-letter state SHALL NOT be serialized as canonical program authority.

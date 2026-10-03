@@ -10,17 +10,37 @@ use super::EffectIntentId;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EffectBackendError {
     message: String,
+    retryable: bool,
 }
 
 impl EffectBackendError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+            retryable: true,
+        }
+    }
+
+    pub fn permanent(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            retryable: false,
+        }
+    }
+
+    pub fn with_retryable(message: impl Into<String>, retryable: bool) -> Self {
+        Self {
+            message: message.into(),
+            retryable,
         }
     }
 
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    pub const fn is_retryable(&self) -> bool {
+        self.retryable
     }
 }
 

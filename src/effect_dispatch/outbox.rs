@@ -135,4 +135,25 @@ impl AtomicEffectOutbox {
             .remove(&id)
             .ok_or(EffectDispatchError::UnknownIntent(id))
     }
+
+    pub(crate) fn abandon(
+        &mut self,
+        id: EffectIntentId,
+    ) -> EffectDispatchResult<QueuedEffectIntent> {
+        self.acknowledge(id)
+    }
+
+    pub(crate) fn restore_pending(
+        &mut self,
+        request: QueuedEffectIntent,
+    ) -> EffectDispatchResult<()> {
+        if self.pending.contains_key(&request.id) {
+            return Err(EffectDispatchError::UnknownIntent(request.id));
+        }
+        if request.id.0 == 0 || request.id.0 >= self.next_intent_id {
+            return Err(EffectDispatchError::UnknownIntent(request.id));
+        }
+        self.pending.insert(request.id, request);
+        Ok(())
+    }
 }

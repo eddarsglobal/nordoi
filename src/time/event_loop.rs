@@ -11,6 +11,10 @@ use crate::{
     effect_persistence::{
         EffectJournalStore, EffectOutboxCheckpoint, EffectPersistenceResult, GovernedEffectJournal,
     },
+    effect_retry::{
+        DeadLetteredEffect, EffectRetryDispatchOutcome, EffectRetryResult, EffectRetryTick,
+        GovernedRetryEffectJournal,
+    },
     input::InputBatch,
     nair::{
         bootstrap_native_reactions, Instruction, NairError, NairProgram, NairReactionAuthority,
@@ -298,6 +302,48 @@ impl AtomicEventLoop {
         journal.dispatch_next(&mut self.effect_outbox, dispatcher, backend)
     }
 
+    pub fn recover_effects_from_retry_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedRetryEffectJournal<S>,
+    ) -> EffectRetryResult<bool> {
+        let Some(checkpoint) = journal.recover()? else {
+            return Ok(false);
+        };
+        self.restore_effect_checkpoint(checkpoint.outbox())
+            .map_err(crate::effect_retry::EffectRetryError::from)?;
+        journal.adopt_recovered_ledger(checkpoint.ledger().clone());
+        Ok(true)
+    }
+
+    pub fn dispatch_next_effect_with_retry_journal<
+        S: FencedEffectJournalStore,
+        B: EffectBackend,
+    >(
+        &mut self,
+        journal: &mut GovernedRetryEffectJournal<S>,
+        current_tick: EffectRetryTick,
+        dispatcher: &GovernedEffectDispatcher,
+        backend: &mut B,
+    ) -> EffectRetryResult<Option<EffectRetryDispatchOutcome>> {
+        journal.dispatch_next(&mut self.effect_outbox, current_tick, dispatcher, backend)
+    }
+
+    pub fn redrive_dead_letter_with_retry_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedRetryEffectJournal<S>,
+        id: EffectIntentId,
+    ) -> EffectRetryResult<QueuedEffectIntent> {
+        journal.redrive_dead_letter(&mut self.effect_outbox, id)
+    }
+
+    pub fn discard_dead_letter_with_retry_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedRetryEffectJournal<S>,
+        id: EffectIntentId,
+    ) -> EffectRetryResult<DeadLetteredEffect> {
+        journal.discard_dead_letter(&self.effect_outbox, id)
+    }
+
     pub fn timer_snapshot(&self, id: TimerId) -> EventLoopResult<TimerSnapshot> {
         self.time.timer(id).map_err(Into::into)
     }
@@ -449,6 +495,20 @@ impl AtomicEventLoop {
         target: LogicalTime,
         input: &InputBatch,
         journal: &mut GovernedFencedEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        journal.assert_active()?;
+        let mut candidate = self.clone();
+        let report = candidate.cycle_to(target, input)?;
+        journal.checkpoint(&candidate.effect_outbox)?;
+        *self = candidate;
+        Ok(report)
+    }
+
+    pub fn cycle_to_with_retry_effect_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        journal: &mut GovernedRetryEffectJournal<S>,
     ) -> EventLoopResult<EventLoopCycleReport> {
         journal.assert_active()?;
         let mut candidate = self.clone();

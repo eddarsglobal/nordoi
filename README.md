@@ -1,10 +1,9 @@
-# NORDOI K1.8 — Fenced Effect Journal Ownership & Concurrent Dispatch Protocol
+# NORDOI K1.9 — Deterministic Retry, Backoff & Dead-Letter Protocol
 
-K1.8 extends the certified K1.7 persistent effect journal with explicit multi-writer protection.
-K1.7 can recover a durable outbox after crash; K1.8 defines which recovered writer is currently
-authorized to mutate and dispatch that journal when multiple hosts/processes race for ownership.
+K1.9 extends the certified K1.8 fenced effect journal with bounded retry scheduling, deterministic
+backoff, durable poison-effect quarantine and manual redrive.
 
-The governed path is now:
+The governed external-effect path is now:
 
 ```text
 canonical cause
@@ -15,168 +14,207 @@ validated EffectIntent
      ↓
 AtomicEffectOutbox
      ↓
-canonical K1.7 checkpoint
+K1.9 retry checkpoint
      ↓
-FencedEffectJournalStore
+K1.8 fenced ownership
      ↓
-EffectJournalLease(writer, fence)
-     ↓
-fenced checkpoint publication
-     ↓
-GovernedEffectDispatcher
+Governed retry dispatcher
      ↓
 EffectDeliveryKey + EffectDeliveryFence
      ↓
 host EffectBackend
      ↓
-external system
+SUCCESS
+  or RETRY_SCHEDULED
+  or DEAD_LETTERED
 ```
 
-## What K1.8 adds
+## What K1.9 adds
 
-- explicit `EffectJournalWriterId([u8; 16])` supplied by the host;
-- monotonic `EffectDeliveryFence(u64)` writer epochs;
-- `EffectJournalLease { namespace, writer, fence }`;
-- `FencedEffectJournalStore` host boundary;
-- `GovernedFencedEffectJournal`;
-- stale-writer checks before candidate cycles and before external dispatch;
-- atomic fenced checkpoint commit contract;
-- takeover/recovery under a strictly newer fence;
-- current fence propagated through `EffectDispatchRequest`;
-- current fence exposed in `EffectDispatchReceipt`;
-- stable K1.7 `EffectDeliveryKey` preserved across writer takeover;
-- legacy K1.6/K1.7 effect backends remain source-compatible through the default context adapter;
-- no clock/TTL requirement in the canonical core;
+- `EffectRetryTick(u64)` as explicit host scheduling input;
+- `EffectRetryPolicy` with finite attempt budget;
+- capped exponential backoff;
+- deterministic jitter derived from stable delivery identity;
+- retryable vs permanent `EffectBackendError` classification;
+- durable per-intent `EffectRetryRecord` state;
+- durable `DeadLetteredEffect` quarantine;
+- `EffectRetryCheckpoint` canonical format `NDEFXR01`;
+- K1.7/K1.8 checkpoint migration;
+- retry-policy persistence and recovery mismatch rejection;
+- manual dead-letter redrive preserving the original delivery key;
+- explicit dead-letter discard;
+- no head-of-line blocking by an older delayed effect;
+- K1.8 fencing retained for every retry/redrive mutation;
 - zero new Rust dependencies;
 - NAIR remains 0.5.
 
-## Two identities, two jobs
-
-K1.8 intentionally separates semantic request identity from writer authority:
+## Three delivery states
 
 ```text
-EffectDeliveryKey   = which semantic effect intent is this?
-EffectDeliveryFence = which writer epoch is currently authorized?
+PENDING
+    effect may run now
+
+RETRY_SCHEDULED
+    effect stays in the semantic outbox
+    failed_attempts is durable
+    next_eligible_tick is durable
+
+DEAD_LETTERED
+    effect is removed from active delivery
+    full original request is durably quarantined
+    stable delivery key is preserved
 ```
 
-A takeover therefore changes the fence but not the delivery key of an already-pending intent.
+Dead-lettering happens when either:
 
-This distinction matters after a crash or failover. A cooperating destination can deduplicate
-retries by stable key while rejecting stale writers by monotonically increasing fence.
+- the backend returns `EffectBackendError::permanent(...)`; or
+- a retryable failure reaches the configured `max_attempts`.
 
-## No ambient clock
+## Explicit retry clock
 
-K1.8 does not manufacture leases from wall time, synchronized clocks, machine IDs, process IDs,
-or hidden randomness. The core accepts an explicit host-provided writer ID and a host-issued
-monotonic fence.
+`EffectRetryTick` is intentionally separate from program `LogicalTime`.
 
-A host may implement lease expiry or heartbeat policy externally, but canonical correctness does
-not depend on time synchronization.
+NORDOI does not read a wall clock or sleep internally. The host supplies the current retry tick.
+That tick may correspond to a durable scheduler, wall-time bucket, queue epoch or another monotonic
+host domain.
 
-## Fenced store contract
+Once an attempt outcome is durably published at tick `T`, a later governed attempt cannot publish
+at a tick below `T`.
 
-For one `EffectDeliveryNamespace`, a conforming `FencedEffectJournalStore` promises:
+## Bounded deterministic backoff
+
+For failure number `n >= 1`:
 
 ```text
-acquire(writer A) -> fence 1
-acquire(writer B) -> fence 2
-
-writer A + fence 1 => stale
-writer B + fence 2 => current
+base = min(max_backoff, initial_backoff * 2^(n-1))
+jitter = stable_hash(delivery_key, n) mod (jitter_ticks + 1)
+delay = min(max_backoff, base + jitter)
+next_eligible = current_tick + delay
 ```
 
-Every successful acquisition must return a strictly newer non-zero fence. `assert_active`,
-`load_fenced`, `commit_fenced`, and `release` must reject stale leases. `commit_fenced` must
-validate the fence and replace the checkpoint as one atomic host-side operation.
+No ambient RNG is required. The same delivery key, retry policy and failure ordinal produce the
+same scheduling decision after crash or writer takeover.
 
-NORDOI can certify this protocol surface and its local publication ordering. It cannot prove that
-an arbitrary database, coordinator or custom host implementation honestly provides consensus,
-linearizability or durable storage.
+## Retry policy is durable
 
-## Fenced cycle publication
-
-`cycle_to_with_fenced_effect_journal(...)` performs:
+A K1.9 checkpoint records:
 
 ```text
-1. assert current lease
-2. clone the event loop
-3. evaluate complete candidate cycle
-4. stage candidate effects
-5. encode canonical outbox checkpoint
-6. commit_fenced(current lease, checkpoint)
-7. publish local candidate only after success
+max_attempts
+initial_backoff_ticks
+max_backoff_ticks
+jitter_ticks
 ```
 
-If the lease is stale or the fenced commit fails, the live cycle index, replay state, runtime,
-time and outbox remain unchanged.
+Recovery rejects a different configured policy. This prevents a restart from silently turning, for
+example, a 3-attempt journal into a 20-attempt journal.
 
-## Fenced dispatch
-
-`dispatch_next_effect_with_fenced_journal(...)` performs a stale-writer check before calling the
-backend. The backend receives:
+Certified K1.7/K1.8 `NDEFXJ01` checkpoints are accepted with:
 
 ```text
-EffectDispatchRequest {
-    queued,
-    delivery_key: Some(stable semantic key),
-    delivery_fence: Some(current writer fence),
-}
+same outbox
+same next intent ID
+empty retry ledger
+empty dead-letter ledger
+no historical attempts invented
 ```
 
-After backend success, acknowledgement is still persisted on a private outbox candidate before
-the live pending intent is removed.
+The first K1.9 commit then persists the configured policy.
 
-## Important distributed-systems limit
+## No poison-effect head-of-line lock
 
-There is an unavoidable boundary between a local journal and an arbitrary remote system. A writer
-can be current during the pre-dispatch check and lose ownership immediately afterward while a
-remote call is already in flight.
+K1.8 dispatches the first pending intent. K1.9 refines that rule for delayed retries:
 
-Therefore K1.8 does **not** claim universal exactly-once side effects or universal remote fencing.
-A destination that needs those properties must cooperate by honoring the stable delivery key and/or
-the supplied fence.
+```text
+ID 1 -> retry blocked until tick 100
+ID 2 -> eligible now
+```
 
-Legacy backends may ignore `delivery_fence`. They remain valid, but they do not become
-fence-aware merely by running under K1.8.
+At tick 20, K1.9 may dispatch ID 2 while ID 1 remains delayed. Among all currently eligible
+intents, lower IDs still execute first.
+
+## Dead-letter redrive
+
+A quarantined effect can be explicitly redriven. K1.9 restores the exact original queued request,
+including its original `EffectIntentId`.
+
+Therefore:
+
+```text
+before dead-letter: key = namespace + intent 42
+after redrive:      key = namespace + intent 42
+```
+
+This matters for destinations that deduplicate by idempotency key.
+
+## Persistence-before-publication
+
+Every retry/dead-letter state transition is candidate-first:
+
+```text
+assert current fence
+      ↓
+execute / classify
+      ↓
+mutate private candidate
+      ↓
+encode K1.9 checkpoint
+      ↓
+commit_fenced(...)
+      ↓
+publish local state
+```
+
+If persistence fails, local retry/dead-letter state is unchanged.
+
+As before, if a remote call succeeds but durable acknowledgement fails, the same effect may be sent
+again. The stable delivery key and current fence remain the cooperative boundary. K1.9 does not
+claim universal exactly-once external effects.
+
+## Backend compatibility
+
+Existing K1.6-K1.8 code using:
+
+```rust
+EffectBackendError::new("temporary failure")
+```
+
+remains source-compatible and is classified as retryable.
+
+Backends may now explicitly return:
+
+```rust
+EffectBackendError::permanent("invalid request")
+```
+
+for non-retryable failures.
 
 ## Replay law
 
-Writer identity, active lease and fence are host ownership policy. They do not change deterministic
-program meaning and therefore do not enter replay identity.
+Retry control is external delivery policy. Retry ticks, failure counters, policy, dead-letter
+metadata and error strings do not alter the live deterministic event-loop replay key.
 
-Recovered semantic outbox content and next semantic intent ID continue to affect replay exactly as
-certified in K1.7.
+Recovered semantic pending outbox contents still affect recovery replay identity under the
+certified K1.7 rule.
 
 ## NAIR law
 
-**NAIR remains 0.5 in K1.8.**
+**NAIR remains 0.5 in K1.9.**
 
-K1.8 adds no new program instruction. Writer IDs, leases, fencing epochs, persistence topology and
-coordinator policy must not become serialized canonical program authority.
+Retry scheduling and dead-letter policy are runtime/host delivery concerns, not serialized program
+authority.
 
 ## Tests
 
-K1.8 adds **19 fencing/concurrency tests** to the **224 certified K1.7 tests**, for an expected
-suite of **243 tests**.
+K1.9 adds **30 retry/dead-letter tests** to the **243 certified K1.8 tests**, for an expected suite
+of **273 tests**.
 
-The new corpus covers:
-
-- non-zero monotonically increasing fences;
-- same-journal double-acquire rejection;
-- takeover and stale-writer invalidation;
-- stale checkpoint overwrite prevention;
-- lease-required fail-closed behavior;
-- candidate cycle publication under fencing;
-- recovery by a new writer;
-- stale cycle rejection before publication;
-- fence propagation to external backends;
-- stale dispatch rejection before backend work;
-- stable delivery key across takeover;
-- failed acknowledgement persistence and retry;
-- release semantics;
-- malformed zero/mismatched host leases;
-- explicit host active-check failure;
-- replay independence from fencing epoch.
+The new corpus covers policy validation, durable retry scheduling, no-early execution, eligible
+intent bypass, capped exponential backoff, deterministic jitter, permanent failure, attempt
+exhaustion, dead-letter recovery, redrive identity, discard, legacy migration, checksum detection,
+retry-tick monotonicity, writer takeover, stale-writer rejection, commit failure atomicity,
+successful retry cleanup, failed acknowledgement persistence, capability/backend configuration
+failures, replay independence, next-intent continuity and retry-policy drift rejection.
 
 ## Certification
 
@@ -187,4 +225,5 @@ cargo fmt --all
 ./scripts/release_gate.sh
 ```
 
-K1.8 is certified only after the local gate and the cross-platform GitHub CI are fully green.
+K1.9 is certified only after the local release gate and the cross-platform GitHub CI are fully
+green, followed by publication of the `k1.9` tag.

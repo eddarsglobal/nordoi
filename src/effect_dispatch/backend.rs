@@ -150,6 +150,28 @@ impl GovernedEffectDispatcher {
         let Some(request) = outbox.peek().cloned() else {
             return Ok(None);
         };
+        self.dispatch_intent_with_delivery_context(
+            outbox,
+            request.id,
+            backend,
+            delivery_key,
+            delivery_fence,
+        )
+        .map(Some)
+    }
+
+    pub(crate) fn dispatch_intent_with_delivery_context<B: EffectBackend>(
+        &self,
+        outbox: &mut AtomicEffectOutbox,
+        intent: super::EffectIntentId,
+        backend: &mut B,
+        delivery_key: Option<EffectDeliveryKey>,
+        delivery_fence: Option<EffectDeliveryFence>,
+    ) -> EffectDispatchResult<EffectDispatchReceipt> {
+        let request = outbox
+            .get(intent)
+            .cloned()
+            .ok_or(EffectDispatchError::UnknownIntent(intent))?;
 
         self.authority.require(&request.intent.effect)?;
 
@@ -175,11 +197,11 @@ impl GovernedEffectDispatcher {
         let acknowledged = outbox.acknowledge(request.id)?;
         debug_assert_eq!(acknowledged, request);
 
-        Ok(Some(EffectDispatchReceipt {
+        Ok(EffectDispatchReceipt {
             request,
             delivery_key,
             delivery_fence,
             backend: backend_receipt,
-        }))
+        })
     }
 }
