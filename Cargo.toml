@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "0.9.0"
+version = "1.0.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K0.9 — NAIR 0.3 Native Interaction Semantics"
+description = "NORDOI K1.0 — First Closed Atomic Runtime"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

@@ -10,6 +10,7 @@ pub mod kernel;
 pub mod nair;
 pub mod ownership;
 pub mod render;
+pub mod runtime;
 pub mod scheduler;
 pub mod transaction;
 pub mod value;
@@ -42,3 +43,8 @@ pub use render::{
 };
 pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;
+
+pub use runtime::{
+    run_closed, AtomicRuntime, RuntimeAtomSnapshot, RuntimeError, RuntimeReplayKey, RuntimeReport,
+    RuntimeResult,
+};

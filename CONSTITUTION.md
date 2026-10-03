@@ -195,3 +195,46 @@ SHALL occur only through the current execution's validated render binding map.
 Declaring an input binding expresses semantic routing intent only. It SHALL NOT
 confer permission to poll devices, install global hooks, capture privileged input
 or bypass host/platform authorization.
+
+## C50 — Closed Runtime Activation
+
+A certified closed runtime activation SHALL derive its meaning only from its
+validated NAIR program, its canonical input batch and constitutionally governed
+runtime semantics. Hidden ambient application state SHALL NOT be required.
+
+## C51 — Canonical Input Before Runtime Execution
+
+Any externally supplied `InputBatch` SHALL pass canonical normalization and strict
+sequence-order validation before entering a closed NORDOI runtime activation.
+Public construction of an input structure SHALL NOT bypass canonical input laws.
+
+## C52 — Quiescent Success
+
+A successful closed runtime activation SHALL end with zero pending NAM work and zero
+pending Atomic Render Core work. Residual work SHALL be treated as an incomplete
+activation, not silently published as success.
+
+## C53 — Error Isolation at the Closed Runtime Boundary
+
+If a closed activation fails, its private intermediate NAM/render state SHALL NOT be
+published as a successful runtime report. Failure does not imply that every internal
+instruction was rolled back; it means partial activation state is not promoted to a
+valid closed result.
+
+## C54 — Deterministic Replay Identity
+
+NORDOI SHALL provide a deterministic identity derived from canonical program and
+canonical input representations for replay, regression and evidence workflows.
+Equal canonical inputs SHALL produce equal replay identities.
+
+## C55 — Replay Identity Is Not Security Authority
+
+A deterministic replay fingerprint SHALL NOT be treated as a cryptographic signature,
+authentication credential, authorization token or proof of integrity unless a future
+cryptographic specification explicitly establishes those properties.
+
+## C56 — K1.0 Is a Semantic Kernel Milestone, Not Syntax Freeze
+
+K1.0 certifies the first closed atomic execution architecture. It SHALL NOT be used
+as justification to prematurely freeze NORDOI surface syntax, final compiler design,
+backend APIs or future persistent-runtime semantics.

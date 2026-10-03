@@ -5,12 +5,18 @@ use std::{
 
 use crate::error::AtomicError;
 
+use super::id::InputSequence;
+
 #[derive(Debug, PartialEq)]
 pub enum InputError {
     NonFiniteValue,
     AxisOutOfRange(f32),
     ZeroOrientation,
     SequenceExhausted,
+    NonMonotonicSequence {
+        previous: InputSequence,
+        current: InputSequence,
+    },
     Atomic(AtomicError),
 }
 
@@ -23,6 +29,10 @@ impl Display for InputError {
             }
             Self::ZeroOrientation => write!(f, "XR pose orientation cannot have zero length"),
             Self::SequenceExhausted => write!(f, "input sequence space is exhausted"),
+            Self::NonMonotonicSequence { previous, current } => write!(
+                f,
+                "input sequence must be strictly increasing, got {current:?} after {previous:?}"
+            ),
             Self::Atomic(error) => write!(f, "atomic input bridge error: {error}"),
         }
     }
