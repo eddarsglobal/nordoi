@@ -8,13 +8,18 @@ use crate::{
         GovernedEffectAttestor,
     },
     effect_audit::{
-        EffectAuditCheckpoint, EffectAuditDispatchOutcome, EffectAuditResult,
+        EffectAuditCheckpoint, EffectAuditDispatchOutcome, EffectAuditLedger, EffectAuditResult,
         GovernedAuditedEffectJournal,
     },
+    effect_completion::{
+        AtomicEffectCompletionCore, EffectCompletionBatch, EffectCompletionBatchReport,
+        EffectCompletionProjection, EffectCompletionResult, EffectCompletionSequence,
+        EffectCompletionSourceId,
+    },
     effect_dispatch::{
-        AtomicEffectOutbox, EffectBackend, EffectDeliveryNamespace, EffectDispatchReceipt,
-        EffectDispatchResult, EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher,
-        QueuedEffectIntent,
+        AtomicEffectOutbox, EffectBackend, EffectDeliveryKey, EffectDeliveryNamespace,
+        EffectDispatchReceipt, EffectDispatchResult, EffectIntentId, EffectOutboxStageReport,
+        GovernedEffectDispatcher, QueuedEffectIntent,
     },
     effect_fencing::{EffectFencingResult, FencedEffectJournalStore, GovernedFencedEffectJournal},
     effect_persistence::{
@@ -44,7 +49,7 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.7";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.12";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -73,6 +78,7 @@ pub struct EventLoopCycleReport {
     pub runtime: PersistentRuntimeTickReport,
     pub reactions: NairReactionCycleReport,
     pub effects: EffectOutboxStageReport,
+    pub completions: EffectCompletionBatchReport,
     pub replay_key: EventLoopReplayKey,
 }
 
@@ -87,6 +93,7 @@ pub struct AtomicEventLoop {
     reactions: AtomicReactionCore,
     native_reaction_bindings: BTreeMap<ReactionSlot, ReactionId>,
     effect_outbox: AtomicEffectOutbox,
+    effect_completions: AtomicEffectCompletionCore,
 }
 
 impl AtomicEventLoop {
@@ -169,6 +176,7 @@ impl AtomicEventLoop {
             reactions,
             native_reaction_bindings,
             effect_outbox: AtomicEffectOutbox::new(),
+            effect_completions: AtomicEffectCompletionCore::new(),
         })
     }
 
@@ -214,6 +222,55 @@ impl AtomicEventLoop {
 
     pub fn pending_effects(&self) -> impl Iterator<Item = &QueuedEffectIntent> {
         self.effect_outbox.iter()
+    }
+
+    pub fn grant_effect_completion_source(
+        &mut self,
+        source: EffectCompletionSourceId,
+        namespace: EffectDeliveryNamespace,
+    ) -> EffectCompletionResult<bool> {
+        self.effect_completions
+            .authority_mut()
+            .grant(source, namespace)
+    }
+
+    pub fn revoke_effect_completion_source(
+        &mut self,
+        source: EffectCompletionSourceId,
+        namespace: EffectDeliveryNamespace,
+    ) -> bool {
+        self.effect_completions
+            .authority_mut()
+            .revoke(source, namespace)
+    }
+
+    pub fn register_effect_completion_projection(
+        &mut self,
+        projection: EffectCompletionProjection,
+    ) -> EffectCompletionResult<()> {
+        self.effect_completions
+            .register_projection(self.runtime.kernel(), projection)
+    }
+
+    pub fn unregister_effect_completion_projection(
+        &mut self,
+        source: EffectCompletionSourceId,
+        namespace: EffectDeliveryNamespace,
+        atom: crate::AtomId,
+    ) -> bool {
+        self.effect_completions
+            .unregister_projection(source, namespace, atom)
+    }
+
+    pub fn effect_completion_last_sequence(
+        &self,
+        source: EffectCompletionSourceId,
+    ) -> Option<EffectCompletionSequence> {
+        self.effect_completions.last_sequence(source)
+    }
+
+    pub fn has_effect_completion(&self, key: EffectDeliveryKey) -> bool {
+        self.effect_completions.has_completed(key)
     }
 
     pub fn dispatch_next_effect<B: EffectBackend>(
@@ -525,13 +582,43 @@ impl AtomicEventLoop {
         target: LogicalTime,
         input: &InputBatch,
     ) -> EventLoopResult<EventLoopCycleReport> {
+        self.cycle_to_internal(target, input, None)
+    }
+
+    pub fn cycle_to_with_effect_completions<S: FencedEffectJournalStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        completions: &EffectCompletionBatch,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        journal.assert_active()?;
+        self.cycle_to_internal(target, input, Some((completions, journal.audit_ledger())))
+    }
+
+    fn cycle_to_internal(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        completion_context: Option<(&EffectCompletionBatch, &EffectAuditLedger)>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
         let mut time = self.time.clone();
         let mut runtime = self.runtime.clone();
         let mut effect_outbox = self.effect_outbox.clone();
+        let mut effect_completions = self.effect_completions.clone();
 
         let time_report = time.advance_to(target)?;
-        let (runtime_report, input_reactions, timer_reactions) =
-            runtime.tick_with_reactions(input, &time_report.fires, &self.reactions)?;
+        let (runtime_report, input_reactions, timer_reactions) = match completion_context {
+            Some((completions, audit)) => runtime.tick_with_reactions_and_completions(
+                input,
+                &time_report.fires,
+                &self.reactions,
+                &mut effect_completions,
+                audit,
+                completions,
+            )?,
+            None => runtime.tick_with_reactions(input, &time_report.fires, &self.reactions)?,
+        };
         let reactions = NairReactionCycleReport {
             input: input_reactions,
             timers: timer_reactions,
@@ -566,10 +653,12 @@ impl AtomicEventLoop {
         }
         hash_effect_stage(&mut replay_state, &effects);
         let replay_key = EventLoopReplayKey(replay_state);
+        let completion_report = runtime_report.completions.clone();
 
         self.time = time;
         self.runtime = runtime;
         self.effect_outbox = effect_outbox;
+        self.effect_completions = effect_completions;
         self.cycle = cycle;
         self.replay_state = replay_state;
         self.replay_key = replay_key;
@@ -581,6 +670,7 @@ impl AtomicEventLoop {
             runtime: runtime_report,
             reactions,
             effects,
+            completions: completion_report,
             replay_key,
         })
     }
@@ -635,6 +725,25 @@ impl AtomicEventLoop {
         journal.assert_active()?;
         let mut candidate = self.clone();
         let report = candidate.cycle_to(target, input)?;
+        journal.checkpoint(&candidate.effect_outbox)?;
+        *self = candidate;
+        Ok(report)
+    }
+
+    pub fn cycle_to_with_audited_effect_journal_and_completions<S: FencedEffectJournalStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        completions: &EffectCompletionBatch,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        journal.assert_active()?;
+        let mut candidate = self.clone();
+        let report = candidate.cycle_to_internal(
+            target,
+            input,
+            Some((completions, journal.audit_ledger())),
+        )?;
         journal.checkpoint(&candidate.effect_outbox)?;
         *self = candidate;
         Ok(report)

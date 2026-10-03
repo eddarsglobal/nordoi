@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "1.11.0"
+version = "1.12.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K1.11 — Signed Effect Audit Anchor & Trust Epoch Protocol"
+description = "NORDOI K1.12 — Governed Effect Completion Re-entry Core"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

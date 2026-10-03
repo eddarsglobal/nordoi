@@ -1034,3 +1034,101 @@ canonical program semantics.
 K1.11 adds host trust and audit authentication semantics rather than a serialized program
 instruction. NAIR SHALL remain format 0.5. Signing keys, trust epochs, signatures and verifier policy
 SHALL NOT be serialized as canonical NAIR program authority.
+
+## C191 — External Results Re-enter Only As Governed Causes
+
+An external effect result SHALL NOT mutate NAM directly. It may influence program state only through
+an explicit completion cause validated by the governed completion re-entry core.
+
+## C192 — Completion Sources Have No Ambient Authority
+
+A completion source SHALL have zero authority by default. Authority MUST be granted explicitly for
+an exact `(EffectCompletionSourceId, EffectDeliveryNamespace)` pair.
+
+## C193 — Completion Stream Identity And Delivery Identity Are Distinct
+
+`EffectCompletionSourceId`, `EffectCompletionSequence`, `EffectDeliveryKey` and `EffectAttemptId`
+SHALL retain separate meanings. Source ordering SHALL NOT replace stable delivery identity or audited
+attempt correlation.
+
+## C194 — Completion Requires Exact Audited Attempt Correlation
+
+A completion SHALL identify a K1.10 `AttemptPrepared` record whose `EffectDeliveryKey` exactly
+matches the completion key and whose request intent matches that key.
+
+## C195 — Only Delivered Or Explicitly Assumed-Delivered Attempts May Complete Semantics
+
+A completion MAY re-enter semantics only when its correlated attempt terminated as
+`AttemptDelivered` or `InDoubtAssumedDelivered`. Retry-scheduled, dead-lettered, unknown and open
+in-doubt attempts SHALL fail closed.
+
+## C196 — One Delivery Key Produces At Most One Live Semantic Completion
+
+Within one live completion-core state, an `EffectDeliveryKey` SHALL be accepted as a semantic
+completion at most once, regardless of newer source sequence or alternate physical delivery attempt.
+
+## C197 — Completion Source Sequences Are Strictly Monotonic
+
+Every accepted completion source sequence SHALL be non-zero and strictly greater than that source's
+previous accepted sequence. Duplicate or backward source sequence SHALL fail the whole batch.
+
+## C198 — Completion Batches Are Canonically Ordered
+
+Completion batches SHALL be canonicalized before application. Equal valid causes SHALL be processed
+in the same source/sequence/delivery/attempt order independent of host insertion order.
+
+## C199 — Completion Projection Is Pre-Registered Policy
+
+Completion payloads SHALL NOT choose arbitrary NAM destinations. Semantic projections SHALL be
+registered explicitly for an exact source/namespace route before completion application.
+
+## C200 — Completion Projection Respects Explicit Ownership
+
+Projection registration and projection application SHALL both validate the target atom's expected
+ownership domain. Ownership transfer SHALL invalidate obsolete completion write authority rather
+than being silently followed.
+
+## C201 — Completion Writes Use Normal Atomic Transactions
+
+Completion-induced NAM writes SHALL pass through normal `AtomicTransaction` validation and commit
+rules. Completion processing SHALL NOT gain a privileged mutation shortcut.
+
+## C202 — A Completion Batch Publishes Atomically
+
+Completion-core state, source-sequence advancement, delivery-key deduplication and NAM writes SHALL
+be evaluated on private candidates. Failure of any cause or projection SHALL publish none of the
+batch.
+
+## C203 — Completion Re-entry Precedes Render Flush
+
+In the persistent runtime phase, governed completions SHALL be applied after input/timer reactions
+and before NAM/render flush so their state changes participate in the same invalidation frontier.
+
+## C204 — Accepted Completion Is Deterministic Replay Meaning
+
+Unlike delivery fences, retry metadata or signing metadata, an accepted completion is program-visible
+semantic input. Its canonical cause and exact projected writes SHALL participate in deterministic
+runtime replay identity.
+
+## C205 — Completion Payloads Are Canonical And Bounded
+
+Completion batches and payload values SHALL be explicitly bounded. Floating-point values SHALL be
+finite, text SHALL obey the certified size bound, and canonical encoding SHALL not depend on host
+map order or ambient serialization behavior.
+
+## C206 — Stale Effect-Journal Ownership Cannot Re-enter Semantics
+
+The high-level governed completion surface SHALL require an active K1.8/K1.10 journal lease. A stale
+writer that has lost its fence SHALL fail before completion publication.
+
+## C207 — K1.12 Does Not Claim Whole-Runtime Crash Durability
+
+K1.12 completion deduplication, source sequence and completion-induced NAM state are live runtime
+state. Until a whole-runtime persistence protocol atomically persists and recovers those semantics,
+K1.12 SHALL NOT claim crash-persistent exactly-once completion application.
+
+## C208 — K1.12 Does Not Increment NAIR Before Native Completion Semantics
+
+K1.12 certifies the completion re-entry core beneath NAIR. NAIR SHALL remain format 0.5. Native
+completion triggers, completion projection declarations or `.noi` syntax SHALL require a later
+separately certified semantic milestone.

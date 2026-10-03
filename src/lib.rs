@@ -6,6 +6,7 @@ pub mod dependency;
 pub mod effect;
 pub mod effect_attestation;
 pub mod effect_audit;
+pub mod effect_completion;
 pub mod effect_dispatch;
 pub mod effect_fencing;
 pub mod effect_persistence;
@@ -41,6 +42,14 @@ pub use effect_audit::{
     EffectAuditEvent, EffectAuditHash, EffectAuditLedger, EffectAuditRecord, EffectAuditResult,
     EffectAuditSequence, EffectInDoubtAttempt, GovernedAuditedEffectJournal,
     MAX_EFFECT_AUDIT_CHECKPOINT_BYTES, MAX_EFFECT_AUDIT_EVENTS,
+};
+pub use effect_completion::{
+    AtomicEffectCompletionCore, EffectCompletion, EffectCompletionApplicationReport,
+    EffectCompletionAuthority, EffectCompletionBatch, EffectCompletionBatchReport,
+    EffectCompletionError, EffectCompletionOutcome, EffectCompletionProjection,
+    EffectCompletionProjectionValue, EffectCompletionResult, EffectCompletionSequence,
+    EffectCompletionSourceId, EffectCompletionWriteReport, MAX_EFFECT_COMPLETION_BATCH,
+    MAX_EFFECT_COMPLETION_TEXT_BYTES,
 };
 pub use effect_dispatch::{
     AtomicEffectOutbox, EffectBackend, EffectBackendError, EffectBackendReceipt,

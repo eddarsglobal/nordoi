@@ -2,6 +2,11 @@ use std::collections::BTreeMap;
 
 use crate::{
     atom::AtomId,
+    effect_audit::EffectAuditLedger,
+    effect_completion::{
+        canonical_report_bytes, AtomicEffectCompletionCore, EffectCompletionBatch,
+        EffectCompletionBatchReport,
+    },
     input::{
         InputAtomBridge, InputBatch, InputBridgeReport, InputSelector, InputSequence, InputTarget,
     },
@@ -30,6 +35,7 @@ pub struct PersistentRuntimeTickReport {
     pub replay_key: RuntimeReplayKey,
     pub input_events: usize,
     pub input_applications: Vec<InputBridgeReport>,
+    pub completions: EffectCompletionBatchReport,
     pub frame: Option<NairRenderFrame>,
     pub final_atoms: BTreeMap<AtomSlot, RuntimeAtomSnapshot>,
 }
@@ -104,6 +110,32 @@ impl PersistentAtomicRuntime {
         ReactionBatchReport,
         ReactionBatchReport,
     )> {
+        let mut completion_core = AtomicEffectCompletionCore::new();
+        let audit = EffectAuditLedger::new();
+        let completions = EffectCompletionBatch::default();
+        self.tick_with_reactions_and_completions(
+            input,
+            timer_fires,
+            reactions,
+            &mut completion_core,
+            &audit,
+            &completions,
+        )
+    }
+
+    pub(crate) fn tick_with_reactions_and_completions(
+        &mut self,
+        input: &InputBatch,
+        timer_fires: &[TimerFire],
+        reactions: &AtomicReactionCore,
+        completion_core: &mut AtomicEffectCompletionCore,
+        audit: &EffectAuditLedger,
+        completions: &EffectCompletionBatch,
+    ) -> RuntimeResult<(
+        PersistentRuntimeTickReport,
+        ReactionBatchReport,
+        ReactionBatchReport,
+    )> {
         let canonical_input = input.canonicalized()?;
         validate_cross_tick_sequence(self.last_input_sequence, &canonical_input)?;
         let input_bytes = canonical_input.canonical_bytes()?;
@@ -122,6 +154,7 @@ impl PersistentAtomicRuntime {
 
         let input_reactions = reactions.apply_input_batch(&mut kernel, &canonical_input)?;
         let timer_reactions = reactions.apply_timer_fires(&mut kernel, timer_fires)?;
+        let completion_report = completion_core.apply_batch(&mut kernel, audit, completions)?;
 
         let frame = if kernel.pending_work() > 0 || render.pending_nodes() > 0 {
             let scheduled_atoms = kernel.flush();
@@ -154,6 +187,10 @@ impl PersistentAtomicRuntime {
                 hash_component(&mut replay_state, &fire.occurrence.to_le_bytes());
             }
         }
+        if !completion_report.applications.is_empty() {
+            let completion_bytes = canonical_report_bytes(&completion_report)?;
+            hash_component(&mut replay_state, &completion_bytes);
+        }
         let replay_key = RuntimeReplayKey(replay_state);
         let tick = self.tick + 1;
         let last_input_sequence = canonical_input.events.last().map(|event| event.sequence);
@@ -173,6 +210,7 @@ impl PersistentAtomicRuntime {
                 replay_key,
                 input_events: canonical_input.len(),
                 input_applications,
+                completions: completion_report,
                 frame,
                 final_atoms,
             },

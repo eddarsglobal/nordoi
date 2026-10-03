@@ -4,8 +4,8 @@ use std::{
 };
 
 use crate::{
-    error::AtomicError, input::InputError, nair::NairError, reaction::ReactionError,
-    render::RenderError,
+    effect_completion::EffectCompletionError, error::AtomicError, input::InputError,
+    nair::NairError, reaction::ReactionError, render::RenderError,
 };
 
 #[derive(Debug, PartialEq)]
@@ -15,6 +15,7 @@ pub enum RuntimeError {
     Kernel(AtomicError),
     Render(RenderError),
     Reaction(ReactionError),
+    Completion(EffectCompletionError),
     ResidualWork { nam: usize, render: usize },
 }
 
@@ -26,6 +27,9 @@ impl Display for RuntimeError {
             Self::Kernel(error) => write!(f, "runtime snapshot failed: {error}"),
             Self::Render(error) => write!(f, "runtime render propagation failed: {error}"),
             Self::Reaction(error) => write!(f, "runtime reaction activation failed: {error}"),
+            Self::Completion(error) => {
+                write!(f, "runtime effect-completion re-entry failed: {error}")
+            }
             Self::ResidualWork { nam, render } => write!(
                 f,
                 "closed runtime activation ended with residual work: NAM={nam}, render={render}"
@@ -42,6 +46,7 @@ impl Error for RuntimeError {
             Self::Kernel(error) => Some(error),
             Self::Render(error) => Some(error),
             Self::Reaction(error) => Some(error),
+            Self::Completion(error) => Some(error),
             Self::ResidualWork { .. } => None,
         }
     }
@@ -74,6 +79,12 @@ impl From<AtomicError> for RuntimeError {
 impl From<ReactionError> for RuntimeError {
     fn from(value: ReactionError) -> Self {
         Self::Reaction(value)
+    }
+}
+
+impl From<EffectCompletionError> for RuntimeError {
+    fn from(value: EffectCompletionError) -> Self {
+        Self::Completion(value)
     }
 }
 
