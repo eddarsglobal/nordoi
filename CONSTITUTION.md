@@ -344,3 +344,49 @@ The event-loop replay identity SHALL incorporate successful timer schedule/cance
 operations and successful logical cycle boundaries in deterministic order. Equal
 accepted temporal traces SHALL produce equal replay identities. Such identity remains
 non-cryptographic unless a future cryptographic law explicitly states otherwise.
+
+## C75 — Native Logical Time Meaning in NAIR
+
+NAIR MAY encode logical timer declarations only when their meaning is defined by the
+canonical NORDOI logical-time model. Native time instructions SHALL NOT inherit
+platform timer semantics implicitly.
+
+## C76 — Timer Declaration Is Not Clock Observation
+
+Declaring, cancelling or referencing a logical timer SHALL NOT grant a program the
+ability to read wall-clock time, monotonic OS clocks, time zones or other ambient
+clock sources.
+
+## C77 — Timer Slots Are Single-Assignment Semantic Identities
+
+Each NAIR `TimerSlot` SHALL be defined at most once and SHALL be resolved
+deterministically within the execution identity that owns it. Runtime timer handles
+SHALL NOT be serialized as substitutes for semantic slots.
+
+## C78 — K1.3 Native Timers Bootstrap Once
+
+In K1.3, native timer declarations SHALL be applied exactly once during governed
+`AtomicEventLoop` bootstrap. Persistent runtime ticks SHALL NOT recreate those timers
+unless a future certified semantic version explicitly introduces dynamic scheduling.
+
+## C79 — AtomicEventLoop Owns Logical-Time Progression
+
+Native NAIR timer declarations SHALL NOT advance logical time. Only an explicit
+governed event-loop/time-runtime operation MAY publish a new logical-time frontier.
+
+## C80 — Missing Time Context Fails Before Mutation
+
+An execution surface that does not provide native logical-time semantics SHALL reject
+NAIR time instructions before NAM, render or input mutation becomes observable.
+
+## C81 — NAIR Time Version Gating Is Strict
+
+A NAIR binary declaring a format version older than the introduction of native time
+opcodes SHALL reject those opcodes. Compatibility SHALL NOT permit new semantics to
+be smuggled under an older declared binary contract.
+
+## C82 — Native Timer Declarations Affect Replay Identity
+
+Canonical native timer declarations and cancellations SHALL contribute to the event
+loop's deterministic replay identity. Equal canonical programs and equal accepted
+logical traces SHALL remain replay-equivalent.

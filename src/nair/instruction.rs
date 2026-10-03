@@ -1,11 +1,12 @@
 use crate::{
     input::{InputDeviceId, InputSignal, InputSource},
     render::{DirtyMask, RenderPrimitive, RenderSpace},
+    time::{LogicalDuration, LogicalTime},
     value::Value,
 };
 
 use super::id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot,
+    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,6 +100,18 @@ pub enum Instruction {
     ApplyInput {
         bridge: InputBridgeSlot,
     },
+    ScheduleTimerOnceAt {
+        dst: TimerSlot,
+        deadline: LogicalTime,
+    },
+    ScheduleTimerRepeatingAt {
+        dst: TimerSlot,
+        first_deadline: LogicalTime,
+        interval: LogicalDuration,
+    },
+    CancelTimer {
+        timer: TimerSlot,
+    },
     Halt,
 }
 
@@ -120,6 +133,15 @@ impl Instruction {
         matches!(
             self,
             Self::CreateInputBridge { .. } | Self::BindInputAtom { .. } | Self::ApplyInput { .. }
+        )
+    }
+
+    pub const fn requires_time_context(&self) -> bool {
+        matches!(
+            self,
+            Self::ScheduleTimerOnceAt { .. }
+                | Self::ScheduleTimerRepeatingAt { .. }
+                | Self::CancelTimer { .. }
         )
     }
 }

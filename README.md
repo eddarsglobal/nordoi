@@ -1,116 +1,85 @@
-# NORDOI K1.2 — Atomic Time & Event Loop
+# NORDOI K1.3 — NAIR 0.4 Native Time Semantics
 
-K1.2 extends the certified K1.1 Persistent Atomic Runtime with deterministic logical
-time, bounded lossless timers and an atomic event-loop publication boundary.
+K1.3 extends the certified K1.2 Atomic Time & Event Loop by making logical timer
+declarations part of canonical NAIR.
 
-It does **not** read the operating-system clock and does not freeze future `.noi`
-syntax or native NAIR time instructions.
+It does **not** introduce ambient wall-clock access and does not freeze future `.noi`
+syntax.
 
 ## Architecture
 
 ```text
-Host / deterministic simulator
-            ↓ explicit logical time
-      AtomicTimeCore
-            ↓ due TimerFire list
-      AtomicEventLoop
-            +
-PersistentAtomicRuntime
-            ↓
-      atomic cycle publish
-            ↓
-NAM → Render → quiescence
+NAIR 0.4
+  ├─ state / ownership
+  ├─ render
+  ├─ input
+  └─ native timer declarations
+              ↓
+        AtomicEventLoop
+              ↓
+       AtomicTimeCore
+              +
+ PersistentAtomicRuntime
+              ↓
+        atomic cycles
 ```
 
-## What K1.2 adds
+## What K1.3 adds
 
-- `LogicalTime` and `LogicalDuration` in abstract NORDOI logical ticks.
-- `TimerId`, one-shot timers and repeating timers.
-- deterministic timer ordering by `(deadline, TimerId)`.
-- lossless repeating-timer catch-up across logical-time jumps.
-- explicit bounded fire budget to prevent unbounded timer bursts.
-- transactional logical-time advancement.
-- `AtomicEventLoop` combining time and K1.1 persistent runtime.
-- atomic cycle publication: failed runtime cycles cannot advance published time.
-- `cycle_to()`, `cycle_by()` and `cycle_to_next_deadline()`.
-- history-sensitive `EventLoopReplayKey`.
+- `TimerSlot(u32)` as a semantic NAIR identity.
+- `SCHEDULE_TIMER_ONCE_AT` (`0x50`).
+- `SCHEDULE_TIMER_REPEATING_AT` (`0x51`).
+- `CANCEL_TIMER` (`0x52`).
+- NAIR format minor 0.4 with backward decode support for 0.1–0.3.
+- native timer bootstrap inside `AtomicEventLoop`.
+- deterministic `TimerSlot → TimerId` bindings.
+- native timer introspection through `native_timer_id()` and `timer_snapshot()`.
+- explicit rejection of native time programs by execution paths without a time context.
+- event-loop replay identity incorporating the canonical native-time program.
 - zero new external Rust dependencies.
 
-## Core rule
+## Core law
 
-NORDOI K1.2 never asks "what time is it?" inside the semantic core.
-
-Instead, a host provides an explicit logical target:
-
-```text
-current logical time = 40
-host advances to     = 50
-                         ↓
-              deterministic timers
-                         ↓
-             persistent runtime tick
-                         ↓
-                 quiescent cycle
-```
-
-This makes tests, replay, simulations and future distributed coordination independent
-from accidental wall-clock behavior.
-
-## Timer semantics
-
-Repeating timer deadlines are not silently coalesced:
+A program may declare **when a logical timer is due**, but it may not ask the machine
+for the current real-world time.
 
 ```text
-first = 5
-period = 5
-advance to 16
-
-fires 5, 10, 15
-next = 20
+program: timer at logical tick 100
+                    ↓
+          dormant schedule
+                    ↓
+host explicitly advances logical time
+                    ↓
+          deterministic fire
 ```
 
-To avoid denial-of-service style timer explosions, each advance has a fire budget.
-Exceeding the budget rejects the complete logical-time advance without partial state.
+## Bootstrap-only scope
 
-## Atomic event-loop cycle
+K1.3 native timer declarations execute once during `AtomicEventLoop::boot`.
+Persistent NAM/render/input identities are then booted without re-running timer
+declarations on every tick.
 
-`AtomicEventLoop::cycle_to()` evaluates both time and the persistent runtime on private
-candidates. Only a complete successful cycle is published.
+Timer-triggered actions and dynamic scheduling from event handlers are deliberately
+out of scope until a future reaction/action layer has explicit transaction and effect
+laws.
 
-```text
-published state
-     ↓
-private time candidate + private runtime candidate
-     ↓
-SUCCESS → publish both
-ERROR   → publish neither
-```
+## Compatibility
 
-## K1.1 remains valid
-
-`PersistentAtomicRuntime` remains available directly. K1.2 layers explicit logical
-time around it; it does not replace its state, ownership, interaction, render or
-replay semantics.
-
-## Scope
-
-Timer firings are reported to the host/event-loop layer in K1.2. They do not yet
-mutate NAM automatically and are not yet NAIR instructions. Native time bindings
-belong to a later version after this scheduler is certified.
-
-K1.2 also does not add ambient OS clock access, threads, async/await, filesystem,
-network or privileged device APIs.
+- valid NAIR 0.1 binaries decode
+- valid NAIR 0.2 binaries decode
+- valid NAIR 0.3 binaries decode
+- canonical encoding emits NAIR 0.4
+- 0.4 timer opcodes cannot be smuggled under an older minor-version header
 
 ## Test corpus
 
-K1.2 adds **18 time/event-loop tests** to the 122 inherited K1.1 tests, for a total of
-**140 tests**.
+K1.3 adds **18 native-time tests** to the 140 inherited K1.2 tests, for a total of
+**158 tests**.
 
-The new tests cover monotonic logical time, one-shot and repeating timers, canonical
-same-deadline ordering, lossless catch-up, zero intervals, cancellation, past
-deadlines, atomic fire-budget failure, zero-duration advance, event-loop bootstrap,
-time+runtime cycles, timer-only cycles, failed-cycle isolation, replay identity and
-wall-clock-free next-deadline driving.
+The new tests cover binary compatibility, version gating, slot single assignment,
+zero intervals, cancellation order, canonical round-trip, context rejection,
+native one-shot and repeating bootstrap, deterministic timer IDs, coexistence with
+NAM state, next-deadline execution and replay identity.
 
 ## Mandatory release gate
 
@@ -121,14 +90,12 @@ cargo check --all-targets
 cargo test --all-targets
 ```
 
-GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.2` can be tagged.
+GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.3` can be tagged.
 
 ## Key specifications
 
+- `docs/NAIR_SPEC_0_4.md`
+- `docs/NAIR_NATIVE_TIME_SPEC_0_1.md`
 - `docs/TIME_EVENT_LOOP_SPEC_1_2.md`
 - `docs/PERSISTENT_RUNTIME_SPEC_1_1.md`
-- `docs/ATOMIC_RUNTIME_SPEC_1_0.md`
-- `docs/NAIR_SPEC_0_3.md`
-- `docs/INPUT_CORE_SPEC_0_1.md`
-- `docs/RENDER_CORE_SPEC_0_1.md`
 - `docs/TESTING_AND_RELEASE_LAW.md`

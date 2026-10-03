@@ -3,18 +3,22 @@ use std::collections::BTreeSet;
 use crate::{
     input::{InputDeviceId, InputSignal, InputSource},
     render::{DirtyMask, RenderPrimitive, RenderSpace},
+    time::{LogicalDuration, LogicalTime},
     value::Value,
 };
 
 use super::{
     error::{NairError, NairResult},
-    id::{AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot},
+    id::{
+        AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot,
+        TransactionSlot,
+    },
     instruction::{DomainRef, InputTargetRef, Instruction},
 };
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
-pub const NAIR_FORMAT_MINOR: u16 = 3;
+pub const NAIR_FORMAT_MINOR: u16 = 4;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -55,6 +59,7 @@ impl NairProgram {
         let mut active_transactions = BTreeSet::new();
         let mut render_nodes = BTreeSet::new();
         let mut input_bridges = BTreeSet::new();
+        let mut timer_slots = BTreeSet::new();
         let mut halt_seen = false;
 
         for (index, instruction) in self.instructions.iter().enumerate() {
@@ -163,6 +168,22 @@ impl NairProgram {
                 }
                 Instruction::ApplyInput { bridge } => {
                     require_input_bridge(*bridge, &input_bridges)?;
+                }
+                Instruction::ScheduleTimerOnceAt { dst, .. } => {
+                    if !timer_slots.insert(*dst) {
+                        return Err(NairError::DuplicateTimerSlot(*dst));
+                    }
+                }
+                Instruction::ScheduleTimerRepeatingAt { dst, interval, .. } => {
+                    if !timer_slots.insert(*dst) {
+                        return Err(NairError::DuplicateTimerSlot(*dst));
+                    }
+                    if interval.is_zero() {
+                        return Err(NairError::ZeroTimerInterval(*dst));
+                    }
+                }
+                Instruction::CancelTimer { timer } => {
+                    require_timer_slot(*timer, &timer_slots)?;
                 }
                 Instruction::Halt => {
                     halt_seen = true;
@@ -282,6 +303,14 @@ fn require_input_bridge(
         Ok(())
     } else {
         Err(NairError::UnknownInputBridgeSlot(id))
+    }
+}
+
+fn require_timer_slot(id: TimerSlot, timers: &BTreeSet<TimerSlot>) -> NairResult<()> {
+    if timers.contains(&id) {
+        Ok(())
+    } else {
+        Err(NairError::UnknownTimerSlot(id))
     }
 }
 
@@ -549,6 +578,25 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             out.push(0x42);
             write_u32(out, bridge.0);
         }
+        Instruction::ScheduleTimerOnceAt { dst, deadline } => {
+            out.push(0x50);
+            write_u32(out, dst.0);
+            write_u64(out, deadline.0);
+        }
+        Instruction::ScheduleTimerRepeatingAt {
+            dst,
+            first_deadline,
+            interval,
+        } => {
+            out.push(0x51);
+            write_u32(out, dst.0);
+            write_u64(out, first_deadline.0);
+            write_u64(out, interval.0);
+        }
+        Instruction::CancelTimer { timer } => {
+            out.push(0x52);
+            write_u32(out, timer.0);
+        }
         Instruction::Halt => out.push(0xff),
     }
     Ok(())
@@ -639,6 +687,18 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
         }),
         0x42 if minor >= 3 => Ok(Instruction::ApplyInput {
             bridge: InputBridgeSlot(input.read_u32()?),
+        }),
+        0x50 if minor >= 4 => Ok(Instruction::ScheduleTimerOnceAt {
+            dst: TimerSlot(input.read_u32()?),
+            deadline: LogicalTime(input.read_u64()?),
+        }),
+        0x51 if minor >= 4 => Ok(Instruction::ScheduleTimerRepeatingAt {
+            dst: TimerSlot(input.read_u32()?),
+            first_deadline: LogicalTime(input.read_u64()?),
+            interval: LogicalDuration(input.read_u64()?),
+        }),
+        0x52 if minor >= 4 => Ok(Instruction::CancelTimer {
+            timer: TimerSlot(input.read_u32()?),
         }),
         0xff => Ok(Instruction::Halt),
         other => Err(NairError::InvalidOpcode(other)),

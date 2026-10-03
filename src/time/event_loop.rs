@@ -2,10 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     input::InputBatch,
-    nair::NairProgram,
+    nair::{Instruction, NairError, NairProgram, TimerSlot},
     runtime::{
         hash_bytes, hash_component, PersistentAtomicRuntime, PersistentRuntimeTickReport,
-        RuntimeAtomSnapshot, FNV_OFFSET_BASIS,
+        RuntimeAtomSnapshot, RuntimeError, FNV_OFFSET_BASIS,
     },
     AtomSlot,
 };
@@ -14,10 +14,10 @@ use std::collections::BTreeMap;
 
 use super::{
     AtomicTimeCore, EventLoopResult, LogicalDuration, LogicalTime, TimeAdvanceReport, TimeError,
-    TimerId, DEFAULT_TIMER_FIRE_BUDGET,
+    TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.2";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.3";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -54,6 +54,7 @@ pub struct AtomicEventLoop {
     cycle: u64,
     replay_state: u64,
     replay_key: EventLoopReplayKey,
+    native_timer_bindings: BTreeMap<TimerSlot, TimerId>,
 }
 
 impl AtomicEventLoop {
@@ -65,11 +66,23 @@ impl AtomicEventLoop {
         program: &NairProgram,
         fire_budget: usize,
     ) -> EventLoopResult<Self> {
-        let runtime = PersistentAtomicRuntime::boot(program)?;
-        let time = AtomicTimeCore::with_fire_budget(fire_budget)?;
+        program.validate().map_err(RuntimeError::from)?;
+        let program_bytes = program.canonical_bytes().map_err(RuntimeError::from)?;
+        let mut time = AtomicTimeCore::with_fire_budget(fire_budget)?;
+        let native_timer_bindings = apply_native_time_bootstrap(program, &mut time)?;
+        let runtime_program = NairProgram::from_instructions(
+            program
+                .instructions()
+                .iter()
+                .filter(|instruction| !instruction.requires_time_context())
+                .cloned()
+                .collect(),
+        );
+        let runtime = PersistentAtomicRuntime::boot(&runtime_program)?;
 
         let mut replay_state = FNV_OFFSET_BASIS;
         hash_bytes(&mut replay_state, EVENT_LOOP_REPLAY_DOMAIN);
+        hash_component(&mut replay_state, &program_bytes);
         hash_component(
             &mut replay_state,
             &runtime.replay_key().value().to_le_bytes(),
@@ -83,6 +96,7 @@ impl AtomicEventLoop {
             cycle: 0,
             replay_state,
             replay_key,
+            native_timer_bindings,
         })
     }
 
@@ -100,6 +114,18 @@ impl AtomicEventLoop {
 
     pub fn pending_timers(&self) -> usize {
         self.time.pending_timers()
+    }
+
+    pub fn native_timer_count(&self) -> usize {
+        self.native_timer_bindings.len()
+    }
+
+    pub fn native_timer_id(&self, slot: TimerSlot) -> Option<TimerId> {
+        self.native_timer_bindings.get(&slot).copied()
+    }
+
+    pub fn timer_snapshot(&self, id: TimerId) -> EventLoopResult<TimerSnapshot> {
+        self.time.timer(id).map_err(Into::into)
     }
 
     pub fn next_deadline(&self) -> Option<LogicalTime> {
@@ -254,4 +280,38 @@ impl AtomicEventLoop {
         hash_component(&mut self.replay_state, &interval.0.to_le_bytes());
         self.replay_key = EventLoopReplayKey(self.replay_state);
     }
+}
+
+fn apply_native_time_bootstrap(
+    program: &NairProgram,
+    time: &mut AtomicTimeCore,
+) -> EventLoopResult<BTreeMap<TimerSlot, TimerId>> {
+    let mut bindings = BTreeMap::new();
+
+    for instruction in program.instructions() {
+        match instruction {
+            Instruction::ScheduleTimerOnceAt { dst, deadline } => {
+                let id = time.schedule_once_at(*deadline)?;
+                bindings.insert(*dst, id);
+            }
+            Instruction::ScheduleTimerRepeatingAt {
+                dst,
+                first_deadline,
+                interval,
+            } => {
+                let id = time.schedule_repeating_at(*first_deadline, *interval)?;
+                bindings.insert(*dst, id);
+            }
+            Instruction::CancelTimer { timer } => {
+                let id = bindings
+                    .get(timer)
+                    .copied()
+                    .ok_or(RuntimeError::Nair(NairError::UnknownTimerSlot(*timer)))?;
+                time.cancel(id);
+            }
+            _ => {}
+        }
+    }
+
+    Ok(bindings)
 }

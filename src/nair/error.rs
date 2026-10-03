@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter};
 use crate::{error::AtomicError, input::InputError, render::RenderError};
 
 use super::id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot,
+    AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
 };
 
 #[derive(Debug, PartialEq)]
@@ -29,6 +29,10 @@ pub enum NairError {
     DuplicateInputBridgeSlot(InputBridgeSlot),
     UnknownInputBridgeSlot(InputBridgeSlot),
     InputContextRequired,
+    DuplicateTimerSlot(TimerSlot),
+    UnknownTimerSlot(TimerSlot),
+    ZeroTimerInterval(TimerSlot),
+    TimeContextRequired,
     MissingHalt,
     InstructionAfterHalt { index: usize },
     NonFiniteFloat(RegisterId),
@@ -115,6 +119,20 @@ impl Display for NairError {
             Self::InputContextRequired => write!(
                 f,
                 "NAIR program contains input instructions but no input batch was provided"
+            ),
+            Self::DuplicateTimerSlot(id) => {
+                write!(f, "NAIR timer slot {id:?} is defined more than once")
+            }
+            Self::UnknownTimerSlot(id) => {
+                write!(f, "NAIR timer slot {id:?} is used before definition")
+            }
+            Self::ZeroTimerInterval(id) => write!(
+                f,
+                "NAIR repeating timer slot {id:?} must have a non-zero interval"
+            ),
+            Self::TimeContextRequired => write!(
+                f,
+                "NAIR program contains time instructions but no logical-time context was provided"
             ),
             Self::MissingHalt => write!(f, "NAIR program must end with HALT"),
             Self::InstructionAfterHalt { index } => {

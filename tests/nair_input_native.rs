@@ -54,9 +54,9 @@ fn input_state_program(code: u32) -> NairProgram {
 }
 
 #[test]
-fn nair_0_3_is_current_and_0_2_render_programs_still_decode() {
+fn nair_0_4_is_current_and_0_2_render_programs_still_decode() {
     assert_eq!(NAIR_FORMAT_MAJOR, 0);
-    assert_eq!(NAIR_FORMAT_MINOR, 3);
+    assert_eq!(NAIR_FORMAT_MINOR, 4);
 
     let program = NairProgram::from_instructions(vec![
         Instruction::CreateRenderNode {
@@ -73,7 +73,7 @@ fn nair_0_3_is_current_and_0_2_render_programs_still_decode() {
     let decoded = NairProgram::from_canonical_bytes(&bytes).unwrap();
     assert_eq!(decoded, program);
     let reencoded = decoded.canonical_bytes().unwrap();
-    assert_eq!(u16::from_le_bytes([reencoded[6], reencoded[7]]), 3);
+    assert_eq!(u16::from_le_bytes([reencoded[6], reencoded[7]]), 4);
 }
 
 #[test]

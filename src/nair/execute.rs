@@ -86,7 +86,7 @@ pub fn execute_nair(
     program: &NairProgram,
 ) -> NairResult<NairExecutionReport> {
     program.validate()?;
-    reject_missing_contexts(program, false, false)?;
+    reject_missing_contexts(program, false, false, false)?;
     Ok(execute_internal(kernel, None, None, program)?.execution)
 }
 
@@ -96,7 +96,7 @@ pub fn execute_nair_with_render(
     program: &NairProgram,
 ) -> NairResult<NairRenderExecutionReport> {
     program.validate()?;
-    reject_missing_contexts(program, true, false)?;
+    reject_missing_contexts(program, true, false, false)?;
     let outcome = execute_internal(kernel, Some(render), None, program)?;
 
     Ok(NairRenderExecutionReport {
@@ -112,7 +112,7 @@ pub fn execute_nair_with_input(
     program: &NairProgram,
 ) -> NairResult<NairInputExecutionReport> {
     program.validate()?;
-    reject_missing_contexts(program, false, true)?;
+    reject_missing_contexts(program, false, true, false)?;
     let outcome = execute_internal(kernel, None, Some(input_batch), program)?;
 
     Ok(NairInputExecutionReport {
@@ -129,6 +129,7 @@ pub fn execute_nair_with_render_and_input(
     program: &NairProgram,
 ) -> NairResult<NairInteractiveExecutionReport> {
     program.validate()?;
+    reject_missing_contexts(program, true, true, false)?;
     let outcome = execute_internal(kernel, Some(render), Some(input_batch), program)?;
 
     Ok(NairInteractiveExecutionReport {
@@ -144,6 +145,7 @@ fn reject_missing_contexts(
     program: &NairProgram,
     has_render: bool,
     has_input: bool,
+    has_time: bool,
 ) -> NairResult<()> {
     if !has_render
         && program
@@ -161,6 +163,15 @@ fn reject_missing_contexts(
             .any(Instruction::requires_input_context)
     {
         return Err(NairError::InputContextRequired);
+    }
+
+    if !has_time
+        && program
+            .instructions()
+            .iter()
+            .any(Instruction::requires_time_context)
+    {
+        return Err(NairError::TimeContextRequired);
     }
 
     Ok(())
@@ -348,6 +359,11 @@ fn execute_internal(
                     .get(bridge)
                     .ok_or(NairError::UnknownInputBridgeSlot(*bridge))?;
                 input_applications.push(bridge.apply_batch(kernel, batch)?);
+            }
+            Instruction::ScheduleTimerOnceAt { .. }
+            | Instruction::ScheduleTimerRepeatingAt { .. }
+            | Instruction::CancelTimer { .. } => {
+                return Err(NairError::TimeContextRequired);
             }
             Instruction::Halt => {
                 if let Some(render) = render.as_deref_mut() {
