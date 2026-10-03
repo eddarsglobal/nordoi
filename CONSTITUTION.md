@@ -499,3 +499,88 @@ Canonical native reaction declarations SHALL participate in the governed event-l
 replay identity through canonical NAIR program bytes. Reaction-driving timer causes
 SHALL be represented in candidate replay progression before publication. Equal
 canonical programs and equal accepted cause traces SHALL remain replay-equivalent.
+
+## C101 — Effect Intent Precedes External Execution
+
+A governed external effect SHALL first exist as a validated semantic `EffectIntent`.
+Reaction evaluation SHALL NOT invoke external network, filesystem, process, device or
+other privileged backends directly.
+
+## C102 — Effect Outbox Publishes With The Successful Cycle
+
+New effect intents produced by one event-loop cycle SHALL be staged on private candidate
+state and published into the effect outbox only if the complete candidate cycle
+succeeds. A failed candidate SHALL expose no newly staged effect envelope.
+
+## C103 — Effect Intent Identity And Order Are Deterministic
+
+Published effect envelopes SHALL receive stable monotonic semantic identities and a
+canonical within-cycle ordinal. K1.5 Input-before-Timer phase order and certified
+reaction order SHALL determine K1.6 outbox order; host thread scheduling and backend
+callback timing SHALL NOT.
+
+## C104 — A Queued Intent Is Not Authority
+
+Possession of a queued `EffectIntent`, `QueuedEffectIntent` or `EffectIntentId` SHALL NOT
+grant permission to execute the corresponding external operation.
+
+## C105 — Dispatch Revalidates Current Exact Authority
+
+Immediately before a queued external effect is handed to a backend, the dispatcher
+SHALL validate the exact currently granted capability required by that exact effect
+scope. Authority valid at program bootstrap SHALL NOT bypass later revocation.
+
+## C106 — External Dispatch Denies By Default
+
+The governed effect dispatcher SHALL begin without external authority unless the host
+explicitly supplies it. Missing authority SHALL fail closed and SHALL preserve the
+pending intent.
+
+## C107 — Internal Effects Shall Not Escape Through External Backends
+
+`Pure`, `StateRead` and `StateWrite` are internal semantic effects. They SHALL NOT be
+executed through network/filesystem/process/device effect backends merely because an
+intent object exists.
+
+## C108 — Core Effect Backends Are Host-Injected
+
+The NORDOI core SHALL NOT acquire ambient network, filesystem, process, camera,
+microphone, location, GPU, XR or equivalent authority by linking a default privileged
+backend. External backends SHALL be explicit host-provided trust boundaries.
+
+## C109 — Failed Dispatch Preserves Pending Intent
+
+Capability denial, capability revocation, backend incompatibility or backend-reported
+failure SHALL NOT acknowledge or discard a pending effect intent.
+
+## C110 — Successful Backend Completion Precedes Local Acknowledgement
+
+A pending effect envelope MAY be removed from the live outbox only after the selected
+backend reports successful completion for that dispatch attempt.
+
+## C111 — Backend Results Do Not Rewrite Deterministic Program Meaning
+
+Backend completion status and opaque backend receipt metadata SHALL NOT alter the
+already-published deterministic replay identity of the cycle that created the intent.
+Environmental results MAY affect future program state only through a separately
+governed semantic re-entry mechanism.
+
+## C112 — NORDOI Shall Not Claim Universal Exactly-Once Side Effects
+
+External systems may observe an operation across failure boundaries that cannot be
+universally rolled back or proven exactly once without cooperation from the external
+system. NORDOI SHALL expose deterministic intent identity suitable for future
+idempotency/deduplication protocols, but SHALL NOT claim universal exactly-once delivery
+without a certified protocol that provides it.
+
+## C113 — Semantic Outbox Does Not Imply Crash Durability
+
+K1.6 certifies the semantic in-memory effect outbox and its publication law. Crash,
+process, machine or distributed durability SHALL NOT be inferred until a future
+certified persistence law defines and proves such guarantees.
+
+## C114 — K1.6 Does Not Increment NAIR Without New Program Semantics
+
+Because K1.6 introduces a host delivery boundary rather than a new serialized program
+instruction, NAIR SHALL remain at format 0.5. Host backend bindings, dispatch authority
+and delivery receipts SHALL NOT be serialized into canonical NAIR 0.5 bytes.

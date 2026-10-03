@@ -1,6 +1,11 @@
 use std::fmt::{Display, Formatter};
 
 use crate::{
+    effect::Effect,
+    effect_dispatch::{
+        AtomicEffectOutbox, EffectBackend, EffectDispatchReceipt, EffectDispatchResult,
+        EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher, QueuedEffectIntent,
+    },
     input::InputBatch,
     nair::{
         bootstrap_native_reactions, Instruction, NairError, NairProgram, NairReactionAuthority,
@@ -21,7 +26,7 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.5";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.6";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -49,6 +54,7 @@ pub struct EventLoopCycleReport {
     pub time: TimeAdvanceReport,
     pub runtime: PersistentRuntimeTickReport,
     pub reactions: NairReactionCycleReport,
+    pub effects: EffectOutboxStageReport,
     pub replay_key: EventLoopReplayKey,
 }
 
@@ -62,6 +68,7 @@ pub struct AtomicEventLoop {
     native_timer_bindings: BTreeMap<TimerSlot, TimerId>,
     reactions: AtomicReactionCore,
     native_reaction_bindings: BTreeMap<ReactionSlot, ReactionId>,
+    effect_outbox: AtomicEffectOutbox,
 }
 
 impl AtomicEventLoop {
@@ -143,6 +150,7 @@ impl AtomicEventLoop {
             native_timer_bindings,
             reactions,
             native_reaction_bindings,
+            effect_outbox: AtomicEffectOutbox::new(),
         })
     }
 
@@ -176,6 +184,26 @@ impl AtomicEventLoop {
 
     pub fn native_reaction_id(&self, slot: ReactionSlot) -> Option<ReactionId> {
         self.native_reaction_bindings.get(&slot).copied()
+    }
+
+    pub fn pending_effect_count(&self) -> usize {
+        self.effect_outbox.pending_len()
+    }
+
+    pub fn pending_effect(&self, id: EffectIntentId) -> Option<&QueuedEffectIntent> {
+        self.effect_outbox.get(id)
+    }
+
+    pub fn pending_effects(&self) -> impl Iterator<Item = &QueuedEffectIntent> {
+        self.effect_outbox.iter()
+    }
+
+    pub fn dispatch_next_effect<B: EffectBackend>(
+        &mut self,
+        dispatcher: &GovernedEffectDispatcher,
+        backend: &mut B,
+    ) -> EffectDispatchResult<Option<EffectDispatchReceipt>> {
+        dispatcher.dispatch_next(&mut self.effect_outbox, backend)
     }
 
     pub fn timer_snapshot(&self, id: TimerId) -> EventLoopResult<TimerSnapshot> {
@@ -244,8 +272,8 @@ impl AtomicEventLoop {
 
     /// Advances time and the persistent runtime as one publication boundary.
     ///
-    /// Both subsystems are evaluated on private clones. If either logical-time
-    /// advancement or the runtime tick fails, the published event-loop state is unchanged.
+    /// Time, runtime and effect-outbox state are evaluated on private clones. If
+    /// candidate evaluation fails, the published event-loop state is unchanged.
     pub fn cycle_to(
         &mut self,
         target: LogicalTime,
@@ -253,6 +281,7 @@ impl AtomicEventLoop {
     ) -> EventLoopResult<EventLoopCycleReport> {
         let mut time = self.time.clone();
         let mut runtime = self.runtime.clone();
+        let mut effect_outbox = self.effect_outbox.clone();
 
         let time_report = time.advance_to(target)?;
         let (runtime_report, input_reactions, timer_reactions) =
@@ -262,6 +291,15 @@ impl AtomicEventLoop {
             timers: timer_reactions,
         };
         let cycle = self.cycle.checked_add(1).ok_or(TimeError::TimeOverflow)?;
+        let effects = effect_outbox.stage_cycle(
+            cycle,
+            reactions
+                .input
+                .effect_intents
+                .iter()
+                .chain(reactions.timers.effect_intents.iter())
+                .cloned(),
+        )?;
 
         let mut replay_state = self.replay_state;
         hash_bytes(&mut replay_state, &[OP_CYCLE]);
@@ -280,10 +318,12 @@ impl AtomicEventLoop {
             hash_component(&mut replay_state, &fire.deadline.0.to_le_bytes());
             hash_component(&mut replay_state, &fire.occurrence.to_le_bytes());
         }
+        hash_effect_stage(&mut replay_state, &effects);
         let replay_key = EventLoopReplayKey(replay_state);
 
         self.time = time;
         self.runtime = runtime;
+        self.effect_outbox = effect_outbox;
         self.cycle = cycle;
         self.replay_state = replay_state;
         self.replay_key = replay_key;
@@ -294,6 +334,7 @@ impl AtomicEventLoop {
             time: time_report,
             runtime: runtime_report,
             reactions,
+            effects,
             replay_key,
         })
     }
@@ -339,6 +380,49 @@ impl AtomicEventLoop {
         hash_component(&mut self.replay_state, &first_deadline.0.to_le_bytes());
         hash_component(&mut self.replay_state, &interval.0.to_le_bytes());
         self.replay_key = EventLoopReplayKey(self.replay_state);
+    }
+}
+
+fn hash_effect_stage(replay_state: &mut u64, report: &EffectOutboxStageReport) {
+    if report.enqueued.is_empty() {
+        return;
+    }
+
+    hash_bytes(replay_state, b"NORDOI-EFFECT-OUTBOX-1.0");
+    hash_component(replay_state, &(report.enqueued.len() as u64).to_le_bytes());
+    for queued in &report.enqueued {
+        hash_component(replay_state, &queued.id.0.to_le_bytes());
+        hash_component(replay_state, &queued.cycle.to_le_bytes());
+        hash_component(replay_state, &queued.ordinal.to_le_bytes());
+        hash_component(replay_state, &queued.intent.reaction.0.to_le_bytes());
+        hash_component(replay_state, queued.intent.action_name.as_bytes());
+        hash_effect(replay_state, &queued.intent.effect);
+    }
+}
+
+fn hash_effect(replay_state: &mut u64, effect: &Effect) {
+    match effect {
+        Effect::Pure => hash_bytes(replay_state, &[0x00]),
+        Effect::StateRead => hash_bytes(replay_state, &[0x01]),
+        Effect::StateWrite => hash_bytes(replay_state, &[0x02]),
+        Effect::Network(scope) => {
+            hash_bytes(replay_state, &[0x10]);
+            hash_component(replay_state, scope.as_bytes());
+        }
+        Effect::FileRead(scope) => {
+            hash_bytes(replay_state, &[0x11]);
+            hash_component(replay_state, scope.as_bytes());
+        }
+        Effect::FileWrite(scope) => {
+            hash_bytes(replay_state, &[0x12]);
+            hash_component(replay_state, scope.as_bytes());
+        }
+        Effect::Camera => hash_bytes(replay_state, &[0x20]),
+        Effect::Microphone => hash_bytes(replay_state, &[0x21]),
+        Effect::Location => hash_bytes(replay_state, &[0x22]),
+        Effect::Gpu => hash_bytes(replay_state, &[0x23]),
+        Effect::Xr => hash_bytes(replay_state, &[0x24]),
+        Effect::Process => hash_bytes(replay_state, &[0x25]),
     }
 }
 

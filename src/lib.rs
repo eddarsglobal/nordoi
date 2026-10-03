@@ -4,6 +4,7 @@ pub mod authority;
 pub mod capability;
 pub mod dependency;
 pub mod effect;
+pub mod effect_dispatch;
 pub mod error;
 pub mod input;
 pub mod kernel;
@@ -22,6 +23,11 @@ pub use atom::{Atom, AtomId};
 pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use effect::{Effect, EffectSet};
+pub use effect_dispatch::{
+    AtomicEffectOutbox, EffectBackend, EffectBackendError, EffectBackendReceipt,
+    EffectDispatchAuthority, EffectDispatchError, EffectDispatchReceipt, EffectDispatchResult,
+    EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher, QueuedEffectIntent,
+};
 pub use error::{AtomicError, AtomicResult};
 pub use input::{
     AtomicInputCore, InputAtomBridge, InputBatch, InputBridgeReport, InputDeviceId, InputError,

@@ -1,153 +1,193 @@
-# NORDOI K1.5 — Native NAIR Reaction Semantics
+# NORDOI K1.6 — Governed Effect Outbox & Dispatch Core
 
-K1.5 extends the certified K1.4 Atomic Reaction & Action Core by encoding those
-reaction semantics natively in canonical **NAIR 0.5** and binding them to the
-persistent `AtomicEventLoop`.
+K1.6 closes the boundary between the certified K1.5 native reaction semantics and
+future real platform I/O without allowing external side effects to contaminate the
+deterministic NAM/NAIR execution core.
 
-K1.5 does not invent a second reaction engine. NAIR declarations compile directly
-into the already-certified K1.4 `AtomicReactionCore` model.
-
-## Architecture
+K1.5 can validate and emit `EffectIntent` values. K1.6 gives those intentions a
+governed lifecycle:
 
 ```text
-                     canonical NAIR 0.5
-                            │
-             ┌──────────────┼───────────────┐
-             ↓              ↓               ↓
-        NAM/render/input  timers       DEFINE_REACTION
-             │              │               │
-             │         TimerSlot→TimerId     │
-             │                              resolve
-             │      Domain/Atom/Render bindings
-             │              │               │
-             └──────────────┴───────┬───────┘
-                                    ↓
-                           AtomicReactionCore
-                                    │
-                     ReactionSlot → ReactionId
-                                    │
-                     persistent AtomicEventLoop
-                                    │
-                  ┌─────────────────┴─────────────────┐
-                  ↓                                   ↓
-             Input causes                        TimerFire causes
-                  │                                   │
-                  └──────────── atomic cycle ─────────┘
+canonical cause
+     │
+     ↓
+NAIR 0.5 native reaction
+     │
+     ↓
+validated EffectIntent
+     │
+     ├── candidate cycle still private
+     │
+     ↓
+AtomicEffectOutbox
+     │
+     ├── deterministic EffectIntentId
+     ├── cycle + ordinal
+     └── committed with the successful event-loop cycle
+                 │
+                 └──── deterministic boundary ends here
+                              │
+                              ↓
+                    GovernedEffectDispatcher
+                              │
+                 exact current capability check
+                              │
+                              ↓
+                       host EffectBackend
+                              │
+                    external / environmental I/O
 ```
 
-## What K1.5 adds
+## What K1.6 adds
 
-- NAIR format **0.5**.
-- `ReactionSlot(u32)` symbolic identities.
-- canonical `DEFINE_REACTION` opcode `0x60`.
-- native Input and Timer reaction triggers.
-- native literal/Input/timer reaction-value projections.
-- native `SET` and `EMIT_EFFECT` steps.
-- canonical ordered effect declarations through `NairEffectSet`.
-- `NairReactionAuthority`, supplied by the host and never serialized by code.
-- event-loop bootstrap of reaction declarations exactly once.
-- stable `ReactionSlot -> ReactionId` bindings.
-- native reaction reports on every event-loop cycle.
-- atomic rollback of logical time + runtime if reaction activation fails.
-- deterministic phase order: Input bridges → Input reactions → Timer reactions.
-- strict legacy-executor rejection through `ReactionContextRequired`.
-- strict 0.5 opcode version gating while preserving 0.1–0.4 decoding.
+- `AtomicEffectOutbox` integrated into `AtomicEventLoop` publication;
+- deterministic `EffectIntentId(u64)` identities;
+- stable Input-before-Timer effect ordering inherited from K1.5;
+- `QueuedEffectIntent { id, cycle, ordinal, intent }` envelopes;
+- effect envelopes included in event-loop replay progression;
+- `EffectDispatchAuthority` with exact capability scope and runtime revocation;
+- `GovernedEffectDispatcher` as a separate post-commit dispatch boundary;
+- host-injected `EffectBackend` trait;
+- explicit backend support checks;
+- backend receipts that are excluded from deterministic replay identity;
+- failed, denied or unsupported dispatch leaves the intent pending;
+- successful backend completion is required before the intent is acknowledged;
+- internal effects (`Pure`, `StateRead`, `StateWrite`) cannot cross the external
+  dispatch boundary;
+- no built-in network/filesystem/process/device backend;
 - zero new external Rust dependencies.
 
-## Security boundary: code declares, host authorizes
+## NAIR version
 
-A NAIR program may declare that an action intends to request an effect. It may **not**
-serialize a capability grant to itself.
+**NAIR remains 0.5 in K1.6.**
 
-```text
-NAIR bytes
-  ├─ declared effect: Network("api.example.test")
-  └─ no authority grant
+K1.6 does not add a new serialized opcode and does not let a program serialize a
+backend, runtime permission grant or delivery receipt. The native reaction declaration
+from K1.5 remains the canonical source of effect intent.
 
-Host
-  └─ NairReactionAuthority[ReactionSlot]
-       └─ Capability::Network("api.example.test")
-```
+This is deliberate: host execution authority is environmental policy, not program
+bytecode.
 
-Without the exact externally supplied capability, privileged reaction bootstrap is
-rejected by the existing K0.2 authority law.
+## Two authority boundaries
 
-This keeps least privilege structural rather than conventional.
+K1.6 intentionally validates authority twice at different semantic boundaries.
 
-## Native reaction declaration
+### 1. Intent authority
 
-K1.5 uses one complete declaration instruction instead of a mutable reaction builder:
+During native reaction bootstrap, K1.5 requires the exact declared effect and the
+exact capability needed to produce that effect intent.
 
-```text
-DEFINE_REACTION
-  slot
-  reaction name
-  ownership domain
-  trigger
-  action name
-  declared effects
-  ordered steps
-```
+### 2. Dispatch authority
 
-This prevents partially constructed reaction state from becoming a canonical runtime
-object.
+Immediately before external dispatch, K1.6 checks the capability again against the
+current `EffectDispatchAuthority`.
 
-## Event-loop phase order
-
-Within one cycle:
+Therefore a capability that was valid when the program booted can be revoked before
+the queued operation is handed to a backend.
 
 ```text
-1. canonicalize input
-2. apply certified InputAtomBridge state projections
-3. execute matching native Input reactions
-4. execute canonical TimerFire reactions
-5. flush NAM/render work
-6. require quiescence
-7. publish time + runtime + replay state together
+program declaration
+      +
+reaction authority
+      ↓
+validated intent
+      +
+current dispatch authority
+      ↓
+host backend execution
 ```
 
-Input and Timer reaction ordering inside their phase continues to use the K1.4 stable
-`ReactionId` rules.
+A queued intent is never itself a capability.
 
-## Atomic failure example
+## Atomicity law
 
-A timer reaction projecting a logical deadline larger than `i64::MAX` cannot represent
-that value as `Value::Int`. The candidate reaction therefore fails. K1.5 discards the
-entire candidate cycle: logical time does not advance, NAM does not change, timer state
-does not publish, and no effect intent escapes.
+External I/O is not rollbackable in the same sense as NAM state. K1.6 therefore does
+not execute a backend while a NAM/time/render candidate is still private.
 
-## External effects remain intentions
+The order is:
 
-`EMIT_EFFECT` produces a validated K1.4 `EffectIntent`; it does not execute network,
-filesystem, process, camera, microphone, location, GPU, XR or other platform APIs.
+```text
+1. canonicalize causes
+2. execute input bridges / reactions / timers on candidate state
+3. validate complete cycle
+4. stage effect envelopes in candidate outbox
+5. publish NAM + render + time + replay + outbox together
+6. only later may the host dispatch pending effects
+```
 
-## Compatibility
+If steps 1–4 fail, no new effect envelope is published.
 
-The decoder accepts NAIR 0.1, 0.2, 0.3 and 0.4. Canonical re-encoding emits 0.5.
-A `DEFINE_REACTION` bytecode under a declared version below 0.5 is rejected.
+Once a host backend has performed an external action, NORDOI does **not** claim that
+it can universally undo that action. This is why dispatch is a separate delivery
+plane.
+
+## Delivery semantics
+
+K1.6 guarantees deterministic intent identity and ordering inside one event-loop
+history. It does **not** claim universal exactly-once external delivery.
+
+A backend can fail after receiving an intent, and a process can theoretically fail at
+an arbitrary host boundary. `EffectIntentId` is therefore designed to be usable by
+future idempotent/deduplicating backends, but destination-level exactly-once semantics
+require cooperation from that destination or a stronger certified protocol.
+
+K1.6's in-memory outbox is a semantic outbox. Crash-durable persistence is not claimed
+until a future storage/persistence law certifies it.
+
+## Replay boundary
+
+The deterministic event-loop replay key incorporates newly committed effect envelopes,
+including their deterministic identity, reaction identity, action name and exact effect
+scope.
+
+Backend execution results and backend receipt references are deliberately excluded.
+Environmental success/failure must not rewrite what the deterministic program meant to
+request.
+
+If an external result later needs to affect NORDOI state, it must return through a
+future governed semantic input/completion cause rather than mutating NAM directly from
+the backend.
+
+## Host backend contract
+
+K1.6 provides only the interface:
+
+```text
+supports(effect) -> bool
+execute(QueuedEffectIntent) -> EffectBackendReceipt | EffectBackendError
+```
+
+The core contains no HTTP client, filesystem implementation, process launcher, camera,
+microphone, location, GPU or XR backend.
+
+A backend is host code and therefore an explicit trust boundary. NORDOI governs what
+it chooses to dispatch; it cannot prevent arbitrary unrelated behavior inside a
+malicious host process.
 
 ## Test corpus
 
-K1.5 adds **16 native-reaction tests** to the **172 certified K1.4 tests**, for an
-expected total of **188 tests**.
+K1.6 adds **17 effect-dispatch tests** to the **188 certified K1.5 tests**, for an
+expected total of **205 tests**.
 
-The K1.5 tests cover:
+The K1.6 tests cover:
 
-- NAIR 0.5 current version and 0.4 compatibility;
-- strict reaction opcode version gating;
-- single-assignment reaction slots;
-- atom/timer reference validation;
-- trigger/value-source compatibility;
-- exact declared-effect validation;
-- canonical binary round trips;
-- legacy executor rejection before mutation;
-- native Input execution;
-- native timer occurrence/deadline projection;
-- program-order reaction identities;
-- denial of privileged effects without host authority;
-- authorized effect intents without backend execution;
-- Input-before-Timer cycle phase ordering;
-- event-loop rollback when a reaction fails.
+- deterministic effect-intent identity;
+- monotonic identities across cycles;
+- Input-before-Timer outbox ordering;
+- zero outbox work for unmatched cycles;
+- failed-cycle effect rollback;
+- dispatch deny-by-default;
+- exact capability scope;
+- successful acknowledge-after-execute behavior;
+- unsupported backend preservation;
+- backend failure preservation/retry;
+- runtime capability revocation;
+- explicit re-grant;
+- internal-effect dispatch rejection;
+- dispatch receipts excluded from replay identity;
+- equal traces producing equal effect envelopes;
+- pending intent survival across later cycles;
+- deterministic pending dispatch order.
 
 ## Mandatory release gate
 
@@ -158,15 +198,13 @@ cargo check --all-targets
 cargo test --all-targets
 ```
 
-GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.5` can be tagged.
+GitHub CI must repeat the gate on Linux, macOS and Windows before `k1.6` can be tagged.
 
 ## Key specifications
 
-- `docs/NAIR_SPEC_0_5.md`
+- `docs/EFFECT_OUTBOX_DISPATCH_SPEC_1_0.md`
 - `docs/NAIR_NATIVE_REACTION_SPEC_0_1.md`
+- `docs/NAIR_SPEC_0_5.md`
 - `docs/REACTION_ACTION_CORE_SPEC_1_0.md`
-- `docs/NAIR_SPEC_0_4.md`
-- `docs/NAIR_NATIVE_TIME_SPEC_0_1.md`
-- `docs/TIME_EVENT_LOOP_SPEC_1_2.md`
-- `docs/PERSISTENT_RUNTIME_SPEC_1_1.md`
+- `research/EFFECT_EXECUTION_INTELLIGENCE_0_1.md`
 - `docs/TESTING_AND_RELEASE_LAW.md`

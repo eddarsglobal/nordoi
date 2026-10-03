@@ -3,7 +3,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::runtime::RuntimeError;
+use crate::{effect_dispatch::EffectDispatchError, runtime::RuntimeError};
 
 use super::{LogicalTime, TimerId};
 
@@ -61,6 +61,7 @@ pub type TimeResult<T> = Result<T, TimeError>;
 pub enum EventLoopError {
     Time(TimeError),
     Runtime(RuntimeError),
+    Effect(EffectDispatchError),
 }
 
 impl Display for EventLoopError {
@@ -68,6 +69,7 @@ impl Display for EventLoopError {
         match self {
             Self::Time(error) => write!(f, "atomic event-loop time failure: {error}"),
             Self::Runtime(error) => write!(f, "atomic event-loop runtime failure: {error}"),
+            Self::Effect(error) => write!(f, "atomic event-loop effect failure: {error}"),
         }
     }
 }
@@ -77,6 +79,7 @@ impl Error for EventLoopError {
         match self {
             Self::Time(error) => Some(error),
             Self::Runtime(error) => Some(error),
+            Self::Effect(error) => Some(error),
         }
     }
 }
@@ -90,6 +93,12 @@ impl From<TimeError> for EventLoopError {
 impl From<RuntimeError> for EventLoopError {
     fn from(value: RuntimeError) -> Self {
         Self::Runtime(value)
+    }
+}
+
+impl From<EffectDispatchError> for EventLoopError {
+    fn from(value: EffectDispatchError) -> Self {
+        Self::Effect(value)
     }
 }
 

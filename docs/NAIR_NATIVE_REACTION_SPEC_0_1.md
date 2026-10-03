@@ -1,6 +1,6 @@
 # NORDOI NAIR Native Reaction Bridge Specification 0.1
 
-Status: K1.5 candidate.
+Status: Certified by NORDOI K1.5; inherited unchanged by K1.6.
 
 ## Purpose
 
