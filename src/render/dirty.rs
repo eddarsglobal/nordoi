@@ -33,6 +33,14 @@ impl DirtyMask {
     pub const fn bits(self) -> u8 {
         self.0
     }
+
+    pub const fn from_bits(bits: u8) -> Option<Self> {
+        if bits & !Self::ALL.0 == 0 {
+            Some(Self(bits))
+        } else {
+            None
+        }
+    }
 }
 
 impl BitOr for DirtyMask {

@@ -1,4 +1,4 @@
-# NORDOI Constitutional Principles — K0.5
+# NORDOI Constitutional Principles — K0.7
 
 NORDOI is designed as a universal programming architecture for humans, AI/SI and machines.
 
@@ -98,3 +98,24 @@ If a state operation produces no semantic change, the NAIR-to-render bridge SHAL
 
 A NAIR `AtomSlot` may reach rendering only through the runtime `AtomId` binding emitted by the exact validated NAIR execution that created it. Unknown or foreign slots SHALL be rejected before rendering.
 
+
+
+## C32 — Native Render Meaning in NAIR
+
+Backend-independent render creation, hierarchy, bindings and core visual mutation MAY be canonical NAIR semantics. Platform APIs SHALL remain backend implementation details.
+
+## C33 — Render Slots Are Semantic Identities
+
+A NAIR `RenderNodeSlot` SHALL be single assignment, SHALL exist before use, and SHALL resolve only to runtime render identities created by the exact validated execution.
+
+## C34 — Explicit Frame Boundaries
+
+`RENDER_FLUSH` SHALL define an explicit deterministic render-frame boundary. HALT SHALL emit a final implicit frame only when pending state or render work exists.
+
+## C35 — Backward-Decodable NAIR Evolution
+
+A newer NAIR runtime SHOULD retain decoding of older valid canonical formats when doing so does not weaken semantics. New opcodes SHALL NOT be accepted under an older declared format version.
+
+## C36 — Render Context Must Be Explicit
+
+A program containing render operations SHALL NOT execute through a state-only execution path. Missing render authority/context must be rejected before runtime mutation.

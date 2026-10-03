@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K0.6 — canonical NAIR to Atomic Render runtime bridge"
+description = "NORDOI K0.7 — NAIR 0.2 native Atomic Render instructions and frame semantics"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

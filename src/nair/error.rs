@@ -1,11 +1,11 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use crate::error::AtomicError;
+use crate::{error::AtomicError, render::RenderError};
 
-use super::id::{AtomSlot, DomainSlot, RegisterId, TransactionSlot};
+use super::id::{AtomSlot, DomainSlot, RegisterId, RenderNodeSlot, TransactionSlot};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum NairError {
     DuplicateRegister(RegisterId),
     UnknownRegister(RegisterId),
@@ -18,6 +18,12 @@ pub enum NairError {
     DuplicateTransactionSlot(TransactionSlot),
     InactiveTransaction(TransactionSlot),
     UnclosedTransactions(Vec<TransactionSlot>),
+    DuplicateRenderNodeSlot(RenderNodeSlot),
+    UnknownRenderNodeSlot(RenderNodeSlot),
+    EmptyRenderDirtyMask,
+    InvalidRenderOpacity(f32),
+    NonFiniteRenderPosition(RenderNodeSlot),
+    RenderContextRequired,
     MissingHalt,
     InstructionAfterHalt { index: usize },
     NonFiniteFloat(RegisterId),
@@ -27,10 +33,15 @@ pub enum NairError {
     InvalidOpcode(u8),
     InvalidValueTag(u8),
     InvalidDomainRefTag(u8),
+    InvalidRenderPrimitiveTag(u8),
+    InvalidRenderSpaceTag(u8),
+    InvalidDirtyMask(u8),
+    InvalidBoolTag(u8),
     InvalidUtf8,
     TrailingBytes(usize),
     LengthOverflow,
     Kernel(AtomicError),
+    Render(RenderError),
 }
 
 impl Display for NairError {
@@ -65,6 +76,26 @@ impl Display for NairError {
             Self::UnclosedTransactions(ids) => {
                 write!(f, "NAIR program halts with active transactions: {ids:?}")
             }
+            Self::DuplicateRenderNodeSlot(id) => {
+                write!(f, "NAIR render node slot {id:?} is defined more than once")
+            }
+            Self::UnknownRenderNodeSlot(id) => {
+                write!(f, "NAIR render node slot {id:?} is used before definition")
+            }
+            Self::EmptyRenderDirtyMask => {
+                write!(f, "NAIR render binding cannot use an empty dirty mask")
+            }
+            Self::InvalidRenderOpacity(value) => write!(
+                f,
+                "NAIR render opacity must be finite and within 0..=1, got {value}"
+            ),
+            Self::NonFiniteRenderPosition(id) => {
+                write!(f, "NAIR render node slot {id:?} has a non-finite position")
+            }
+            Self::RenderContextRequired => write!(
+                f,
+                "NAIR program contains render instructions but no render context was provided"
+            ),
             Self::MissingHalt => write!(f, "NAIR program must end with HALT"),
             Self::InstructionAfterHalt { index } => {
                 write!(f, "NAIR instruction at index {index} appears after HALT")
@@ -82,12 +113,23 @@ impl Display for NairError {
             Self::InvalidDomainRefTag(tag) => {
                 write!(f, "invalid NAIR domain reference tag 0x{tag:02x}")
             }
+            Self::InvalidRenderPrimitiveTag(tag) => {
+                write!(f, "invalid NAIR render primitive tag 0x{tag:02x}")
+            }
+            Self::InvalidRenderSpaceTag(tag) => {
+                write!(f, "invalid NAIR render space tag 0x{tag:02x}")
+            }
+            Self::InvalidDirtyMask(bits) => {
+                write!(f, "invalid NAIR render dirty mask 0x{bits:02x}")
+            }
+            Self::InvalidBoolTag(tag) => write!(f, "invalid NAIR boolean tag 0x{tag:02x}"),
             Self::InvalidUtf8 => write!(f, "invalid UTF-8 in NAIR binary"),
             Self::TrailingBytes(count) => {
                 write!(f, "NAIR binary contains {count} trailing byte(s)")
             }
             Self::LengthOverflow => write!(f, "NAIR value is too large for canonical encoding"),
             Self::Kernel(err) => write!(f, "NAM rejected NAIR execution: {err}"),
+            Self::Render(err) => write!(f, "Atomic Render Core rejected NAIR execution: {err}"),
         }
     }
 }
@@ -96,6 +138,7 @@ impl Error for NairError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
             Self::Kernel(err) => Some(err),
+            Self::Render(err) => Some(err),
             _ => None,
         }
     }
@@ -104,6 +147,12 @@ impl Error for NairError {
 impl From<AtomicError> for NairError {
     fn from(value: AtomicError) -> Self {
         Self::Kernel(value)
+    }
+}
+
+impl From<RenderError> for NairError {
+    fn from(value: RenderError) -> Self {
+        Self::Render(value)
     }
 }
 

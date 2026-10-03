@@ -21,9 +21,10 @@ pub use effect::{Effect, EffectSet};
 pub use error::{AtomicError, AtomicResult};
 pub use kernel::AtomicKernel;
 pub use nair::{
-    execute_nair, AtomSlot, DomainRef, DomainSlot, Instruction, NairError, NairExecutionReport,
-    NairProgram, NairResult, RegisterId, TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR,
-    NAIR_MAGIC,
+    execute_nair, execute_nair_with_render, AtomSlot, DomainRef, DomainSlot, Instruction,
+    NairError, NairExecutionReport, NairProgram, NairRenderExecutionReport, NairResult, RegisterId,
+    RenderNodeSlot, TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC,
+    NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use render::{

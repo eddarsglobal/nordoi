@@ -1,16 +1,20 @@
 use std::collections::BTreeSet;
 
-use crate::value::Value;
+use crate::{
+    render::{DirtyMask, RenderPrimitive, RenderSpace},
+    value::Value,
+};
 
 use super::{
     error::{NairError, NairResult},
-    id::{AtomSlot, DomainSlot, RegisterId, TransactionSlot},
+    id::{AtomSlot, DomainSlot, RegisterId, RenderNodeSlot, TransactionSlot},
     instruction::{DomainRef, Instruction},
 };
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
-pub const NAIR_FORMAT_MINOR: u16 = 1;
+pub const NAIR_FORMAT_MINOR: u16 = 2;
+pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NairProgram {
@@ -48,6 +52,7 @@ impl NairProgram {
         let mut atoms = BTreeSet::new();
         let mut transaction_slots = BTreeSet::new();
         let mut active_transactions = BTreeSet::new();
+        let mut render_nodes = BTreeSet::new();
         let mut halt_seen = false;
 
         for (index, instruction) in self.instructions.iter().enumerate() {
@@ -102,6 +107,40 @@ impl NairProgram {
                     require_active_transaction(*tx, &active_transactions)?;
                     active_transactions.remove(tx);
                 }
+                Instruction::CreateRenderNode { dst, .. } => {
+                    if !render_nodes.insert(*dst) {
+                        return Err(NairError::DuplicateRenderNodeSlot(*dst));
+                    }
+                }
+                Instruction::CreateRenderChild { dst, parent, .. } => {
+                    require_render_node(*parent, &render_nodes)?;
+                    if !render_nodes.insert(*dst) {
+                        return Err(NairError::DuplicateRenderNodeSlot(*dst));
+                    }
+                }
+                Instruction::BindRenderAtom { atom, node, dirty } => {
+                    require_atom(*atom, &atoms)?;
+                    require_render_node(*node, &render_nodes)?;
+                    if dirty.is_empty() {
+                        return Err(NairError::EmptyRenderDirtyMask);
+                    }
+                }
+                Instruction::SetRenderVisible { node, .. } => {
+                    require_render_node(*node, &render_nodes)?;
+                }
+                Instruction::SetRenderOpacity { node, opacity } => {
+                    require_render_node(*node, &render_nodes)?;
+                    if !opacity.is_finite() || !(0.0..=1.0).contains(opacity) {
+                        return Err(NairError::InvalidRenderOpacity(*opacity));
+                    }
+                }
+                Instruction::SetRenderPosition { node, position } => {
+                    require_render_node(*node, &render_nodes)?;
+                    if position.iter().any(|value| !value.is_finite()) {
+                        return Err(NairError::NonFiniteRenderPosition(*node));
+                    }
+                }
+                Instruction::RenderFlush => {}
                 Instruction::Halt => {
                     halt_seen = true;
                 }
@@ -147,14 +186,16 @@ impl NairProgram {
 
         let major = input.read_u16()?;
         let minor = input.read_u16()?;
-        if major != NAIR_FORMAT_MAJOR || minor != NAIR_FORMAT_MINOR {
+        if major != NAIR_FORMAT_MAJOR
+            || !(NAIR_MIN_SUPPORTED_MINOR..=NAIR_FORMAT_MINOR).contains(&minor)
+        {
             return Err(NairError::UnsupportedFormat { major, minor });
         }
 
         let count = input.read_u32()? as usize;
         let mut instructions = Vec::with_capacity(count);
         for _ in 0..count {
-            instructions.push(decode_instruction(&mut input)?);
+            instructions.push(decode_instruction(&mut input, minor)?);
         }
 
         if input.remaining() != 0 {
@@ -191,6 +232,14 @@ fn require_atom(id: AtomSlot, atoms: &BTreeSet<AtomSlot>) -> NairResult<()> {
     }
 }
 
+fn require_render_node(id: RenderNodeSlot, nodes: &BTreeSet<RenderNodeSlot>) -> NairResult<()> {
+    if nodes.contains(&id) {
+        Ok(())
+    } else {
+        Err(NairError::UnknownRenderNodeSlot(id))
+    }
+}
+
 fn require_active_transaction(
     id: TransactionSlot,
     active: &BTreeSet<TransactionSlot>,
@@ -216,6 +265,10 @@ fn write_i64(out: &mut Vec<u8>, value: i64) {
 
 fn write_u64(out: &mut Vec<u8>, value: u64) {
     out.extend_from_slice(&value.to_le_bytes());
+}
+
+fn write_f32(out: &mut Vec<u8>, value: f32) {
+    write_u32(out, value.to_bits());
 }
 
 fn write_len(out: &mut Vec<u8>, len: usize) -> NairResult<()> {
@@ -264,6 +317,22 @@ fn encode_domain_ref(out: &mut Vec<u8>, domain: DomainRef) {
     }
 }
 
+fn encode_render_primitive(out: &mut Vec<u8>, primitive: RenderPrimitive) {
+    out.push(match primitive {
+        RenderPrimitive::Group => 0x00,
+        RenderPrimitive::Quad => 0x01,
+        RenderPrimitive::Text => 0x02,
+        RenderPrimitive::Mesh => 0x03,
+    });
+}
+
+fn encode_render_space(out: &mut Vec<u8>, space: RenderSpace) {
+    out.push(match space {
+        RenderSpace::Screen => 0x00,
+        RenderSpace::World => 0x01,
+    });
+}
+
 fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResult<()> {
     match instruction {
         Instruction::Const { dst, value } => {
@@ -306,12 +375,58 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             out.push(0x23);
             write_u32(out, tx.0);
         }
+        Instruction::CreateRenderNode {
+            dst,
+            primitive,
+            space,
+        } => {
+            out.push(0x30);
+            write_u32(out, dst.0);
+            encode_render_primitive(out, *primitive);
+            encode_render_space(out, *space);
+        }
+        Instruction::CreateRenderChild {
+            dst,
+            parent,
+            primitive,
+            space,
+        } => {
+            out.push(0x31);
+            write_u32(out, dst.0);
+            write_u32(out, parent.0);
+            encode_render_primitive(out, *primitive);
+            encode_render_space(out, *space);
+        }
+        Instruction::BindRenderAtom { atom, node, dirty } => {
+            out.push(0x32);
+            write_u32(out, atom.0);
+            write_u32(out, node.0);
+            out.push(dirty.bits());
+        }
+        Instruction::SetRenderVisible { node, visible } => {
+            out.push(0x33);
+            write_u32(out, node.0);
+            out.push(u8::from(*visible));
+        }
+        Instruction::SetRenderOpacity { node, opacity } => {
+            out.push(0x34);
+            write_u32(out, node.0);
+            write_f32(out, *opacity);
+        }
+        Instruction::SetRenderPosition { node, position } => {
+            out.push(0x35);
+            write_u32(out, node.0);
+            for value in position {
+                write_f32(out, *value);
+            }
+        }
+        Instruction::RenderFlush => out.push(0x36),
         Instruction::Halt => out.push(0xff),
     }
     Ok(())
 }
 
-fn decode_instruction(input: &mut Decoder<'_>) -> NairResult<Instruction> {
+fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruction> {
     let opcode = input.read_u8()?;
     match opcode {
         0x01 => Ok(Instruction::Const {
@@ -346,6 +461,42 @@ fn decode_instruction(input: &mut Decoder<'_>) -> NairResult<Instruction> {
         0x23 => Ok(Instruction::Rollback {
             tx: TransactionSlot(input.read_u32()?),
         }),
+        0x30 if minor >= 2 => Ok(Instruction::CreateRenderNode {
+            dst: RenderNodeSlot(input.read_u32()?),
+            primitive: decode_render_primitive(input)?,
+            space: decode_render_space(input)?,
+        }),
+        0x31 if minor >= 2 => Ok(Instruction::CreateRenderChild {
+            dst: RenderNodeSlot(input.read_u32()?),
+            parent: RenderNodeSlot(input.read_u32()?),
+            primitive: decode_render_primitive(input)?,
+            space: decode_render_space(input)?,
+        }),
+        0x32 if minor >= 2 => {
+            let atom = AtomSlot(input.read_u32()?);
+            let node = RenderNodeSlot(input.read_u32()?);
+            let bits = input.read_u8()?;
+            let dirty = DirtyMask::from_bits(bits).ok_or(NairError::InvalidDirtyMask(bits))?;
+            Ok(Instruction::BindRenderAtom { atom, node, dirty })
+        }
+        0x33 if minor >= 2 => {
+            let node = RenderNodeSlot(input.read_u32()?);
+            let visible = match input.read_u8()? {
+                0 => false,
+                1 => true,
+                other => return Err(NairError::InvalidBoolTag(other)),
+            };
+            Ok(Instruction::SetRenderVisible { node, visible })
+        }
+        0x34 if minor >= 2 => Ok(Instruction::SetRenderOpacity {
+            node: RenderNodeSlot(input.read_u32()?),
+            opacity: input.read_f32()?,
+        }),
+        0x35 if minor >= 2 => Ok(Instruction::SetRenderPosition {
+            node: RenderNodeSlot(input.read_u32()?),
+            position: [input.read_f32()?, input.read_f32()?, input.read_f32()?],
+        }),
+        0x36 if minor >= 2 => Ok(Instruction::RenderFlush),
         0xff => Ok(Instruction::Halt),
         other => Err(NairError::InvalidOpcode(other)),
     }
@@ -368,6 +519,24 @@ fn decode_domain_ref(input: &mut Decoder<'_>) -> NairResult<DomainRef> {
         0x00 => Ok(DomainRef::Root),
         0x01 => Ok(DomainRef::Slot(DomainSlot(input.read_u32()?))),
         other => Err(NairError::InvalidDomainRefTag(other)),
+    }
+}
+
+fn decode_render_primitive(input: &mut Decoder<'_>) -> NairResult<RenderPrimitive> {
+    match input.read_u8()? {
+        0x00 => Ok(RenderPrimitive::Group),
+        0x01 => Ok(RenderPrimitive::Quad),
+        0x02 => Ok(RenderPrimitive::Text),
+        0x03 => Ok(RenderPrimitive::Mesh),
+        other => Err(NairError::InvalidRenderPrimitiveTag(other)),
+    }
+}
+
+fn decode_render_space(input: &mut Decoder<'_>) -> NairResult<RenderSpace> {
+    match input.read_u8()? {
+        0x00 => Ok(RenderSpace::Screen),
+        0x01 => Ok(RenderSpace::World),
+        other => Err(NairError::InvalidRenderSpaceTag(other)),
     }
 }
 
@@ -432,6 +601,10 @@ impl<'a> Decoder<'a> {
             .try_into()
             .map_err(|_| NairError::UnexpectedEof)?;
         Ok(u64::from_le_bytes(bytes))
+    }
+
+    fn read_f32(&mut self) -> NairResult<f32> {
+        Ok(f32::from_bits(self.read_u32()?))
     }
 
     fn read_string(&mut self) -> NairResult<String> {
