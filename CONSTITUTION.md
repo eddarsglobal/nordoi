@@ -238,3 +238,51 @@ cryptographic specification explicitly establishes those properties.
 K1.0 certifies the first closed atomic execution architecture. It SHALL NOT be used
 as justification to prematurely freeze NORDOI surface syntax, final compiler design,
 backend APIs or future persistent-runtime semantics.
+
+## C57 — Persistent Runtime Identity
+
+A K1.1 persistent runtime SHALL bootstrap semantic NAM, render and input identities
+once and preserve those identities across accepted ticks. Persistent execution SHALL
+NOT recreate the application world for every input batch.
+
+## C58 — Bootstrap Once, Tick Many
+
+The validated NAIR program SHALL execute once for persistent-runtime bootstrap.
+Subsequent ticks SHALL apply only the persistent interaction boundaries established
+by that bootstrap unless a future specification explicitly defines additional
+persistent instruction semantics.
+
+## C59 — Cross-Tick Input Monotonicity
+
+For one persistent runtime session, the first input sequence of every non-empty tick
+SHALL be strictly greater than the last sequence accepted by any earlier tick.
+Rejected or empty ticks SHALL NOT advance the stored sequence frontier.
+
+## C60 — Atomic Tick Publication
+
+A persistent tick SHALL be evaluated in isolated candidate NAM/render state and SHALL
+replace published session state only after the complete tick succeeds and reaches
+quiescence. A failed tick SHALL NOT publish partial persistent mutation.
+
+## C61 — Quiescent Tick Boundary
+
+Every successful persistent tick SHALL finish with zero pending NAM work and zero
+pending Atomic Render Core work. Persistent execution SHALL NOT accumulate hidden
+unfinished work between externally observable ticks.
+
+## C62 — No Frame Without Visual Effect
+
+A persistent tick that creates no NAM/render effect SHALL NOT emit a render frame.
+Tick acceptance, replay accounting and visual work are distinct responsibilities.
+
+## C63 — Persistent Replay Preserves Tick Boundaries
+
+The persistent replay identity SHALL incorporate canonical input batches in accepted
+tick order with unambiguous component boundaries. Equal program plus equal canonical
+tick trace SHALL produce equal session replay identity.
+
+## C64 — Persistent Runtime Does Not Imply Ambient Effects
+
+Long-lived execution SHALL NOT weaken NORDOI effect or capability laws. Persistence
+alone SHALL NOT confer access to clocks, files, network, devices, threads or other
+privileged ambient resources.

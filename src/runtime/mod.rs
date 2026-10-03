@@ -1,4 +1,5 @@
 mod error;
+mod persistent;
 
 use std::{
     collections::BTreeMap,
@@ -17,9 +18,10 @@ use crate::{
 };
 
 pub use error::{RuntimeError, RuntimeResult};
+pub use persistent::{PersistentAtomicRuntime, PersistentRuntimeTickReport};
 
 const REPLAY_KEY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-RUNTIME-1.0";
-const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+pub(super) const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x00000100000001B3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -103,17 +105,7 @@ impl AtomicRuntime {
             });
         }
 
-        let mut final_atoms = BTreeMap::new();
-        for (slot, id) in &execution.execution.atom_bindings {
-            final_atoms.insert(
-                *slot,
-                RuntimeAtomSnapshot {
-                    id: *id,
-                    version: kernel.version(*id)?,
-                    value: kernel.get(*id)?.clone(),
-                },
-            );
-        }
+        let final_atoms = snapshot_atoms(&kernel, &execution.execution.atom_bindings)?;
 
         Ok(RuntimeReport {
             replay_key,
@@ -128,6 +120,24 @@ pub fn run_closed(program: &NairProgram, input: &InputBatch) -> RuntimeResult<Ru
     AtomicRuntime::new().execute(program, input)
 }
 
+pub(super) fn snapshot_atoms(
+    kernel: &AtomicKernel,
+    bindings: &BTreeMap<AtomSlot, AtomId>,
+) -> RuntimeResult<BTreeMap<AtomSlot, RuntimeAtomSnapshot>> {
+    let mut final_atoms = BTreeMap::new();
+    for (slot, id) in bindings {
+        final_atoms.insert(
+            *slot,
+            RuntimeAtomSnapshot {
+                id: *id,
+                version: kernel.version(*id)?,
+                value: kernel.get(*id)?.clone(),
+            },
+        );
+    }
+    Ok(final_atoms)
+}
+
 fn replay_key(program: &[u8], input: &[u8]) -> RuntimeReplayKey {
     let mut hash = FNV_OFFSET_BASIS;
     hash_bytes(&mut hash, REPLAY_KEY_DOMAIN);
@@ -136,12 +146,12 @@ fn replay_key(program: &[u8], input: &[u8]) -> RuntimeReplayKey {
     RuntimeReplayKey(hash)
 }
 
-fn hash_component(hash: &mut u64, bytes: &[u8]) {
+pub(super) fn hash_component(hash: &mut u64, bytes: &[u8]) {
     hash_bytes(hash, &(bytes.len() as u64).to_le_bytes());
     hash_bytes(hash, bytes);
 }
 
-fn hash_bytes(hash: &mut u64, bytes: &[u8]) {
+pub(super) fn hash_bytes(hash: &mut u64, bytes: &[u8]) {
     for byte in bytes {
         *hash ^= u64::from(*byte);
         *hash = hash.wrapping_mul(FNV_PRIME);

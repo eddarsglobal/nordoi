@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, VecDeque};
 
 use crate::atom::AtomId;
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AtomicScheduler {
     pending: VecDeque<AtomId>,
     queued: BTreeSet<AtomId>,

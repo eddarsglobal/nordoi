@@ -37,7 +37,7 @@ impl RenderBatch {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AtomicRenderCore {
     nodes: HashMap<RenderNodeId, RenderNode>,
     pending: BTreeSet<RenderNodeId>,

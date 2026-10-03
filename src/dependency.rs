@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap, HashSet, VecDeque};
 use crate::atom::AtomId;
 use crate::error::{AtomicError, AtomicResult};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct DependencyGraph {
     /// source -> direct dependents
     dependents: HashMap<AtomId, BTreeSet<AtomId>>,

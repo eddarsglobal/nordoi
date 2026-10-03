@@ -45,6 +45,6 @@ pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;
 
 pub use runtime::{
-    run_closed, AtomicRuntime, RuntimeAtomSnapshot, RuntimeError, RuntimeReplayKey, RuntimeReport,
-    RuntimeResult,
+    run_closed, AtomicRuntime, PersistentAtomicRuntime, PersistentRuntimeTickReport,
+    RuntimeAtomSnapshot, RuntimeError, RuntimeReplayKey, RuntimeReport, RuntimeResult,
 };
