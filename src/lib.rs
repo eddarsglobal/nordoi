@@ -12,6 +12,7 @@ pub mod ownership;
 pub mod render;
 pub mod runtime;
 pub mod scheduler;
+pub mod time;
 pub mod transaction;
 pub mod value;
 
@@ -40,6 +41,11 @@ pub use render::{
     AtomicRenderCore, DirtyMask, NairRenderBridge, NairRenderBridgeError, NairRenderBridgeResult,
     NairRenderFrame, RenderBackend, RenderBatch, RenderError, RenderNode, RenderNodeId,
     RenderPrimitive, RenderResult, RenderSpace, RenderUpdate,
+};
+pub use time::{
+    AtomicEventLoop, AtomicTimeCore, EventLoopCycleReport, EventLoopError, EventLoopReplayKey,
+    EventLoopResult, LogicalDuration, LogicalTime, TimeAdvanceReport, TimeError, TimeResult,
+    TimerFire, TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;

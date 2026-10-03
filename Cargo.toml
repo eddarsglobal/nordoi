@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "1.1.0"
+version = "1.2.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K1.1 — Persistent Atomic Runtime"
+description = "NORDOI K1.2 — Atomic Time & Event Loop"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

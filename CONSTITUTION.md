@@ -286,3 +286,61 @@ tick trace SHALL produce equal session replay identity.
 Long-lived execution SHALL NOT weaken NORDOI effect or capability laws. Persistence
 alone SHALL NOT confer access to clocks, files, network, devices, threads or other
 privileged ambient resources.
+
+## C65 — Logical Time Is Explicit Semantic Input
+
+The NORDOI semantic core SHALL NOT obtain current time from an ambient operating-system
+clock. Logical time SHALL advance only through an explicit governed input to the time
+runtime or through future semantics that are equivalent and auditable.
+
+## C66 — Logical Time Is Monotonic
+
+Accepted logical time SHALL never move backward within one time-runtime identity.
+Rejected advances SHALL NOT alter the published logical-time frontier.
+
+## C67 — Deterministic Timer Order
+
+Timers due in one logical-time advance SHALL fire in canonical `(deadline, TimerId)`
+order. Platform timer queue order SHALL NOT define NORDOI timer meaning.
+
+## C68 — Repeating Deadlines Are Lossless
+
+A repeating timer SHALL represent every elapsed accepted logical deadline unless a
+future explicit semantic operation defines another behavior. Timer optimization SHALL
+NOT silently erase occurrences.
+
+## C69 — Timer Bursts Must Be Bounded
+
+Lossless timer semantics SHALL NOT require unbounded work from one externally supplied
+time advance. A certified runtime SHALL enforce an explicit fire budget or an equally
+strong bounded-work mechanism. Budget failure SHALL be atomic.
+
+## C70 — Atomic Logical-Time Advance
+
+A logical-time advance that fails validation, arithmetic or bounded-work requirements
+SHALL NOT publish partial clock movement, timer rescheduling or occurrence counts.
+
+## C71 — Atomic Event-Loop Publication
+
+A K1.2 event-loop cycle SHALL publish logical-time state and persistent-runtime state
+together only after both candidate computations succeed. Failure of either side SHALL
+leave the previously published cycle intact.
+
+## C72 — Future Timers Are Dormant, Not Residual Work
+
+A timer scheduled for a future logical deadline SHALL NOT by itself make NAM/render
+execution non-quiescent. Quiescence concerns work that is currently executable, not
+valid future schedule state.
+
+## C73 — Timer Scheduling Is Not Clock Authority
+
+The ability to create logical timers SHALL NOT imply permission to read wall clocks,
+install operating-system timers, sleep threads or access privileged platform event
+loops. Those capabilities require explicit future effects and authority.
+
+## C74 — Temporal Replay Preserves Accepted History
+
+The event-loop replay identity SHALL incorporate successful timer schedule/cancel
+operations and successful logical cycle boundaries in deterministic order. Equal
+accepted temporal traces SHALL produce equal replay identities. Such identity remains
+non-cryptographic unless a future cryptographic law explicitly states otherwise.

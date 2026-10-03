@@ -21,7 +21,7 @@ pub use error::{RuntimeError, RuntimeResult};
 pub use persistent::{PersistentAtomicRuntime, PersistentRuntimeTickReport};
 
 const REPLAY_KEY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-RUNTIME-1.0";
-pub(super) const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
+pub(crate) const FNV_OFFSET_BASIS: u64 = 0xcbf29ce484222325;
 const FNV_PRIME: u64 = 0x00000100000001B3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -146,12 +146,12 @@ fn replay_key(program: &[u8], input: &[u8]) -> RuntimeReplayKey {
     RuntimeReplayKey(hash)
 }
 
-pub(super) fn hash_component(hash: &mut u64, bytes: &[u8]) {
+pub(crate) fn hash_component(hash: &mut u64, bytes: &[u8]) {
     hash_bytes(hash, &(bytes.len() as u64).to_le_bytes());
     hash_bytes(hash, bytes);
 }
 
-pub(super) fn hash_bytes(hash: &mut u64, bytes: &[u8]) {
+pub(crate) fn hash_bytes(hash: &mut u64, bytes: &[u8]) {
     for byte in bytes {
         *hash ^= u64::from(*byte);
         *hash = hash.wrapping_mul(FNV_PRIME);

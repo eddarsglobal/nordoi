@@ -32,7 +32,7 @@ pub struct PersistentRuntimeTickReport {
     pub final_atoms: BTreeMap<AtomSlot, RuntimeAtomSnapshot>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PersistentAtomicRuntime {
     kernel: AtomicKernel,
     render: AtomicRenderCore,
