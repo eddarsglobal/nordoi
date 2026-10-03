@@ -61,9 +61,9 @@ fn input_reaction_program(code: u32) -> NairProgram {
 }
 
 #[test]
-fn nair_0_5_is_current_and_0_4_programs_still_decode() {
+fn nair_0_6_is_current_and_0_4_programs_still_decode() {
     assert_eq!(NAIR_FORMAT_MAJOR, 0);
-    assert_eq!(NAIR_FORMAT_MINOR, 5);
+    assert_eq!(NAIR_FORMAT_MINOR, 6);
 
     let program = NairProgram::from_instructions(vec![Instruction::Halt]);
     let mut bytes = program.canonical_bytes().unwrap();
@@ -73,7 +73,7 @@ fn nair_0_5_is_current_and_0_4_programs_still_decode() {
     let decoded = NairProgram::from_canonical_bytes(&bytes).unwrap();
     assert_eq!(decoded, program);
     let reencoded = decoded.canonical_bytes().unwrap();
-    assert_eq!(u16::from_le_bytes([reencoded[6], reencoded[7]]), 5);
+    assert_eq!(u16::from_le_bytes([reencoded[6], reencoded[7]]), 6);
 }
 
 #[test]

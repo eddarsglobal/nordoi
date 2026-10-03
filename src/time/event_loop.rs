@@ -31,8 +31,9 @@ use crate::{
     },
     input::InputBatch,
     nair::{
-        bootstrap_native_reactions, Instruction, NairError, NairProgram, NairReactionAuthority,
-        NairReactionCycleReport, ReactionSlot, TimerSlot,
+        bootstrap_native_completions, bootstrap_native_reactions, CompletionSlot, Instruction,
+        NairCompletionAuthority, NairCompletionBinding, NairError, NairProgram,
+        NairReactionAuthority, NairReactionCycleReport, ReactionSlot, TimerSlot,
     },
     reaction::{AtomicReactionCore, ReactionId},
     runtime::{
@@ -49,7 +50,7 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.12";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.13";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -92,17 +93,20 @@ pub struct AtomicEventLoop {
     native_timer_bindings: BTreeMap<TimerSlot, TimerId>,
     reactions: AtomicReactionCore,
     native_reaction_bindings: BTreeMap<ReactionSlot, ReactionId>,
+    native_completion_bindings: BTreeMap<CompletionSlot, NairCompletionBinding>,
     effect_outbox: AtomicEffectOutbox,
     effect_completions: AtomicEffectCompletionCore,
 }
 
 impl AtomicEventLoop {
     pub fn boot(program: &NairProgram) -> EventLoopResult<Self> {
-        let authority = NairReactionAuthority::new();
-        Self::boot_with_fire_budget_and_reaction_authority(
+        let reaction_authority = NairReactionAuthority::new();
+        let completion_authority = NairCompletionAuthority::new();
+        Self::boot_with_fire_budget_and_authorities(
             program,
             DEFAULT_TIMER_FIRE_BUDGET,
-            &authority,
+            &reaction_authority,
+            &completion_authority,
         )
     }
 
@@ -110,18 +114,26 @@ impl AtomicEventLoop {
         program: &NairProgram,
         fire_budget: usize,
     ) -> EventLoopResult<Self> {
-        let authority = NairReactionAuthority::new();
-        Self::boot_with_fire_budget_and_reaction_authority(program, fire_budget, &authority)
+        let reaction_authority = NairReactionAuthority::new();
+        let completion_authority = NairCompletionAuthority::new();
+        Self::boot_with_fire_budget_and_authorities(
+            program,
+            fire_budget,
+            &reaction_authority,
+            &completion_authority,
+        )
     }
 
     pub fn boot_with_reaction_authority(
         program: &NairProgram,
         authority: &NairReactionAuthority,
     ) -> EventLoopResult<Self> {
-        Self::boot_with_fire_budget_and_reaction_authority(
+        let completion_authority = NairCompletionAuthority::new();
+        Self::boot_with_fire_budget_and_authorities(
             program,
             DEFAULT_TIMER_FIRE_BUDGET,
             authority,
+            &completion_authority,
         )
     }
 
@@ -129,6 +141,34 @@ impl AtomicEventLoop {
         program: &NairProgram,
         fire_budget: usize,
         authority: &NairReactionAuthority,
+    ) -> EventLoopResult<Self> {
+        let completion_authority = NairCompletionAuthority::new();
+        Self::boot_with_fire_budget_and_authorities(
+            program,
+            fire_budget,
+            authority,
+            &completion_authority,
+        )
+    }
+
+    pub fn boot_with_authorities(
+        program: &NairProgram,
+        reaction_authority: &NairReactionAuthority,
+        completion_authority: &NairCompletionAuthority,
+    ) -> EventLoopResult<Self> {
+        Self::boot_with_fire_budget_and_authorities(
+            program,
+            DEFAULT_TIMER_FIRE_BUDGET,
+            reaction_authority,
+            completion_authority,
+        )
+    }
+
+    pub fn boot_with_fire_budget_and_authorities(
+        program: &NairProgram,
+        fire_budget: usize,
+        reaction_authority: &NairReactionAuthority,
+        completion_authority: &NairCompletionAuthority,
     ) -> EventLoopResult<Self> {
         program.validate().map_err(RuntimeError::from)?;
         let program_bytes = program.canonical_bytes().map_err(RuntimeError::from)?;
@@ -139,7 +179,9 @@ impl AtomicEventLoop {
                 .instructions()
                 .iter()
                 .filter(|instruction| {
-                    !instruction.requires_time_context() && !instruction.requires_reaction_context()
+                    !instruction.requires_time_context()
+                        && !instruction.requires_reaction_context()
+                        && !instruction.requires_completion_context()
                 })
                 .cloned()
                 .collect(),
@@ -152,7 +194,15 @@ impl AtomicEventLoop {
             &runtime.boot_report().execution.atom_bindings,
             &runtime.boot_report().render_bindings,
             &native_timer_bindings,
-            authority,
+            reaction_authority,
+        )
+        .map_err(RuntimeError::from)?;
+        let (effect_completions, native_completion_bindings) = bootstrap_native_completions(
+            program,
+            runtime.kernel(),
+            &runtime.boot_report().execution.domain_bindings,
+            &runtime.boot_report().execution.atom_bindings,
+            completion_authority,
         )
         .map_err(RuntimeError::from)?;
 
@@ -175,8 +225,9 @@ impl AtomicEventLoop {
             native_timer_bindings,
             reactions,
             native_reaction_bindings,
+            native_completion_bindings,
             effect_outbox: AtomicEffectOutbox::new(),
-            effect_completions: AtomicEffectCompletionCore::new(),
+            effect_completions,
         })
     }
 
@@ -210,6 +261,14 @@ impl AtomicEventLoop {
 
     pub fn native_reaction_id(&self, slot: ReactionSlot) -> Option<ReactionId> {
         self.native_reaction_bindings.get(&slot).copied()
+    }
+
+    pub fn native_completion_count(&self) -> usize {
+        self.native_completion_bindings.len()
+    }
+
+    pub fn native_completion_binding(&self, slot: CompletionSlot) -> Option<NairCompletionBinding> {
+        self.native_completion_bindings.get(&slot).copied()
     }
 
     pub fn pending_effect_count(&self) -> usize {

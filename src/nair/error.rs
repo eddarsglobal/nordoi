@@ -2,13 +2,13 @@ use std::error::Error;
 use std::fmt::{Display, Formatter};
 
 use crate::{
-    effect::Effect, error::AtomicError, input::InputError, reaction::ReactionError,
-    render::RenderError,
+    effect::Effect, effect_completion::EffectCompletionError, error::AtomicError,
+    input::InputError, reaction::ReactionError, render::RenderError,
 };
 
 use super::id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-    TransactionSlot,
+    AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,
+    RenderNodeSlot, TimerSlot, TransactionSlot,
 };
 
 #[derive(Debug, PartialEq)]
@@ -37,19 +37,36 @@ pub enum NairError {
     UnknownTimerSlot(TimerSlot),
     ZeroTimerInterval(TimerSlot),
     TimeContextRequired,
+    DuplicateCompletionSlot(CompletionSlot),
+    EmptyCompletionName(CompletionSlot),
+    EmptyCompletionProjections(CompletionSlot),
+    DuplicateCompletionProjectionAtom {
+        slot: CompletionSlot,
+        atom: AtomSlot,
+    },
+    CompletionBindingRequired(CompletionSlot),
+    CompletionContextRequired,
     DuplicateReactionSlot(ReactionSlot),
     EmptyReactionName(ReactionSlot),
     EmptyReactionActionName(ReactionSlot),
     EmptyReactionSteps(ReactionSlot),
     ReactionValueSourceMismatch(ReactionSlot),
-    ReactionUndeclaredEffect { slot: ReactionSlot, effect: Effect },
+    ReactionUndeclaredEffect {
+        slot: ReactionSlot,
+        effect: Effect,
+    },
     NonFiniteReactionLiteral(ReactionSlot),
     ReactionContextRequired,
     MissingHalt,
-    InstructionAfterHalt { index: usize },
+    InstructionAfterHalt {
+        index: usize,
+    },
     NonFiniteFloat(RegisterId),
     InvalidMagic,
-    UnsupportedFormat { major: u16, minor: u16 },
+    UnsupportedFormat {
+        major: u16,
+        minor: u16,
+    },
     UnexpectedEof,
     InvalidOpcode(u8),
     InvalidValueTag(u8),
@@ -66,6 +83,7 @@ pub enum NairError {
     InvalidReactionTriggerTag(u8),
     InvalidReactionValueTag(u8),
     InvalidReactionStepTag(u8),
+    InvalidCompletionProjectionTag(u8),
     InvalidUtf8,
     TrailingBytes(usize),
     LengthOverflow,
@@ -73,6 +91,7 @@ pub enum NairError {
     Render(RenderError),
     Input(InputError),
     Reaction(ReactionError),
+    Completion(EffectCompletionError),
 }
 
 impl Display for NairError {
@@ -102,6 +121,12 @@ impl Display for NairError {
             Self::UnknownTimerSlot(id) => write!(f, "NAIR timer slot {id:?} is used before definition"),
             Self::ZeroTimerInterval(id) => write!(f, "NAIR repeating timer slot {id:?} must have a non-zero interval"),
             Self::TimeContextRequired => write!(f, "NAIR program contains time instructions but no logical-time context was provided"),
+            Self::DuplicateCompletionSlot(id) => write!(f, "NAIR completion slot {id:?} is defined more than once"),
+            Self::EmptyCompletionName(id) => write!(f, "NAIR completion slot {id:?} has an empty name"),
+            Self::EmptyCompletionProjections(id) => write!(f, "NAIR completion slot {id:?} must contain at least one projection"),
+            Self::DuplicateCompletionProjectionAtom { slot, atom } => write!(f, "NAIR completion slot {slot:?} projects atom {atom:?} more than once"),
+            Self::CompletionBindingRequired(id) => write!(f, "NAIR completion slot {id:?} requires an explicit host source/namespace binding"),
+            Self::CompletionContextRequired => write!(f, "NAIR program contains native completion declarations but no completion context was provided"),
             Self::DuplicateReactionSlot(id) => write!(f, "NAIR reaction slot {id:?} is defined more than once"),
             Self::EmptyReactionName(id) => write!(f, "NAIR reaction slot {id:?} has an empty reaction name"),
             Self::EmptyReactionActionName(id) => write!(f, "NAIR reaction slot {id:?} has an empty action name"),
@@ -131,6 +156,7 @@ impl Display for NairError {
             Self::InvalidReactionTriggerTag(tag) => write!(f, "invalid NAIR reaction trigger tag 0x{tag:02x}"),
             Self::InvalidReactionValueTag(tag) => write!(f, "invalid NAIR reaction value tag 0x{tag:02x}"),
             Self::InvalidReactionStepTag(tag) => write!(f, "invalid NAIR reaction step tag 0x{tag:02x}"),
+            Self::InvalidCompletionProjectionTag(tag) => write!(f, "invalid NAIR completion projection tag 0x{tag:02x}"),
             Self::InvalidUtf8 => write!(f, "invalid UTF-8 in NAIR binary"),
             Self::TrailingBytes(count) => write!(f, "NAIR binary contains {count} trailing byte(s)"),
             Self::LengthOverflow => write!(f, "NAIR value is too large for canonical encoding"),
@@ -138,6 +164,7 @@ impl Display for NairError {
             Self::Render(err) => write!(f, "Atomic Render Core rejected NAIR execution: {err}"),
             Self::Input(err) => write!(f, "Atomic Input Core rejected NAIR execution: {err}"),
             Self::Reaction(err) => write!(f, "Atomic Reaction Core rejected NAIR bootstrap: {err}"),
+            Self::Completion(err) => write!(f, "Atomic Effect Completion Core rejected NAIR bootstrap: {err}"),
         }
     }
 }
@@ -149,6 +176,7 @@ impl Error for NairError {
             Self::Render(err) => Some(err),
             Self::Input(err) => Some(err),
             Self::Reaction(err) => Some(err),
+            Self::Completion(err) => Some(err),
             _ => None,
         }
     }
@@ -175,6 +203,12 @@ impl From<InputError> for NairError {
 impl From<ReactionError> for NairError {
     fn from(value: ReactionError) -> Self {
         Self::Reaction(value)
+    }
+}
+
+impl From<EffectCompletionError> for NairError {
+    fn from(value: EffectCompletionError) -> Self {
+        Self::Completion(value)
     }
 }
 

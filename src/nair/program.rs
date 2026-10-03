@@ -9,10 +9,11 @@ use crate::{
 };
 
 use super::{
+    completion::{NairCompletionProjection, NairCompletionProjectionValue},
     error::{NairError, NairResult},
     id::{
-        AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-        TransactionSlot,
+        AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,
+        RenderNodeSlot, TimerSlot, TransactionSlot,
     },
     instruction::{DomainRef, InputTargetRef, Instruction},
     reaction::{NairEffectSet, NairReactionStep, NairReactionTrigger, NairReactionValue},
@@ -20,7 +21,7 @@ use super::{
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
-pub const NAIR_FORMAT_MINOR: u16 = 5;
+pub const NAIR_FORMAT_MINOR: u16 = 6;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -63,6 +64,7 @@ impl NairProgram {
         let mut input_bridges = BTreeSet::new();
         let mut timer_slots = BTreeSet::new();
         let mut reaction_slots = BTreeSet::new();
+        let mut completion_slots = BTreeSet::new();
         let mut halt_seen = false;
 
         for (index, instruction) in self.instructions.iter().enumerate() {
@@ -187,6 +189,33 @@ impl NairProgram {
                 }
                 Instruction::CancelTimer { timer } => {
                     require_timer_slot(*timer, &timer_slots)?;
+                }
+                Instruction::DefineEffectCompletion {
+                    dst,
+                    name,
+                    domain,
+                    projections,
+                } => {
+                    validate_domain_ref(*domain, &domains)?;
+                    if !completion_slots.insert(*dst) {
+                        return Err(NairError::DuplicateCompletionSlot(*dst));
+                    }
+                    if name.trim().is_empty() {
+                        return Err(NairError::EmptyCompletionName(*dst));
+                    }
+                    if projections.is_empty() {
+                        return Err(NairError::EmptyCompletionProjections(*dst));
+                    }
+                    let mut projected_atoms = BTreeSet::new();
+                    for projection in projections {
+                        require_atom(projection.atom, &atoms)?;
+                        if !projected_atoms.insert(projection.atom) {
+                            return Err(NairError::DuplicateCompletionProjectionAtom {
+                                slot: *dst,
+                                atom: projection.atom,
+                            });
+                        }
+                    }
                 }
                 Instruction::DefineReaction {
                     dst,
@@ -659,6 +688,16 @@ fn encode_reaction_step(out: &mut Vec<u8>, step: &NairReactionStep) -> NairResul
     Ok(())
 }
 
+fn encode_completion_projection_value(out: &mut Vec<u8>, value: NairCompletionProjectionValue) {
+    out.push(match value {
+        NairCompletionProjectionValue::OutcomeValue => 0x00,
+        NairCompletionProjectionValue::Succeeded => 0x01,
+        NairCompletionProjectionValue::IntentId => 0x02,
+        NairCompletionProjectionValue::AttemptId => 0x03,
+        NairCompletionProjectionValue::SourceSequence => 0x04,
+    });
+}
+
 fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResult<()> {
     match instruction {
         Instruction::Const { dst, value } => {
@@ -790,6 +829,22 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
         Instruction::CancelTimer { timer } => {
             out.push(0x52);
             write_u32(out, timer.0);
+        }
+        Instruction::DefineEffectCompletion {
+            dst,
+            name,
+            domain,
+            projections,
+        } => {
+            out.push(0x70);
+            write_u32(out, dst.0);
+            write_string(out, name)?;
+            encode_domain_ref(out, *domain);
+            write_len(out, projections.len())?;
+            for projection in projections {
+                write_u32(out, projection.atom.0);
+                encode_completion_projection_value(out, projection.value);
+            }
         }
         Instruction::DefineReaction {
             dst,
@@ -942,6 +997,25 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
                 action_name,
                 declared_effects,
                 steps,
+            })
+        }
+        0x70 if minor >= 6 => {
+            let dst = CompletionSlot(input.read_u32()?);
+            let name = input.read_string()?;
+            let domain = decode_domain_ref(input)?;
+            let projection_count = input.read_u32()? as usize;
+            let mut projections = Vec::with_capacity(projection_count);
+            for _ in 0..projection_count {
+                projections.push(NairCompletionProjection {
+                    atom: AtomSlot(input.read_u32()?),
+                    value: decode_completion_projection_value(input)?,
+                });
+            }
+            Ok(Instruction::DefineEffectCompletion {
+                dst,
+                name,
+                domain,
+                projections,
             })
         }
         0xff => Ok(Instruction::Halt),
@@ -1120,6 +1194,19 @@ fn decode_reaction_step(input: &mut Decoder<'_>) -> NairResult<NairReactionStep>
             effect: decode_effect(input)?,
         }),
         other => Err(NairError::InvalidReactionStepTag(other)),
+    }
+}
+
+fn decode_completion_projection_value(
+    input: &mut Decoder<'_>,
+) -> NairResult<NairCompletionProjectionValue> {
+    match input.read_u8()? {
+        0x00 => Ok(NairCompletionProjectionValue::OutcomeValue),
+        0x01 => Ok(NairCompletionProjectionValue::Succeeded),
+        0x02 => Ok(NairCompletionProjectionValue::IntentId),
+        0x03 => Ok(NairCompletionProjectionValue::AttemptId),
+        0x04 => Ok(NairCompletionProjectionValue::SourceSequence),
+        other => Err(NairError::InvalidCompletionProjectionTag(other)),
     }
 }
 

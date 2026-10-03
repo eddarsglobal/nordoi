@@ -82,12 +82,14 @@ pub use input::{
 pub use kernel::AtomicKernel;
 pub use nair::{
     execute_nair, execute_nair_with_input, execute_nair_with_render,
-    execute_nair_with_render_and_input, AtomSlot, DomainRef, DomainSlot, InputBridgeSlot,
-    InputTargetRef, Instruction, NairEffectSet, NairError, NairExecutionReport,
-    NairInputExecutionReport, NairInteractiveExecutionReport, NairProgram, NairReactionAuthority,
-    NairReactionCycleReport, NairReactionStep, NairReactionTrigger, NairReactionValue,
-    NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-    TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
+    execute_nair_with_render_and_input, AtomSlot, CompletionSlot, DomainRef, DomainSlot,
+    InputBridgeSlot, InputTargetRef, Instruction, NairCompletionAuthority, NairCompletionBinding,
+    NairCompletionProjection, NairCompletionProjectionValue, NairEffectSet, NairError,
+    NairExecutionReport, NairInputExecutionReport, NairInteractiveExecutionReport, NairProgram,
+    NairReactionAuthority, NairReactionCycleReport, NairReactionStep, NairReactionTrigger,
+    NairReactionValue, NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId,
+    RenderNodeSlot, TimerSlot, TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC,
+    NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use reaction::{

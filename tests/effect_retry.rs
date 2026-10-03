@@ -1019,8 +1019,8 @@ fn redrive_requires_existing_dead_letter() {
 }
 
 #[test]
-fn nair_version_remains_0_5_in_k19() {
-    assert_eq!(NAIR_FORMAT_MINOR, 5);
+fn current_nair_version_is_0_6_after_native_completion_semantics() {
+    assert_eq!(NAIR_FORMAT_MINOR, 6);
 }
 
 #[test]

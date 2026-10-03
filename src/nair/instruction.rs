@@ -6,9 +6,10 @@ use crate::{
 };
 
 use super::{
+    completion::NairCompletionProjection,
     id::{
-        AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-        TransactionSlot,
+        AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,
+        RenderNodeSlot, TimerSlot, TransactionSlot,
     },
     reaction::{NairEffectSet, NairReactionStep, NairReactionTrigger},
 };
@@ -116,6 +117,12 @@ pub enum Instruction {
     CancelTimer {
         timer: TimerSlot,
     },
+    DefineEffectCompletion {
+        dst: CompletionSlot,
+        name: String,
+        domain: DomainRef,
+        projections: Vec<NairCompletionProjection>,
+    },
     DefineReaction {
         dst: ReactionSlot,
         name: String,
@@ -160,5 +167,9 @@ impl Instruction {
 
     pub const fn requires_reaction_context(&self) -> bool {
         matches!(self, Self::DefineReaction { .. })
+    }
+
+    pub const fn requires_completion_context(&self) -> bool {
+        matches!(self, Self::DefineEffectCompletion { .. })
     }
 }

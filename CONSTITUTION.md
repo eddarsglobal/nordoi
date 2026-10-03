@@ -1132,3 +1132,80 @@ K1.12 SHALL NOT claim crash-persistent exactly-once completion application.
 K1.12 certifies the completion re-entry core beneath NAIR. NAIR SHALL remain format 0.5. Native
 completion triggers, completion projection declarations or `.noi` syntax SHALL require a later
 separately certified semantic milestone.
+
+## C209 — Native Completion Declaration Is Program Meaning
+
+A native effect-completion declaration encoded in NAIR 0.6 SHALL be canonical program semantics.
+Its slot, name, declared domain, target atom slots and projection selectors SHALL participate in
+canonical NAIR bytes.
+
+## C210 — Native Completion Authority Is Never Serialized By The Program
+
+`EffectCompletionSourceId`, `EffectDeliveryNamespace` and the authority to accept that route SHALL
+remain host-supplied policy. A NAIR program SHALL NOT mint or serialize its own completion-source
+authority.
+
+## C211 — Completion Slots Are Single-Assignment
+
+Every `CompletionSlot` SHALL be defined at most once in a valid NAIR program. Duplicate native
+completion declarations for the same slot SHALL fail validation before execution.
+
+## C212 — Native Completion Projections Are Predeclared And Bounded
+
+Every native completion declaration SHALL contain at least one projection to an atom already defined
+in program order. Duplicate atom projections within one declaration SHALL fail validation.
+
+## C213 — Native Completion Bootstrap Reuses The Certified K1.12 Core
+
+K1.13 SHALL NOT introduce a privileged alternative completion executor. Native declarations SHALL
+resolve into the K1.12 `AtomicEffectCompletionCore`, including its audit correlation, deduplication,
+ownership and atomic transaction laws.
+
+## C214 — Every Native Completion Slot Requires Explicit Host Binding
+
+An event-loop boot containing a native completion declaration SHALL fail closed unless the host
+provides an exact binding from that `CompletionSlot` to a non-zero `EffectCompletionSourceId` and an
+`EffectDeliveryNamespace`.
+
+## C215 — Host Binding Is Exact To The Declared Slot
+
+A binding supplied for one `CompletionSlot` SHALL NOT authorize another slot. Extra host bindings MAY
+exist, but undeclared bindings SHALL NOT create program projections by themselves.
+
+## C216 — Direct Executors Reject Native Completion Declarations
+
+NAIR execution surfaces that do not own the governed completion context SHALL reject native
+completion declarations explicitly. They SHALL NOT ignore, partially execute or reinterpret them as
+ordinary bootstrap instructions.
+
+## C217 — Native Completion Ownership Is Revalidated At Bootstrap
+
+Resolving a native projection SHALL validate that the declared domain currently owns the resolved
+atom. Host source authority SHALL NOT bypass NAM ownership.
+
+## C218 — Native Binding Does Not Rewrite Canonical Program Bytes
+
+Changing host source/namespace binding SHALL NOT rewrite canonical NAIR 0.6 program bytes. Binding is
+runtime authority; the native declaration is program meaning.
+
+## C219 — Accepted Native Completion Remains Replay Meaning
+
+Once a completion is accepted through a native route, its semantic cause and projected writes SHALL
+participate in replay identity exactly as required by C204. Native declaration SHALL NOT weaken
+completion replay semantics.
+
+## C220 — NAIR 0.6 Is Backward-Decoding Compatible
+
+A K1.13 implementation SHALL continue to decode valid supported NAIR 0.1 through 0.5 programs.
+Canonical re-encoding SHALL emit the current NAIR 0.6 format.
+
+## C221 — Completion Opcode Is Minor-Version Gated
+
+`DEFINE_EFFECT_COMPLETION` opcode `0x70` SHALL be valid only for declared NAIR minor version 6 or
+newer. The opcode under an earlier declared minor SHALL fail as invalid rather than being guessed or
+silently upgraded.
+
+## C222 — K1.13 Does Not Freeze `.noi` Surface Syntax
+
+K1.13 certifies native completion semantics in NAIR. It SHALL NOT be interpreted as freezing the
+human-facing `.noi` syntax, grammar or keywords used by future language frontends.

@@ -1,3 +1,4 @@
+mod completion;
 mod error;
 mod execute;
 mod id;
@@ -5,6 +6,10 @@ mod instruction;
 mod program;
 mod reaction;
 
+pub use completion::{
+    NairCompletionAuthority, NairCompletionBinding, NairCompletionProjection,
+    NairCompletionProjectionValue,
+};
 pub use error::{NairError, NairResult};
 pub use execute::{
     execute_nair, execute_nair_with_input, execute_nair_with_render,
@@ -12,8 +17,8 @@ pub use execute::{
     NairInteractiveExecutionReport, NairRenderExecutionReport,
 };
 pub use id::{
-    AtomSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-    TransactionSlot,
+    AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,
+    RenderNodeSlot, TimerSlot, TransactionSlot,
 };
 pub use instruction::{DomainRef, InputTargetRef, Instruction};
 pub use program::{
@@ -24,4 +29,5 @@ pub use reaction::{
     NairReactionTrigger, NairReactionValue,
 };
 
+pub(crate) use completion::bootstrap_native_completions;
 pub(crate) use reaction::bootstrap_native_reactions;

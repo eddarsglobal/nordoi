@@ -182,6 +182,14 @@ fn reject_missing_contexts(
         return Err(NairError::ReactionContextRequired);
     }
 
+    if program
+        .instructions()
+        .iter()
+        .any(Instruction::requires_completion_context)
+    {
+        return Err(NairError::CompletionContextRequired);
+    }
+
     Ok(())
 }
 
@@ -375,6 +383,9 @@ fn execute_internal(
             }
             Instruction::DefineReaction { .. } => {
                 return Err(NairError::ReactionContextRequired);
+            }
+            Instruction::DefineEffectCompletion { .. } => {
+                return Err(NairError::CompletionContextRequired);
             }
             Instruction::Halt => {
                 if let Some(render) = render.as_deref_mut() {
