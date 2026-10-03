@@ -135,6 +135,10 @@ impl<S: FencedEffectJournalStore> GovernedRetryEffectJournal<S> {
         self.ledger = ledger;
     }
 
+    pub(crate) fn replace_ledger(&mut self, ledger: EffectRetryLedger) {
+        self.ledger = ledger;
+    }
+
     pub fn dispatch_next<B: EffectBackend>(
         &mut self,
         outbox: &mut AtomicEffectOutbox,
@@ -261,7 +265,10 @@ impl<S: FencedEffectJournalStore> GovernedRetryEffectJournal<S> {
         Ok(dead)
     }
 
-    fn ensure_tick_not_backward(&self, current_tick: EffectRetryTick) -> EffectRetryResult<()> {
+    pub(crate) fn ensure_tick_not_backward(
+        &self,
+        current_tick: EffectRetryTick,
+    ) -> EffectRetryResult<()> {
         let previous = self.ledger.last_tick();
         if current_tick < previous {
             return Err(EffectRetryError::RetryTickMovedBackward {
@@ -272,7 +279,7 @@ impl<S: FencedEffectJournalStore> GovernedRetryEffectJournal<S> {
         Ok(())
     }
 
-    fn select_candidate(
+    pub(crate) fn select_candidate(
         &self,
         outbox: &AtomicEffectOutbox,
         current_tick: EffectRetryTick,
@@ -298,7 +305,7 @@ impl<S: FencedEffectJournalStore> GovernedRetryEffectJournal<S> {
             .map(|request| (request, earliest_deferred))
     }
 
-    fn commit_candidate(
+    pub(crate) fn commit_candidate(
         &mut self,
         lease: EffectJournalLease,
         outbox: &AtomicEffectOutbox,
@@ -311,7 +318,7 @@ impl<S: FencedEffectJournalStore> GovernedRetryEffectJournal<S> {
             .map_err(Into::into)
     }
 
-    fn encode_candidate(
+    pub(crate) fn encode_candidate(
         &self,
         outbox: &AtomicEffectOutbox,
         ledger: &EffectRetryLedger,

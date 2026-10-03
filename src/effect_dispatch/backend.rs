@@ -82,7 +82,7 @@ impl EffectDispatchAuthority {
         self.allowed.is_empty()
     }
 
-    fn require(&self, effect: &Effect) -> EffectDispatchResult<()> {
+    pub(crate) fn require(&self, effect: &Effect) -> EffectDispatchResult<()> {
         let Some(capability) = required_capability(effect) else {
             return Err(EffectDispatchError::InternalEffectNotDispatchable(
                 effect.clone(),
@@ -160,28 +160,34 @@ impl GovernedEffectDispatcher {
         .map(Some)
     }
 
-    pub(crate) fn dispatch_intent_with_delivery_context<B: EffectBackend>(
+    pub(crate) fn preflight_intent<B: EffectBackend>(
         &self,
-        outbox: &mut AtomicEffectOutbox,
+        outbox: &AtomicEffectOutbox,
         intent: super::EffectIntentId,
-        backend: &mut B,
-        delivery_key: Option<EffectDeliveryKey>,
-        delivery_fence: Option<EffectDeliveryFence>,
-    ) -> EffectDispatchResult<EffectDispatchReceipt> {
+        backend: &B,
+    ) -> EffectDispatchResult<QueuedEffectIntent> {
         let request = outbox
             .get(intent)
             .cloned()
             .ok_or(EffectDispatchError::UnknownIntent(intent))?;
-
         self.authority.require(&request.intent.effect)?;
-
         if !backend.supports(&request.intent.effect) {
             return Err(EffectDispatchError::BackendUnsupported {
                 intent: request.id,
                 effect: request.intent.effect.clone(),
             });
         }
+        Ok(request)
+    }
 
+    pub(crate) fn execute_preflighted_intent_with_delivery_context<B: EffectBackend>(
+        &self,
+        outbox: &mut AtomicEffectOutbox,
+        request: QueuedEffectIntent,
+        backend: &mut B,
+        delivery_key: Option<EffectDeliveryKey>,
+        delivery_fence: Option<EffectDeliveryFence>,
+    ) -> EffectDispatchResult<EffectDispatchReceipt> {
         let dispatch_request = EffectDispatchRequest {
             queued: request.clone(),
             delivery_key,
@@ -193,15 +199,31 @@ impl GovernedEffectDispatcher {
                 intent: request.id,
                 error,
             })?;
-
         let acknowledged = outbox.acknowledge(request.id)?;
         debug_assert_eq!(acknowledged, request);
-
         Ok(EffectDispatchReceipt {
             request,
             delivery_key,
             delivery_fence,
             backend: backend_receipt,
         })
+    }
+
+    pub(crate) fn dispatch_intent_with_delivery_context<B: EffectBackend>(
+        &self,
+        outbox: &mut AtomicEffectOutbox,
+        intent: super::EffectIntentId,
+        backend: &mut B,
+        delivery_key: Option<EffectDeliveryKey>,
+        delivery_fence: Option<EffectDeliveryFence>,
+    ) -> EffectDispatchResult<EffectDispatchReceipt> {
+        let request = self.preflight_intent(outbox, intent, backend)?;
+        self.execute_preflighted_intent_with_delivery_context(
+            outbox,
+            request,
+            backend,
+            delivery_key,
+            delivery_fence,
+        )
     }
 }

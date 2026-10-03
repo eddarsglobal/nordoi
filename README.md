@@ -1,9 +1,10 @@
-# NORDOI K1.9 — Deterministic Retry, Backoff & Dead-Letter Protocol
+# NORDOI K1.10 — Durable Effect Attempt Audit & In-Doubt Recovery Protocol
 
-K1.9 extends the certified K1.8 fenced effect journal with bounded retry scheduling, deterministic
-backoff, durable poison-effect quarantine and manual redrive.
+K1.10 extends the certified K1.9 retry/dead-letter protocol with a durable, hash-chained record of
+external delivery attempts and an explicit recovery state for the crash window between remote I/O
+and durable outcome publication.
 
-The governed external-effect path is now:
+The governed path becomes:
 
 ```text
 canonical cause
@@ -14,207 +15,162 @@ validated EffectIntent
      ↓
 AtomicEffectOutbox
      ↓
-K1.9 retry checkpoint
+K1.9 retry/dead-letter state
      ↓
-K1.8 fenced ownership
+K1.10 AttemptPrepared durable commit
      ↓
-Governed retry dispatcher
+external EffectBackend
      ↓
-EffectDeliveryKey + EffectDeliveryFence
+terminal audit + delivery-state candidate
      ↓
-host EffectBackend
+fenced durable commit
      ↓
-SUCCESS
-  or RETRY_SCHEDULED
-  or DEAD_LETTERED
+local publication
 ```
 
-## What K1.9 adds
+## What K1.10 adds
 
-- `EffectRetryTick(u64)` as explicit host scheduling input;
-- `EffectRetryPolicy` with finite attempt budget;
-- capped exponential backoff;
-- deterministic jitter derived from stable delivery identity;
-- retryable vs permanent `EffectBackendError` classification;
-- durable per-intent `EffectRetryRecord` state;
-- durable `DeadLetteredEffect` quarantine;
-- `EffectRetryCheckpoint` canonical format `NDEFXR01`;
-- K1.7/K1.8 checkpoint migration;
-- retry-policy persistence and recovery mismatch rejection;
-- manual dead-letter redrive preserving the original delivery key;
-- explicit dead-letter discard;
-- no head-of-line blocking by an older delayed effect;
-- K1.8 fencing retained for every retry/redrive mutation;
+- `EffectAttemptId` monotonic attempt identity;
+- `EffectAuditSequence` monotonic audit ordering;
+- `EffectAuditHash` SHA-256 chain identity;
+- `EffectAuditEvent` / `EffectAuditRecord` append-only audit model;
+- `EffectInDoubtAttempt` as an explicit unresolved crash-window state;
+- `EffectAuditLedger` with deterministic hash chaining;
+- `EffectAuditCheckpoint` canonical format `NDEFXA01`;
+- migration from K1.9 `NDEFXR01` and K1.7/K1.8 `NDEFXJ01` checkpoints;
+- `GovernedAuditedEffectJournal` integrating K1.8 fencing and K1.9 retry policy;
+- prepare-before-I/O persistence;
+- explicit `assume delivered` resolution after external reconciliation;
+- explicit retry authorization for in-doubt delivery, preserving the original delivery key;
+- audited dead-letter redrive/discard;
+- no automatic redispatch while an attempt is in-doubt;
 - zero new Rust dependencies;
 - NAIR remains 0.5.
 
-## Three delivery states
+## Why K1.10 exists
+
+K1.9 correctly persists retry/dead-letter state after a backend outcome, but no generic software
+stack can atomically commit one transaction across NORDOI's local journal and an arbitrary remote
+HTTP service, database, file system or process.
+
+The critical failure window is:
 
 ```text
-PENDING
-    effect may run now
-
-RETRY_SCHEDULED
-    effect stays in the semantic outbox
-    failed_attempts is durable
-    next_eligible_tick is durable
-
-DEAD_LETTERED
-    effect is removed from active delivery
-    full original request is durably quarantined
-    stable delivery key is preserved
+remote side effect succeeds
+        ↓
+process crashes / durable commit fails
+        ↓
+local journal still sees the intent as pending
 ```
 
-Dead-lettering happens when either:
+Blindly retrying that intent can duplicate the external effect. Pretending the operation completed
+can lose it. K1.10 therefore refuses to guess.
 
-- the backend returns `EffectBackendError::permanent(...)`; or
-- a retryable failure reaches the configured `max_attempts`.
+## Prepare before external I/O
 
-## Explicit retry clock
-
-`EffectRetryTick` is intentionally separate from program `LogicalTime`.
-
-NORDOI does not read a wall clock or sleep internally. The host supplies the current retry tick.
-That tick may correspond to a durable scheduler, wall-time bucket, queue epoch or another monotonic
-host domain.
-
-Once an attempt outcome is durably published at tick `T`, a later governed attempt cannot publish
-at a tick below `T`.
-
-## Bounded deterministic backoff
-
-For failure number `n >= 1`:
+Before calling an external backend, K1.10 commits an `AttemptPrepared` audit record containing:
 
 ```text
-base = min(max_backoff, initial_backoff * 2^(n-1))
-jitter = stable_hash(delivery_key, n) mod (jitter_ticks + 1)
-delay = min(max_backoff, base + jitter)
-next_eligible = current_tick + delay
+attempt ID
+full queued intent
+stable EffectDeliveryKey
+current EffectDeliveryFence
+explicit EffectRetryTick
+previous failed-attempt count
 ```
 
-No ambient RNG is required. The same delivery key, retry policy and failure ordinal produce the
-same scheduling decision after crash or writer takeover.
+Only after that commit succeeds may the backend run.
 
-## Retry policy is durable
+If prepare persistence fails, backend execution is zero.
 
-A K1.9 checkpoint records:
+## Terminal outcomes
+
+A successfully persisted attempt ends with exactly one terminal audit event:
 
 ```text
-max_attempts
-initial_backoff_ticks
-max_backoff_ticks
-jitter_ticks
+AttemptDelivered
+AttemptRetryScheduled
+AttemptDeadLettered
+InDoubtAssumedDelivered
+InDoubtRetryAuthorized
 ```
 
-Recovery rejects a different configured policy. This prevents a restart from silently turning, for
-example, a 3-attempt journal into a 20-attempt journal.
+If the backend runs but the terminal commit fails, `AttemptPrepared` remains the last durable event.
+That is an explicit in-doubt attempt.
 
-Certified K1.7/K1.8 `NDEFXJ01` checkpoints are accepted with:
+## In-doubt recovery
+
+Recovery reconstructs the audit chain. If the final durable event is an unresolved
+`AttemptPrepared`, K1.10 exposes `EffectInDoubtAttempt` and blocks automatic dispatch.
+
+The host must choose one of two explicit operations after reconciliation:
 
 ```text
-same outbox
-same next intent ID
-empty retry ledger
-empty dead-letter ledger
-no historical attempts invented
+assume delivered
+    remove the pending intent without another backend call
+
+retry authorized
+    keep the same pending intent and allow a later backend call
+    with the same EffectDeliveryKey
 ```
 
-The first K1.9 commit then persists the configured policy.
+Retry authorization is intentionally explicit because it may create a duplicate at a destination
+that does not honor idempotency.
 
-## No poison-effect head-of-line lock
+## Hash-chained audit
 
-K1.8 dispatches the first pending intent. K1.9 refines that rule for delayed retries:
+Every record hashes:
 
 ```text
-ID 1 -> retry blocked until tick 100
-ID 2 -> eligible now
+domain separator
+sequence
+previous record hash
+canonical event bytes
 ```
 
-At tick 20, K1.9 may dispatch ID 2 while ID 1 remains delayed. Among all currently eligible
-intents, lower IDs still execute first.
+using SHA-256. The checkpoint itself is also SHA-256 protected.
 
-## Dead-letter redrive
+This makes accidental or unauthorized mutation detectable when the attacker cannot also replace the
+trusted checkpoint/root reference. It is not a digital signature and does not by itself prove who
+wrote a record. Signed attestations remain a separate future layer.
 
-A quarantined effect can be explicitly redriven. K1.9 restores the exact original queued request,
-including its original `EffectIntentId`.
+## Ownership transfer
 
-Therefore:
+`EffectDeliveryKey` and `EffectDeliveryFence` retain distinct meanings:
 
 ```text
-before dead-letter: key = namespace + intent 42
-after redrive:      key = namespace + intent 42
+EffectDeliveryKey   = stable semantic request identity
+EffectDeliveryFence = current writer epoch
+EffectAttemptId     = one durable delivery attempt
 ```
 
-This matters for destinations that deduplicate by idempotency key.
-
-## Persistence-before-publication
-
-Every retry/dead-letter state transition is candidate-first:
-
-```text
-assert current fence
-      ↓
-execute / classify
-      ↓
-mutate private candidate
-      ↓
-encode K1.9 checkpoint
-      ↓
-commit_fenced(...)
-      ↓
-publish local state
-```
-
-If persistence fails, local retry/dead-letter state is unchanged.
-
-As before, if a remote call succeeds but durable acknowledgement fails, the same effect may be sent
-again. The stable delivery key and current fence remain the cooperative boundary. K1.9 does not
-claim universal exactly-once external effects.
-
-## Backend compatibility
-
-Existing K1.6-K1.8 code using:
-
-```rust
-EffectBackendError::new("temporary failure")
-```
-
-remains source-compatible and is classified as retryable.
-
-Backends may now explicitly return:
-
-```rust
-EffectBackendError::permanent("invalid request")
-```
-
-for non-retryable failures.
+After takeover, an in-doubt intent can be explicitly authorized for retry. Its delivery key remains
+stable while the newly prepared attempt carries the newer fence.
 
 ## Replay law
 
-Retry control is external delivery policy. Retry ticks, failure counters, policy, dead-letter
-metadata and error strings do not alter the live deterministic event-loop replay key.
+Audit sequences, attempt IDs, receipt references, in-doubt state and audit hashes are delivery
+metadata. They do not change deterministic program replay identity.
 
-Recovered semantic pending outbox contents still affect recovery replay identity under the
+Recovered semantic pending outbox state continues to affect recovery replay identity under the
 certified K1.7 rule.
 
 ## NAIR law
 
-**NAIR remains 0.5 in K1.9.**
+**NAIR remains 0.5 in K1.10.**
 
-Retry scheduling and dead-letter policy are runtime/host delivery concerns, not serialized program
-authority.
+Attempt audit, receipt metadata and in-doubt resolution are runtime/host delivery protocol, not new
+program instructions or authority.
 
 ## Tests
 
-K1.9 adds **30 retry/dead-letter tests** to the **243 certified K1.8 tests**, for an expected suite
-of **273 tests**.
-
-The new corpus covers policy validation, durable retry scheduling, no-early execution, eligible
-intent bypass, capped exponential backoff, deterministic jitter, permanent failure, attempt
-exhaustion, dead-letter recovery, redrive identity, discard, legacy migration, checksum detection,
-retry-tick monotonicity, writer takeover, stale-writer rejection, commit failure atomicity,
-successful retry cleanup, failed acknowledgement persistence, capability/backend configuration
-failures, replay independence, next-intent continuity and retry-policy drift rejection.
+K1.10 adds **22 audit/checkpoint/crash-window tests** on top of the **273 certified K1.9 tests**, for an expected suite of **295 tests**. The new
+corpus covers SHA-256 vectors, legacy checkpoint migration, canonical byte stability, tamper
+detection, prepare-before-backend ordering, delivered/retry/dead-letter audit sequences, deferred
+retry behavior, preflight failures, prepare-commit failure, terminal-commit ambiguity, automatic
+redispatch blocking, recovery of in-doubt state, explicit retry authorization, assumed-delivered
+resolution, takeover fence changes with stable delivery keys, audited redrive, audit preservation
+across later cycles and replay independence.
 
 ## Certification
 
@@ -225,5 +181,5 @@ cargo fmt --all
 ./scripts/release_gate.sh
 ```
 
-K1.9 is certified only after the local release gate and the cross-platform GitHub CI are fully
-green, followed by publication of the `k1.9` tag.
+K1.10 is certified only after the local release gate and cross-platform GitHub CI are fully green,
+followed by publication of the `k1.10` tag.

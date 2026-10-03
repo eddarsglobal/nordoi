@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "1.9.0"
+version = "1.10.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K1.9 — Deterministic Retry, Backoff & Dead-Letter Protocol"
+description = "NORDOI K1.10 — Durable Effect Attempt Audit & In-Doubt Recovery Protocol"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

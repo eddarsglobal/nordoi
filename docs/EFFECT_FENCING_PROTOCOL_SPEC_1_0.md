@@ -1,6 +1,6 @@
 # NORDOI Effect Fencing Protocol 1.0
 
-Status: K1.8 candidate specification.
+Status: K1.8 certified specification.
 
 ## 1. Purpose
 

@@ -1,6 +1,6 @@
 # NORDOI Effect Retry, Backoff & Dead-Letter Protocol 1.0
 
-Status: K1.9 candidate specification.
+Status: K1.9 certified specification.
 
 ## 1. Purpose
 

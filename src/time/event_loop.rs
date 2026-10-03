@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     effect::Effect,
+    effect_audit::{EffectAuditDispatchOutcome, EffectAuditResult, GovernedAuditedEffectJournal},
     effect_dispatch::{
         AtomicEffectOutbox, EffectBackend, EffectDeliveryNamespace, EffectDispatchReceipt,
         EffectDispatchResult, EffectIntentId, EffectOutboxStageReport, GovernedEffectDispatcher,
@@ -344,6 +345,72 @@ impl AtomicEventLoop {
         journal.discard_dead_letter(&self.effect_outbox, id)
     }
 
+    pub fn recover_effects_from_audited_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EffectAuditResult<bool> {
+        let Some(checkpoint) = journal.recover()? else {
+            return Ok(false);
+        };
+        self.restore_effect_checkpoint(checkpoint.retry().outbox())
+            .map_err(crate::effect_audit::EffectAuditError::from)?;
+        journal.adopt_recovered_state(
+            checkpoint.retry().ledger().clone(),
+            checkpoint.audit().clone(),
+        );
+        Ok(true)
+    }
+
+    pub fn dispatch_next_effect_with_audited_journal<
+        S: FencedEffectJournalStore,
+        B: EffectBackend,
+    >(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+        current_tick: EffectRetryTick,
+        dispatcher: &GovernedEffectDispatcher,
+        backend: &mut B,
+    ) -> EffectAuditResult<Option<EffectAuditDispatchOutcome>> {
+        journal.dispatch_next(&mut self.effect_outbox, current_tick, dispatcher, backend)
+    }
+
+    pub fn resolve_in_doubt_effect_as_delivered<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+        resolution_tick: EffectRetryTick,
+        backend_reference: Option<String>,
+    ) -> EffectAuditResult<QueuedEffectIntent> {
+        journal.resolve_in_doubt_as_delivered(
+            &mut self.effect_outbox,
+            resolution_tick,
+            backend_reference,
+        )
+    }
+
+    pub fn authorize_in_doubt_effect_retry<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+        resolution_tick: EffectRetryTick,
+    ) -> EffectAuditResult<QueuedEffectIntent> {
+        journal.authorize_in_doubt_retry(&self.effect_outbox, resolution_tick)
+    }
+
+    pub fn redrive_dead_letter_with_audited_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+        id: EffectIntentId,
+    ) -> EffectAuditResult<QueuedEffectIntent> {
+        journal.redrive_dead_letter(&mut self.effect_outbox, id)
+    }
+
+    pub fn discard_dead_letter_with_audited_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+        id: EffectIntentId,
+    ) -> EffectAuditResult<DeadLetteredEffect> {
+        journal.discard_dead_letter(&self.effect_outbox, id)
+    }
+
     pub fn timer_snapshot(&self, id: TimerId) -> EventLoopResult<TimerSnapshot> {
         self.time.timer(id).map_err(Into::into)
     }
@@ -509,6 +576,20 @@ impl AtomicEventLoop {
         target: LogicalTime,
         input: &InputBatch,
         journal: &mut GovernedRetryEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        journal.assert_active()?;
+        let mut candidate = self.clone();
+        let report = candidate.cycle_to(target, input)?;
+        journal.checkpoint(&candidate.effect_outbox)?;
+        *self = candidate;
+        Ok(report)
+    }
+
+    pub fn cycle_to_with_audited_effect_journal<S: FencedEffectJournalStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        journal: &mut GovernedAuditedEffectJournal<S>,
     ) -> EventLoopResult<EventLoopCycleReport> {
         journal.assert_active()?;
         let mut candidate = self.clone();

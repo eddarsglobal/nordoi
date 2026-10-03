@@ -4,9 +4,9 @@ use std::{
 };
 
 use crate::{
-    effect_dispatch::EffectDispatchError, effect_fencing::EffectFencingError,
-    effect_persistence::EffectPersistenceError, effect_retry::EffectRetryError,
-    runtime::RuntimeError,
+    effect_audit::EffectAuditError, effect_dispatch::EffectDispatchError,
+    effect_fencing::EffectFencingError, effect_persistence::EffectPersistenceError,
+    effect_retry::EffectRetryError, runtime::RuntimeError,
 };
 
 use super::{LogicalTime, TimerId};
@@ -69,6 +69,7 @@ pub enum EventLoopError {
     Persistence(EffectPersistenceError),
     Fencing(EffectFencingError),
     Retry(EffectRetryError),
+    Audit(EffectAuditError),
 }
 
 impl Display for EventLoopError {
@@ -82,6 +83,7 @@ impl Display for EventLoopError {
             }
             Self::Fencing(error) => write!(f, "atomic event-loop effect fencing failure: {error}"),
             Self::Retry(error) => write!(f, "atomic event-loop effect retry failure: {error}"),
+            Self::Audit(error) => write!(f, "atomic event-loop effect audit failure: {error}"),
         }
     }
 }
@@ -95,6 +97,7 @@ impl Error for EventLoopError {
             Self::Persistence(error) => Some(error),
             Self::Fencing(error) => Some(error),
             Self::Retry(error) => Some(error),
+            Self::Audit(error) => Some(error),
         }
     }
 }
@@ -132,6 +135,12 @@ impl From<EffectFencingError> for EventLoopError {
 impl From<EffectRetryError> for EventLoopError {
     fn from(value: EffectRetryError) -> Self {
         Self::Retry(value)
+    }
+}
+
+impl From<EffectAuditError> for EventLoopError {
+    fn from(value: EffectAuditError) -> Self {
+        Self::Audit(value)
     }
 }
 

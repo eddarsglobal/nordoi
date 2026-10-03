@@ -840,3 +840,94 @@ adding no invented historical attempts.
 K1.9 adds external delivery-control policy rather than a new serialized program instruction. NAIR
 SHALL remain format 0.5. Retry ticks, retry policy, backend error classification, attempt counters
 and dead-letter state SHALL NOT be serialized as canonical program authority.
+
+## C157 — External Attempts Require Durable Preparation Before I/O
+
+The K1.10 audited delivery surface SHALL durably publish an `AttemptPrepared` record under the
+current fence before invoking an external backend. Failed preparation persistence SHALL create zero
+new backend work.
+
+## C158 — Semantic Intent, Delivery Key, Fence And Attempt Identity Are Distinct
+
+`EffectIntentId`, `EffectDeliveryKey`, `EffectDeliveryFence` and `EffectAttemptId` SHALL retain
+separate meanings. Retry or takeover SHALL NOT conflate semantic request identity with writer epoch
+or individual execution-attempt identity.
+
+## C159 — Every Persisted Prepared Attempt Has At Most One Terminal Resolution
+
+A prepared attempt MAY terminate as delivered, retry-scheduled, dead-lettered, assumed-delivered or
+retry-authorized after recovery. The canonical audit state machine SHALL reject a second terminal
+resolution for the same open attempt.
+
+## C160 — Missing Terminal Persistence Creates In-Doubt State
+
+If external backend work may have occurred but no terminal outcome is durably committed, NORDOI
+SHALL represent that attempt as in-doubt rather than silently classifying it as success or failure.
+
+## C161 — In-Doubt State Blocks Automatic Redispatch
+
+While an unresolved in-doubt attempt exists, the governed K1.10 surface SHALL create zero new
+external dispatch work. Retry requires an explicit host resolution.
+
+## C162 — In-Doubt Retry Authorization Is An Explicit Duplicate-Risk Decision
+
+Authorizing retry of an in-doubt attempt SHALL preserve the original `EffectDeliveryKey` and SHALL
+be an explicit host action. NORDOI SHALL NOT describe that action as duplicate-free unless the
+external destination provides the required idempotency guarantees.
+
+## C163 — Assumed Delivery Requires Explicit Reconciliation Authority
+
+An in-doubt intent MAY be resolved as delivered without another backend call only through an
+explicit host operation. This operation SHALL be durably audited and SHALL remove the pending intent
+only after the fenced checkpoint commit succeeds.
+
+## C164 — Audit Records Are Append-Only And Canonically Ordered
+
+Effect audit records SHALL use monotonically increasing sequence identities and SHALL NOT be
+reordered or rewritten by the canonical K1.10 journal surface.
+
+## C165 — Audit Records Are Hash-Chained
+
+Every K1.10 audit record SHALL cryptographically bind its canonical event bytes, sequence and prior
+record hash using SHA-256. Recovery SHALL reject broken sequence, previous-hash or record-hash links.
+
+## C166 — Checkpoint Integrity Is Independently Protected
+
+The complete K1.10 audit checkpoint SHALL carry an independent SHA-256 digest. Corrupted checkpoint
+bytes SHALL be rejected before state publication.
+
+## C167 — Hash Chaining Is Not Writer Authentication
+
+K1.10 hash chaining provides tamper evidence relative to a trusted checkpoint/root. It SHALL NOT be
+described as a digital signature, proof of author identity or universal non-repudiation. Such claims
+require a separately certified signing/attestation layer.
+
+## C168 — Audit Recovery Shall Not Invent Historical Attempts
+
+Migrating a certified K1.7, K1.8 or K1.9 checkpoint into K1.10 SHALL preserve existing delivery
+state while creating an empty audit history. NORDOI SHALL NOT fabricate attempts that were never
+recorded by the older protocol.
+
+## C169 — Audit Publication Remains Fenced And Persistence-First
+
+Preparation, terminal outcomes, in-doubt resolution, redrive and discard SHALL remain protected by
+the active K1.8 fence. Candidate audit/delivery state SHALL become local state only after the
+corresponding durable commit succeeds.
+
+## C170 — Audit Metadata Is Not Program Replay Meaning
+
+Attempt IDs, audit sequence numbers, hashes, backend receipt references and in-doubt resolution
+metadata SHALL NOT alter deterministic program replay identity. Semantic recovered pending outbox
+state remains governed by the certified K1.7 recovery law.
+
+## C171 — Audit Storage Remains Host-Replaceable
+
+The canonical core defines bytes, ordering, validation and fencing requirements but SHALL NOT bind
+K1.10 to SQLite, files, a cloud database, a particular consensus system or another mandatory storage
+backend.
+
+## C172 — K1.10 Does Not Increment NAIR Without New Program Semantics
+
+K1.10 adds delivery audit and crash-window recovery semantics rather than a new serialized program
+instruction. NAIR SHALL remain format 0.5. Attempt IDs, audit hashes, backend receipts and in-doubt
+resolution authority SHALL NOT be serialized as canonical NAIR program authority.
