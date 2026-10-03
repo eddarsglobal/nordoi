@@ -8,6 +8,7 @@ pub mod error;
 pub mod kernel;
 pub mod nair;
 pub mod ownership;
+pub mod render;
 pub mod scheduler;
 pub mod transaction;
 pub mod value;
@@ -25,5 +26,9 @@ pub use nair::{
     NAIR_MAGIC,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
+pub use render::{
+    AtomicRenderCore, DirtyMask, RenderBackend, RenderBatch, RenderError, RenderNode, RenderNodeId,
+    RenderPrimitive, RenderResult, RenderSpace, RenderUpdate,
+};
 pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;

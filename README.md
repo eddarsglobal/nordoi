@@ -1,56 +1,65 @@
-# NORDOI K0.4 — NAIR Core
+# NORDOI K0.5 — Atomic Render Core 0.1
 
-K0.4 introduces the first executable version of **NAIR — NORDOI Atomic Intermediate Representation**.
+K0.5 introduces the first **backend-independent Atomic Render Core**.
 
-NORDOI source syntax is deliberately not frozen yet. K0.4 establishes the machine-facing semantic bridge first.
+NORDOI now has a direct architectural path from atomic state to a minimal render frontier:
 
 ```text
 NORDOI / AI / Visual Frontend
              ↓
-        Semantic Model
-             ↓
           NAIR 0.1
              ↓
              NAM
+             ↓
+      changed AtomId set
+             ↓
+    Atomic Render Core 0.1
+             ↓
+     minimal RenderBatch
+             ↓
+ Web / Native / GPU / XR backends
 ```
 
-## What K0.4 adds
+## What K0.5 adds
 
-- `NAIR` canonical binary magic and explicit format version `0.1`.
-- Deterministic zero-dependency binary encoding and decoding.
-- SSA-like single-assignment value registers.
-- Domain, atom and transaction slots.
-- Validate-before-execute semantics.
-- NAIR execution directly on the existing NORDOI Atomic Machine kernel.
-- Transaction commit/rollback preservation through NAIR.
-- Rejection of use-before-definition, duplicate identities, active transactions at HALT, immediate self-dependencies and non-finite floats.
-- Safe-by-omission privileged model: NAIR 0.1 cannot yet express network/filesystem/process/GPU/XR effects.
+- One render graph for both `Screen` and `World` space.
+- Semantic primitives: `Group`, `Quad`, `Text`, `Mesh`.
+- Explicit dirty reasons: transform, appearance, content, visibility and structure.
+- Minimal subtree invalidation for hierarchical transform/visibility changes.
+- Atom-to-render bindings for the first NAM → render bridge.
+- Duplicate render invalidation collapse.
+- Deterministic render flush order.
+- Backend-independent `RenderBackend` contract.
+- Rejection of non-finite transforms and invalid normalized opacity.
+- Zero external Rust dependencies remain.
 
-## NAIR 0.1 instructions
+## Atomic rendering rule
 
 ```text
-CONST
-CREATE_DOMAIN
-CREATE_ATOM
-CONNECT
-BEGIN_TX
-TX_SET
-COMMIT
-ROLLBACK
-HALT
+render_work(change)
+    =
+minimum_correct_render_frontier(change)
 ```
 
-## Test gate
+Unrelated render nodes must remain untouched.
 
-Every version remains subject to the NORDOI Testing & Release Law:
+## Tests
+
+K0.5 adds 11 render-core tests on top of the 28 inherited tests, for a total of **39 tests**.
+
+The release gate remains mandatory:
 
 ```bash
+cargo fmt --all -- --check
+cargo clippy --all-targets -- -D warnings
 cargo check --all-targets
 cargo test --all-targets
 ```
 
-GitHub CI then repeats the tests on Linux, macOS and Windows.
+GitHub CI then repeats testing on Linux, macOS and Windows.
 
-## Specification
+## Specifications
 
-See `docs/NAIR_SPEC_0_1.md`.
+- `docs/NAIR_SPEC_0_1.md`
+- `docs/RENDER_CORE_SPEC_0_1.md`
+- `docs/TESTING_AND_RELEASE_LAW.md`

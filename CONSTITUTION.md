@@ -1,4 +1,4 @@
-# NORDOI Constitutional Principles — K0.2
+# NORDOI Constitutional Principles — K0.5
 
 NORDOI is designed as a universal programming architecture for humans, AI/SI and machines.
 
@@ -73,3 +73,15 @@ A privileged operation that has not yet received a complete effect, authority, v
 
 ## C24 — Canonical Machine Meaning
 The same valid NAIR program and initial NAM state must have one defined machine meaning. Canonical encoding must not depend on incidental map order, platform syntax or frontend origin.
+
+## C25 — Unified Spatial Semantics
+2D, 3D and future XR presentation must share one semantic render model wherever their underlying concepts are equivalent. Platform-specific APIs may not fragment NORDOI core semantics.
+
+## C26 — Minimum Render Frontier
+A render change must invalidate only the smallest correct set of render nodes. Duplicate invalidations must collapse before reaching a backend.
+
+## C27 — Backend Independence
+NORDOI render semantics must not depend on DOM, WebGPU, Metal, Vulkan, DirectX or another specific backend. Backends implement NORDOI semantics; they do not define them.
+
+## C28 — Invalid Visual State Rejection
+Render values known to be invalid, including non-finite transforms and out-of-range normalized opacity, must be rejected before entering canonical render state.
