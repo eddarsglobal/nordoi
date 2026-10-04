@@ -1,4 +1,50 @@
-# NORDOI C0.1 — Semantic Boundary / HIR-NSIR Foundation
+# NORDOI L0.4 — Types & Effects Foundation
+
+L0.4 builds on the **certified K1.18 kernel**, **certified L0.1/L0.2/L0.3 frontend**,
+**certified T0.1 CLI** and **certified C0.1 semantic boundary**.
+
+The new source prelude is deliberately small:
+
+```noi
+module demo.core;
+
+type UserId;
+effect Network;
+
+future_body_here
+```
+
+`type Name;` creates an opaque nominal type identity. `effect Name;` creates a named effect identity
+only: it grants no capability, authority, host access or runtime execution. The residual program body
+remains `UNLOWERED`.
+
+```text
+.noi SourceText
+    ↓
+L0.1 lexer → L0.2 structural AST → L0.3 ModuleUnit
+    ↓
+L0.4 contextual type/effect prelude
+    ↓
+C0.1 HIR + L0.4 declarations
+    ↓ validate-before-publication
+validated NSIR + canonical L0.4 semantic witness
+    ↓
+future function/type/effect-use semantics
+    ↓
+future explicit NSIR → NAIR lowering
+```
+
+L0.4 also adds compiler-owned `SemanticEffectSet`: empty means no required effects, members are
+canonicalized, duplicate-free and bounded. It is not yet attached to functions because NORDOI has not
+yet frozen function syntax or function types.
+
+Normative candidate design: `docs/NOI_TYPES_EFFECTS_SPEC_0_4.md`.  
+Architecture/research record: `research/TYPES_EFFECTS_INTELLIGENCE_0_4.md`.
+
+The T0.1 `nordoi semantic` command now reports validated type/effect counts and the L0.4 semantic
+witness while still performing no NAIR lowering or execution.
+
+## Certified C0.1 foundation carried forward
 
 C0.1 adds the first compiler-owned semantic boundary on top of the **certified K1.18 kernel**, the
 **certified L0.1/L0.2/L0.3 frontend**, and the **certified T0.1 CLI**.

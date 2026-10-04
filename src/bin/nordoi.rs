@@ -1,5 +1,5 @@
 use nordoi_kernel::{
-    analyze_module_unit, compile_semantic_boundary, lex, parse, AstElement, CompilerError,
+    analyze_module_unit, compile_type_effect_boundary, lex, parse, AstElement, CompilerError,
     Delimiter, LexError, ModuleError, NsirBodyState, ParseError, SourceId, SourceSpan, SourceText,
     Token, TokenKind,
 };
@@ -32,10 +32,10 @@ Commands:\n\
   lex      Print the lossless L0.1 token stream.\n\
   parse    Print the lossless L0.2 structural AST.\n\
   module   Print the L0.3 contextual module identity.\n\
-  semantic Print the C0.1 validated HIR-NSIR semantic boundary.\n\
+  semantic Print the validated C0.1 + L0.4 HIR-NSIR semantic boundary.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
-C0.1 inspects validated semantic identity only; it does not lower or execute NAIR.\n";
+L0.4 inspects validated semantic declarations only; it does not lower or execute NAIR.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -242,7 +242,7 @@ fn run_module(source: &SourceText, output: &mut impl Write) -> CommandResult {
 }
 
 fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
-    let unit = match compile_semantic_boundary(source) {
+    let unit = match compile_type_effect_boundary(source) {
         Ok(unit) => unit,
         Err(error) => return CommandResult::CompilerFailure(error),
     };
@@ -257,9 +257,12 @@ fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
     let identity = hex_bytes(&unit.canonical_identity_bytes());
     let origin = unit.origin();
 
+    let semantic = hex_bytes(&unit.canonical_semantic_bytes());
     if let Err(error) = writeln!(
         output,
-        "nsir module={module} body={body} identity={identity}"
+        "nsir module={module} body={body} identity={identity} types={} effects={} semantic={semantic}",
+        unit.type_declaration_count(),
+        unit.effect_declaration_count()
     ) {
         return CommandResult::OutputFailure(error);
     }

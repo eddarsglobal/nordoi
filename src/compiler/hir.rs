@@ -3,8 +3,9 @@ use crate::frontend::SourceSpan;
 
 pub const MAX_SEMANTIC_NAME_BYTES: u32 = 128;
 pub const MAX_SEMANTIC_PATH_SEGMENTS: u32 = 64;
+pub const MAX_SEMANTIC_DECLARATIONS: u32 = 1024;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SemanticName(String);
 
 impl SemanticName {
@@ -31,7 +32,7 @@ impl SemanticName {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SemanticPath {
     segments: Vec<SemanticName>,
 }
@@ -64,7 +65,7 @@ impl SemanticPath {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum SemanticModuleIdentity {
     Anonymous,
     Named(SemanticPath),
@@ -98,6 +99,53 @@ impl SemanticModuleIdentity {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SemanticDeclarationKind {
+    Type,
+    Effect,
+}
+
+impl SemanticDeclarationKind {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Type => "type",
+            Self::Effect => "effect",
+        }
+    }
+
+    pub fn canonical_tag(self) -> u8 {
+        match self {
+            Self::Type => 1,
+            Self::Effect => 2,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HirDeclaration {
+    kind: SemanticDeclarationKind,
+    name: SemanticName,
+    span: SourceSpan,
+}
+
+impl HirDeclaration {
+    pub fn new(kind: SemanticDeclarationKind, name: SemanticName, span: SourceSpan) -> Self {
+        Self { kind, name, span }
+    }
+
+    pub fn kind(&self) -> SemanticDeclarationKind {
+        self.kind
+    }
+
+    pub fn name(&self) -> &SemanticName {
+        &self.name
+    }
+
+    pub fn span(&self) -> SourceSpan {
+        self.span
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum HirBodyState {
     Unlowered,
@@ -108,6 +156,7 @@ pub struct HirUnit {
     module: SemanticModuleIdentity,
     file_span: SourceSpan,
     module_span: Option<SourceSpan>,
+    declarations: Vec<HirDeclaration>,
     body_span: SourceSpan,
     body_state: HirBodyState,
 }
@@ -124,28 +173,51 @@ impl HirUnit {
             module,
             file_span,
             module_span,
+            declarations: Vec::new(),
             body_span,
             body_state,
         }
     }
 
-    pub const fn module(&self) -> &SemanticModuleIdentity {
+    pub fn new_with_declarations(
+        module: SemanticModuleIdentity,
+        file_span: SourceSpan,
+        module_span: Option<SourceSpan>,
+        declarations: Vec<HirDeclaration>,
+        body_span: SourceSpan,
+        body_state: HirBodyState,
+    ) -> Self {
+        Self {
+            module,
+            file_span,
+            module_span,
+            declarations,
+            body_span,
+            body_state,
+        }
+    }
+
+    pub fn module(&self) -> &SemanticModuleIdentity {
         &self.module
     }
 
-    pub const fn file_span(&self) -> SourceSpan {
+    pub fn file_span(&self) -> SourceSpan {
         self.file_span
     }
 
-    pub const fn module_span(&self) -> Option<SourceSpan> {
+    pub fn module_span(&self) -> Option<SourceSpan> {
         self.module_span
     }
 
-    pub const fn body_span(&self) -> SourceSpan {
+    pub fn declarations(&self) -> &[HirDeclaration] {
+        &self.declarations
+    }
+
+    pub fn body_span(&self) -> SourceSpan {
         self.body_span
     }
 
-    pub const fn body_state(&self) -> HirBodyState {
+    pub fn body_state(&self) -> HirBodyState {
         self.body_state
     }
 }

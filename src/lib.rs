@@ -34,9 +34,11 @@ pub use atom::{Atom, AtomId};
 pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use compiler::{
-    compile_semantic_boundary, lower_module_unit_to_hir, validate_hir, CompilerError,
-    CompilerResult, HirBodyState, HirUnit, NsirBodyState, NsirOrigin, NsirUnit,
-    SemanticModuleIdentity, SemanticName, SemanticPath, MAX_SEMANTIC_NAME_BYTES,
+    compile_semantic_boundary, compile_type_effect_boundary, lower_module_unit_to_hir,
+    lower_type_effect_unit_to_hir, validate_hir, CompilerError, CompilerResult, HirBodyState,
+    HirDeclaration, HirUnit, NsirBodyState, NsirDeclaration, NsirOrigin, NsirUnit,
+    SemanticDeclarationKind, SemanticEffectSet, SemanticModuleIdentity, SemanticName, SemanticPath,
+    MAX_SEMANTIC_DECLARATIONS, MAX_SEMANTIC_EFFECT_REQUIREMENTS, MAX_SEMANTIC_NAME_BYTES,
     MAX_SEMANTIC_PATH_SEGMENTS,
 };
 pub use effect::{Effect, EffectSet};
@@ -86,11 +88,13 @@ pub use effect_retry::{
 };
 pub use error::{AtomicError, AtomicResult};
 pub use frontend::{
-    analyze_module_unit, lex, parse, AstElement, AstFile, AstGroup, ByteOffset, Delimiter,
-    LexError, LexResult, Lexer, ModuleAnalyzer, ModuleDecl, ModuleError, ModulePath, ModuleResult,
-    ModuleUnit, Name, NameError, NameResult, ParseError, ParseResult, Parser, SourceError,
-    SourceId, SourcePosition, SourceResult, SourceSpan, SourceText, Token, TokenKind,
-    MAX_MODULE_SEGMENTS, MAX_NAME_BYTES, MAX_PARSE_NESTING, MAX_SOURCE_BYTES,
+    analyze_module_unit, analyze_type_effect_unit, lex, parse, AstElement, AstFile, AstGroup,
+    ByteOffset, Delimiter, LexError, LexResult, Lexer, ModuleAnalyzer, ModuleDecl, ModuleError,
+    ModulePath, ModuleResult, ModuleUnit, Name, NameError, NameResult, ParseError, ParseResult,
+    Parser, SourceError, SourceId, SourcePosition, SourceResult, SourceSpan, SourceText,
+    SurfaceDeclaration, SurfaceDeclarationKind, Token, TokenKind, TypeEffectAnalyzer,
+    TypeEffectError, TypeEffectResult, TypeEffectUnit, MAX_MODULE_SEGMENTS, MAX_NAME_BYTES,
+    MAX_PARSE_NESTING, MAX_SOURCE_BYTES, MAX_TYPE_EFFECT_DECLARATIONS,
 };
 pub use input::{
     AtomicInputCore, InputAtomBridge, InputBatch, InputBridgeReport, InputDeviceId, InputError,
