@@ -1,9 +1,9 @@
 [package]
 name = "nordoi_kernel"
-version = "1.16.0"
+version = "1.17.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI K1.16 — Governed Timer State Migration & Upgrade Continuity Core"
+description = "NORDOI K1.17 — Governed Dynamic Timer Identity Migration & Upgrade Continuity Core"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

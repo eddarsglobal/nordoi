@@ -1,77 +1,116 @@
-# NORDOI K1.16 — Governed Timer State Migration & Upgrade Continuity Core
+# NORDOI K1.17 — Governed Dynamic Timer Identity Migration & Upgrade Continuity Core
 
-K1.16 closes the timer boundary deliberately left fail-closed by K1.15. K1.15 can evolve a durable
-program only when the source has zero pending timers. K1.16 adds a second, explicit timer-aware
-upgrade path that can preserve native timer continuity without weakening the original K1.15 API.
+K1.17 extends the certified K1.16 timer-migration protocol to the last timer-state class that K1.16
+intentionally left fail-closed: **active dynamic timers allocated through the runtime API without a
+native NAIR `TimerSlot`**.
 
-The K1.16 path is:
+K1.16 remains unchanged and still rejects active dynamic timers on its timer-aware upgrade API.
+K1.17 adds a separate, explicit full-timer upgrade path.
 
 ```text
-K1.15/K1.16-bound source runtime
+K1.16-bound durable source runtime
         ↓
-RuntimeUpgradePlan (atoms)
+RuntimeUpgradePlan                  (atoms)
         +
-RuntimeTimerUpgradePlan (native timers)
+RuntimeTimerUpgradePlan             (native TimerSlot timers)
+        +
+RuntimeDynamicTimerUpgradePlan      (active dynamic TimerId timers)
         ↓
-RuntimeTimerAwareUpgradePlan (validated composite)
+RuntimeAllTimerUpgradePlan
         ↓
 exact RuntimeUpgradeAuthority grant
         ↓
-private boot of target NAIR 0.6 program
+private target boot
         ↓
-validate complete atom + timer dispositions
+validate native + dynamic timer identity rules
         ↓
-deterministic atom migration
+deterministic atom + timer migration
         ↓
-deterministic timer carry/drop/default migration
+full composite migration hash
         ↓
-composite migration hash
+ProgramEpoch + durable upgrade lineage
         ↓
-ProgramEpoch + SHA-256 upgrade lineage
+one fenced effect/runtime bundle commit
         ↓
-co-commit effect/audit + target runtime checkpoint
-        ↓
-ONLY THEN publish target runtime
+ONLY THEN target publication
 ```
 
-## Legacy K1.15 upgrade remains fail-closed
+## K1.16 remains fail-closed
 
-This API keeps its certified K1.15 behavior:
-
-```rust
-AtomicEventLoop::upgrade_program_with_runtime_checkpoint(...)
-```
-
-If the source has pending timers, it still returns `PendingTimersUnsupported`.
-
-Timer migration is opt-in through:
+The certified K1.16 API keeps its original behavior:
 
 ```rust
 AtomicEventLoop::upgrade_program_with_runtime_checkpoint_and_timers(...)
 ```
 
-No existing caller silently gains new timer semantics.
-
-## Explicit timer dispositions
-
-Every source native `TimerSlot` must be named exactly once as:
+If an active source timer is not bound to a native `TimerSlot`, it still returns:
 
 ```text
-Carry(source → target)
-DropSource(source)
+DynamicSourceTimerUnsupported
 ```
 
-Every target native `TimerSlot` must be supplied exactly once either by a carry or by:
+Dynamic timer migration is opt-in through the new K1.17 API:
+
+```rust
+AtomicEventLoop::upgrade_program_with_runtime_checkpoint_and_dynamic_timers(...)
+```
+
+No existing caller silently gains raw-`TimerId` migration semantics.
+
+## Dynamic timer migration rules
+
+K1.17 adds:
+
+```rust
+DynamicTimerUpgradeRule::Carry {
+    source: TimerId,
+    target: TimerId,
+}
+
+DynamicTimerUpgradeRule::DropSource {
+    source: TimerId,
+}
+```
+
+Every **active dynamic source timer** must have exactly one disposition.
+
+A dynamic timer that was already canceled has no remaining timer state and therefore requires no
+individual disposition. Its allocation history is still protected by the preserved `next TimerId`
+frontier.
+
+## Why raw TimerId is allowed only here
+
+K1.16 correctly states that a raw `TimerId` is not sufficient **program-level** identity. K1.17 does
+not weaken that law by allowing arbitrary inference.
+
+A raw dynamic timer identity has migration meaning only when it appears inside a canonical
+`RuntimeDynamicTimerUpgradePlan` bound to:
 
 ```text
-KeepTargetDefault(target)
+exact source program hash
+exact target program hash
+exact source ProgramEpoch
+exact durable source runtime state
+explicit source→target upgrade authority
 ```
 
-Missing, duplicate or unknown source/target timer slots fail closed.
+There is still no ambient rule such as “matching numbers imply the same timer.”
 
-## Semantic continuity vs runtime identity
+## Preserve or remap identity
 
-A carried active timer preserves:
+A carried dynamic timer may preserve its exact runtime identity:
+
+```text
+Carry(TimerId(7) → TimerId(7))
+```
+
+or it may explicitly move to a fresh identity:
+
+```text
+Carry(TimerId(7) → TimerId(42))
+```
+
+The carried timer preserves:
 
 ```text
 next_deadline
@@ -79,214 +118,207 @@ interval
 occurrences
 ```
 
-but it adopts the `TimerId` already bound to the **target** `TimerSlot`.
+Only its runtime identity changes when the plan explicitly remaps it.
 
-This separation is critical:
+`RuntimeAllTimerUpgradeReport.dynamic_timer_mappings` exposes the exact source→target mapping used
+by the published upgrade. The historical `RuntimeUpgradeReport` remains unchanged and is available
+as `RuntimeAllTimerUpgradeReport.upgrade`.
 
-```text
-source semantic timer progress
-        ≠
-source runtime TimerId
-```
+## Freshness law for remapped identities
 
-The new target program owns its reaction topology. Carrying the old runtime ID would bind target
-reactions to the wrong timer identity.
-
-If the source timer slot is already canceled, carrying that slot cancels the target timer too. K1.16
-does not resurrect target bootstrap work when source semantics say the timer no longer exists.
-
-## Timer shape compatibility
-
-K1.16 intentionally does not perform timer conversion:
+If `source != target`, the target identity must be fresh relative to both source and target
+allocation frontiers:
 
 ```text
-one-shot → one-shot                       allowed
-repeating(5) → repeating(5)              allowed
-one-shot → repeating                     rejected
-repeating → one-shot                     rejected
-repeating(5) → repeating(7)              rejected
+target >= max(source.next_timer_id, target.next_timer_id)
 ```
 
-A pending active source timer also cannot be carried into a target timer slot canceled by the target
-bootstrap.
+This prevents a remap from silently reusing an old/canceled timer identity.
 
-## Logical-time rules
-
-A carried source timer must have a valid remaining deadline:
+Exact preservation is the only exception:
 
 ```text
-source.next_deadline >= preserved LogicalTime
+source == target
 ```
 
-A `KeepTargetDefault` timer continues to obey K1.15:
+because preserving an already-live source identity is continuation, not identity reuse.
+
+The target identity `0` is invalid and `u64::MAX` is rejected because it cannot advance the
+allocation frontier safely.
+
+## Native target identities remain reserved
+
+A dynamic target `TimerId` may not collide with any identity bound to a target native `TimerSlot`.
+This remains true even when the target native timer is canceled at bootstrap.
 
 ```text
-target default deadline >= preserved LogicalTime
+target TimerSlot(5) → TimerId(1), then canceled
+
+Dynamic Carry(... → TimerId(1))
+        ↓
+REJECT
 ```
 
-But an explicit `Carry` may replace a target bootstrap deadline that has become old. The target
-bootstrap state is private and overwritten before publication.
+The native slot still owns that identity in the target reaction topology.
 
-## Dynamic timer boundary
+## Native and dynamic timers migrate together
 
-K1.16 migrates timers identified by native NAIR `TimerSlot` bindings. A **pending** timer allocated
-through the runtime API without a native slot is rejected:
-
-```text
-DynamicSourceTimerUnsupported
-```
-
-No attempt is made to infer program meaning from a raw `TimerId`.
-
-A dynamic timer that was allocated and later canceled does not block migration; its allocation
-frontier still survives. K1.16 preserves:
-
-```text
-next TimerId = max(source frontier, target frontier)
-```
-
-so no old identity is silently reused.
-
-## Canonical timer plan identity
-
-K1.16 adds:
+K1.17 does not replace K1.16 native timer migration. The full plan combines all three semantic
+components:
 
 ```rust
-RuntimeTimerUpgradePlan
-RuntimeTimerAwareUpgradePlan
-TimerUpgradeRule
-```
-
-`RuntimeTimerAwareUpgradePlan::new(&atom_plan, &timer_plan)` verifies that both plans bind the same
-source program, target program and source epoch, then freezes the composite migration hash used by
-the runtime upgrade call.
-
-The timer plan has canonical order-independent bytes and a domain-separated SHA-256 hash.
-
-For a timer-aware upgrade, NORDOI derives:
-
-```text
-composite_plan_hash = SHA256(
-    domain
-    || atom_plan_hash
-    || timer_plan_hash
+RuntimeAllTimerUpgradePlan::new(
+    &atom_plan,
+    &native_timer_plan,
+    &dynamic_timer_plan,
 )
 ```
 
-The composite migration hash is used for:
+The atom plan and native timer plan keep all K1.15/K1.16 laws. The dynamic plan adds only the
+explicit active-unbound timer dispositions.
+
+## Canonical identity
+
+`RuntimeDynamicTimerUpgradePlan` has deterministic canonical bytes ordered by `TimerId`, independent
+of host iteration or rule insertion order.
+
+K1.17 derives a full composite hash:
 
 ```text
-RuntimeUpgradeLineageRecord.plan_hash
-upgrade lineage root
-runtime replay transition
-event-loop replay transition
+full_plan_hash = SHA256(
+    domain
+    || atom_plan_hash
+    || native_timer_plan_hash
+    || dynamic_timer_plan_hash
+)
 ```
 
-The atom plan hash and timer plan hash remain separately visible in `RuntimeUpgradeReport`.
+That full hash becomes the semantic `plan_hash` committed by:
+
+```text
+RuntimeUpgradeLineageRecord
+upgrade lineage root
+runtime upgrade replay
+atomic event-loop upgrade replay
+```
+
+The atom/native/composite hashes remain inspectable in the unchanged historical
+`RuntimeUpgradeReport` nested as `RuntimeAllTimerUpgradeReport.upgrade`; the dynamic plan hash is
+reported by the K1.17 wrapper.
 
 ## Replay semantics
 
-Different timer migration semantics are semantic differences and therefore must change replay
-identity even when atom migration is identical.
-
-K1.16 uses:
+Dynamic timer migration is semantic work. These two upgrades are different traces:
 
 ```text
-NORDOI-ATOMIC-EVENT-LOOP-1.16
-NORDOI-RUNTIME-PROGRAM-UPGRADE-1.1
+TimerId(7) → TimerId(7)
+TimerId(7) → TimerId(42)
 ```
 
-The replay transition includes the composite migration identity. As required by C266, backend
-receipts, effect audit roots, writer/fence metadata and the exact source-checkpoint digest remain
-outside semantic replay meaning.
+They therefore produce different replay identity.
+
+K1.17 uses:
+
+```text
+NORDOI-ATOMIC-EVENT-LOOP-1.17
+NORDOI-RUNTIME-PROGRAM-UPGRADE-DYNAMIC-TIMER-1.0
+```
+
+As required by C266, external delivery/audit metadata still does not become semantic replay meaning.
 
 ## Persistence-first publication
 
-The target runtime and migrated time state remain private until the combined fenced persistence
-boundary succeeds:
+Dynamic timer migration does not weaken K1.14/K1.15 durability:
 
 ```text
-private target program
+private target runtime
       +
-migrated atom state
+atom migration
       +
-migrated timer state
+native timer migration
+      +
+dynamic timer migration
       ↓
 effect/audit checkpoint + runtime checkpoint
       ↓
-one fenced host commit
+one fenced atomic host commit
       ↓
-ONLY THEN live publication
+ONLY THEN live target publication
 ```
 
-A failed commit preserves source program hash, source epoch, source replay state and source timer
-state exactly.
+If validation or persistence fails, the source program, dynamic timers, replay state, program epoch
+and durable lineage remain unchanged.
 
 ## Crash recovery
 
-K1.16 does not add a new runtime-checkpoint field. The checkpoint remains:
+K1.17 requires no new checkpoint field. The runtime checkpoint remains:
 
 ```text
-magic: NDRTSM01
-format: 1.1
+magic  : NDRTSM01
+format : 1.1
 ```
 
-A timer-aware upgrade stores the composite migration hash in the already-certified latest-upgrade
-`plan_hash` field. Therefore certified K1.15 checkpoints remain readable without a new format
-revision.
+The existing time checkpoint already stores timer snapshots by `TimerId`. Therefore a successfully
+migrated dynamic timer is recovered with its target identity, deadline, interval and occurrence
+count.
 
-After successful target publication, the normal K1.14/K1.15 recovery path restores the migrated timer
-state, including the target timer ID, remaining deadline, interval and occurrence count.
+The timer-allocation frontier is restored as well, so neither dropped nor remapped identities are
+silently reallocated.
 
 ## Main API additions
 
 ```rust
-RuntimeTimerUpgradePlan
-RuntimeTimerAwareUpgradePlan
-TimerUpgradeRule
-AtomicEventLoop::upgrade_program_with_runtime_checkpoint_and_timers(...)
+DynamicTimerUpgradeRule
+RuntimeDynamicTimerUpgradePlan
+RuntimeAllTimerUpgradePlan
+RuntimeAllTimerUpgradeReport
+AtomicEventLoop::upgrade_program_with_runtime_checkpoint_and_dynamic_timers(...)
 ```
 
-`RuntimeUpgradeReport` now also exposes:
+The new API returns `RuntimeAllTimerUpgradeReport`. Its `upgrade` field is the exact unchanged
+K1.16 `RuntimeUpgradeReport`; K1.17 adds only these wrapper fields:
 
 ```text
-timer_plan_hash
-composite_plan_hash
-migrated_timers
-dropped_timers
-defaulted_timers
+dynamic_timer_plan_hash
+migrated_dynamic_timers
+dropped_dynamic_timers
+dynamic_timer_mappings
 ```
 
-The existing atom-only upgrade API remains available and keeps K1.15 semantics.
+## Compatibility guarantees
+
+K1.17 intentionally keeps these certified formats unchanged:
+
+```text
+NAIR       = 0.6
+NDRTSM01   = 1.1
+```
+
+No new NAIR opcode is introduced.
+
+K1.15 atom-only and K1.16 native-timer-aware upgrade APIs remain available with their certified
+fail-closed boundaries.
 
 ## Scope boundary
 
-K1.16 does **not** claim:
+K1.17 does **not** claim:
 
-- migration of pending dynamic/unbound timers;
-- conversion between one-shot and repeating timers;
-- repeating interval conversion;
-- timer merge/split/fan-out;
+- arbitrary timer merge/split/fan-out;
 - wall-clock translation;
-- migration through arbitrary host callbacks;
+- automatic inference of dynamic timer meaning;
+- host callback execution as migration logic;
+- migration of arbitrary process resources;
 - persistence of upgrade authority;
-- new NAIR timer instructions;
+- new NAIR timer opcodes;
 - frozen `.noi` syntax.
 
-## NAIR status
-
-K1.16 governs runtime continuity for timer semantics already native in NAIR.
-
-```text
-NAIR = 0.6
-```
-
-No new opcode is introduced.
+Dynamic timer migration is an explicit runtime-resource migration protocol, not a general resource
+migration engine.
 
 ## Certification target
 
-K1.16 adds **33 timer-upgrade tests** on top of the **444 tests certified by K1.15**, for an expected
-total of **477 tests**.
+K1.17 adds **36 dynamic-timer upgrade tests** on top of the **477 tests certified by K1.16**, for an
+expected total of **513 tests**.
 
 The package must pass:
 
@@ -297,6 +329,6 @@ cargo check --all-targets
 cargo test --all-targets
 ```
 
-and the GitHub CI matrix on Linux, macOS and Windows before tag `k1.16` may be published.
+and the GitHub CI matrix on Linux, macOS and Windows before tag `k1.17` may be published.
 
-The Constitution now extends through **C284**.
+The Constitution now extends through **C304**.

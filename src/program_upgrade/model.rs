@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::{
     effect_audit::hash::sha256,
     nair::{AtomSlot, TimerSlot},
-    time::LogicalTime,
+    time::{LogicalTime, TimerId},
 };
 
 use super::{RuntimeUpgradeError, RuntimeUpgradeResult};
@@ -12,6 +12,9 @@ const PLAN_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-UPGRADE-PLAN-1.0";
 const LINEAGE_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-UPGRADE-LINEAGE-1.0";
 const TIMER_PLAN_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-TIMER-UPGRADE-PLAN-1.0";
 const COMPOSITE_PLAN_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-UPGRADE-COMPOSITE-PLAN-1.0";
+const DYNAMIC_TIMER_PLAN_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-DYNAMIC-TIMER-UPGRADE-PLAN-1.0";
+const ALL_TIMER_COMPOSITE_PLAN_HASH_DOMAIN: &[u8] =
+    b"NORDOI-RUNTIME-UPGRADE-ALL-TIMER-COMPOSITE-1.0";
 
 pub const MAX_RUNTIME_UPGRADE_RULES: usize = 524_288;
 
@@ -30,6 +33,178 @@ pub enum AtomUpgradeRule {
     Copy { source: AtomSlot, target: AtomSlot },
     DropSource { source: AtomSlot },
     KeepTargetDefault { target: AtomSlot },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DynamicTimerUpgradeRule {
+    Carry { source: TimerId, target: TimerId },
+    DropSource { source: TimerId },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeDynamicTimerUpgradePlan {
+    source_program_hash: [u8; 32],
+    target_program_hash: [u8; 32],
+    source_epoch: ProgramEpoch,
+    source_dispositions: BTreeMap<TimerId, Option<TimerId>>,
+    plan_hash: RuntimeUpgradeHash,
+}
+
+impl RuntimeDynamicTimerUpgradePlan {
+    pub fn new(
+        source_program_hash: [u8; 32],
+        target_program_hash: [u8; 32],
+        source_epoch: ProgramEpoch,
+        rules: impl IntoIterator<Item = DynamicTimerUpgradeRule>,
+    ) -> RuntimeUpgradeResult<Self> {
+        if source_program_hash == target_program_hash {
+            return Err(RuntimeUpgradeError::SameProgram);
+        }
+
+        let mut source_dispositions = BTreeMap::new();
+        let mut target_claims = BTreeSet::new();
+        let mut rule_count = 0_usize;
+
+        for rule in rules {
+            rule_count = rule_count.saturating_add(1);
+            if rule_count > MAX_RUNTIME_UPGRADE_RULES {
+                return Err(RuntimeUpgradeError::DynamicTimerPlanRuleLimitExceeded {
+                    rules: rule_count,
+                    limit: MAX_RUNTIME_UPGRADE_RULES,
+                });
+            }
+            match rule {
+                DynamicTimerUpgradeRule::Carry { source, target } => {
+                    if target.0 == 0 {
+                        return Err(RuntimeUpgradeError::InvalidDynamicTargetTimerId(target));
+                    }
+                    if target.0 == u64::MAX {
+                        return Err(RuntimeUpgradeError::DynamicTargetTimerIdentityExhausted(
+                            target,
+                        ));
+                    }
+                    if source_dispositions.insert(source, Some(target)).is_some() {
+                        return Err(RuntimeUpgradeError::DuplicateDynamicSourceTimerDisposition(
+                            source,
+                        ));
+                    }
+                    if !target_claims.insert(target) {
+                        return Err(RuntimeUpgradeError::DuplicateDynamicTargetTimerDisposition(
+                            target,
+                        ));
+                    }
+                }
+                DynamicTimerUpgradeRule::DropSource { source } => {
+                    if source_dispositions.insert(source, None).is_some() {
+                        return Err(RuntimeUpgradeError::DuplicateDynamicSourceTimerDisposition(
+                            source,
+                        ));
+                    }
+                }
+            }
+        }
+
+        let plan_hash = RuntimeUpgradeHash(hash_dynamic_timer_plan(
+            source_program_hash,
+            target_program_hash,
+            source_epoch,
+            &source_dispositions,
+        ));
+
+        Ok(Self {
+            source_program_hash,
+            target_program_hash,
+            source_epoch,
+            source_dispositions,
+            plan_hash,
+        })
+    }
+
+    pub const fn source_program_hash(&self) -> [u8; 32] {
+        self.source_program_hash
+    }
+
+    pub const fn target_program_hash(&self) -> [u8; 32] {
+        self.target_program_hash
+    }
+
+    pub const fn source_epoch(&self) -> ProgramEpoch {
+        self.source_epoch
+    }
+
+    pub const fn plan_hash(&self) -> RuntimeUpgradeHash {
+        self.plan_hash
+    }
+
+    pub(crate) fn source_dispositions(&self) -> &BTreeMap<TimerId, Option<TimerId>> {
+        &self.source_dispositions
+    }
+
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(DYNAMIC_TIMER_PLAN_HASH_DOMAIN);
+        bytes.extend_from_slice(&self.source_program_hash);
+        bytes.extend_from_slice(&self.target_program_hash);
+        bytes.extend_from_slice(&self.source_epoch.0.to_le_bytes());
+        bytes.extend_from_slice(&(self.source_dispositions.len() as u64).to_le_bytes());
+        for (source, target) in &self.source_dispositions {
+            bytes.extend_from_slice(&source.0.to_le_bytes());
+            match target {
+                Some(target) => {
+                    bytes.push(1);
+                    bytes.extend_from_slice(&target.0.to_le_bytes());
+                }
+                None => bytes.push(0),
+            }
+        }
+        bytes
+    }
+
+    pub fn verify_hash(&self) -> RuntimeUpgradeResult<()> {
+        let actual = RuntimeUpgradeHash(sha256(&self.canonical_bytes()));
+        if actual != self.plan_hash {
+            return Err(RuntimeUpgradeError::DynamicTimerUpgradeHashMismatch);
+        }
+        Ok(())
+    }
+}
+
+fn hash_dynamic_timer_plan(
+    source_program_hash: [u8; 32],
+    target_program_hash: [u8; 32],
+    source_epoch: ProgramEpoch,
+    source_dispositions: &BTreeMap<TimerId, Option<TimerId>>,
+) -> [u8; 32] {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(DYNAMIC_TIMER_PLAN_HASH_DOMAIN);
+    bytes.extend_from_slice(&source_program_hash);
+    bytes.extend_from_slice(&target_program_hash);
+    bytes.extend_from_slice(&source_epoch.0.to_le_bytes());
+    bytes.extend_from_slice(&(source_dispositions.len() as u64).to_le_bytes());
+    for (source, target) in source_dispositions {
+        bytes.extend_from_slice(&source.0.to_le_bytes());
+        match target {
+            Some(target) => {
+                bytes.push(1);
+                bytes.extend_from_slice(&target.0.to_le_bytes());
+            }
+            None => bytes.push(0),
+        }
+    }
+    sha256(&bytes)
+}
+
+pub(crate) fn all_timer_upgrade_plan_hash(
+    atom_plan_hash: RuntimeUpgradeHash,
+    timer_plan_hash: RuntimeUpgradeHash,
+    dynamic_timer_plan_hash: RuntimeUpgradeHash,
+) -> RuntimeUpgradeHash {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(ALL_TIMER_COMPOSITE_PLAN_HASH_DOMAIN);
+    bytes.extend_from_slice(&atom_plan_hash.0);
+    bytes.extend_from_slice(&timer_plan_hash.0);
+    bytes.extend_from_slice(&dynamic_timer_plan_hash.0);
+    RuntimeUpgradeHash(sha256(&bytes))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -421,6 +596,77 @@ impl RuntimeTimerAwareUpgradePlan {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeAllTimerUpgradePlan {
+    atom_plan: RuntimeUpgradePlan,
+    timer_plan: RuntimeTimerUpgradePlan,
+    dynamic_timer_plan: RuntimeDynamicTimerUpgradePlan,
+    composite_plan_hash: RuntimeUpgradeHash,
+}
+
+impl RuntimeAllTimerUpgradePlan {
+    pub fn new(
+        atom_plan: &RuntimeUpgradePlan,
+        timer_plan: &RuntimeTimerUpgradePlan,
+        dynamic_timer_plan: &RuntimeDynamicTimerUpgradePlan,
+    ) -> RuntimeUpgradeResult<Self> {
+        atom_plan.verify_hash()?;
+        timer_plan.verify_hash()?;
+        dynamic_timer_plan.verify_hash()?;
+        if timer_plan.source_program_hash() != atom_plan.source_program_hash() {
+            return Err(RuntimeUpgradeError::TimerPlanSourceProgramMismatch);
+        }
+        if timer_plan.target_program_hash() != atom_plan.target_program_hash() {
+            return Err(RuntimeUpgradeError::TimerPlanTargetProgramMismatch);
+        }
+        if timer_plan.source_epoch() != atom_plan.source_epoch() {
+            return Err(RuntimeUpgradeError::TimerPlanSourceEpochMismatch {
+                expected: atom_plan.source_epoch().0,
+                actual: timer_plan.source_epoch().0,
+            });
+        }
+        if dynamic_timer_plan.source_program_hash() != atom_plan.source_program_hash() {
+            return Err(RuntimeUpgradeError::DynamicTimerPlanSourceProgramMismatch);
+        }
+        if dynamic_timer_plan.target_program_hash() != atom_plan.target_program_hash() {
+            return Err(RuntimeUpgradeError::DynamicTimerPlanTargetProgramMismatch);
+        }
+        if dynamic_timer_plan.source_epoch() != atom_plan.source_epoch() {
+            return Err(RuntimeUpgradeError::DynamicTimerPlanSourceEpochMismatch {
+                expected: atom_plan.source_epoch().0,
+                actual: dynamic_timer_plan.source_epoch().0,
+            });
+        }
+        let composite_plan_hash = all_timer_upgrade_plan_hash(
+            atom_plan.plan_hash(),
+            timer_plan.plan_hash(),
+            dynamic_timer_plan.plan_hash(),
+        );
+        Ok(Self {
+            atom_plan: atom_plan.clone(),
+            timer_plan: timer_plan.clone(),
+            dynamic_timer_plan: dynamic_timer_plan.clone(),
+            composite_plan_hash,
+        })
+    }
+
+    pub fn atom_plan(&self) -> &RuntimeUpgradePlan {
+        &self.atom_plan
+    }
+
+    pub fn timer_plan(&self) -> &RuntimeTimerUpgradePlan {
+        &self.timer_plan
+    }
+
+    pub fn dynamic_timer_plan(&self) -> &RuntimeDynamicTimerUpgradePlan {
+        &self.dynamic_timer_plan
+    }
+
+    pub const fn composite_plan_hash(&self) -> RuntimeUpgradeHash {
+        self.composite_plan_hash
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct RuntimeUpgradeAuthority {
     allowed: BTreeSet<([u8; 32], [u8; 32])>,
@@ -474,6 +720,15 @@ pub struct RuntimeUpgradeReport {
     pub defaulted_timers: usize,
     pub cycle: u64,
     pub logical_time: LogicalTime,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RuntimeAllTimerUpgradeReport {
+    pub upgrade: RuntimeUpgradeReport,
+    pub dynamic_timer_plan_hash: RuntimeUpgradeHash,
+    pub migrated_dynamic_timers: usize,
+    pub dropped_dynamic_timers: usize,
+    pub dynamic_timer_mappings: BTreeMap<TimerId, TimerId>,
 }
 
 pub(crate) fn next_lineage_root(

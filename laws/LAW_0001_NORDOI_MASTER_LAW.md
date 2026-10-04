@@ -691,3 +691,38 @@ valid source continuation.
 
 Timer allocation identity must never move backward. The upgrade plan itself changes semantic replay,
 while delivery/audit metadata remains outside replay meaning.
+
+---
+
+## 31. Governed dynamic timer identity continuity law
+
+Runtime-created future work may survive program evolution only through explicit resource identity
+mapping. A raw timer number is not automatically program meaning, but an active dynamic timer may be
+migrated when its identity is bound by an exact governed upgrade plan.
+
+For K1.17:
+
+```text
+active dynamic TimerId + durable timer state
+        ↓
+explicit carry(source→target) / drop
+        ↓
+reject target native-ID collisions
+        ↓
+preserve exact timer progress
+        ↓
+preserve identity OR mint explicit fresh remap
+        ↓
+full atom+native+dynamic migration identity
+        ↓
+fenced durable target publication
+```
+
+Canceled dynamic timers do not require invented state, but their allocation frontier survives.
+Remapped identities must be fresh; exact preservation is continuation rather than reuse. Target
+native timer identities remain reserved even when their bootstrap timers are canceled because native
+reaction topology still owns those bindings.
+
+Dynamic timer mapping is semantic and therefore participates in upgrade replay identity. Delivery
+and audit metadata remain outside replay meaning. K1.17 remains a timer-resource migration protocol,
+not a general process-resource migration engine.

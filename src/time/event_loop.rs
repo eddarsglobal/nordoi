@@ -39,7 +39,8 @@ use crate::{
         NairReactionAuthority, NairReactionCycleReport, ReactionSlot, TimerSlot,
     },
     program_upgrade::{
-        next_lineage_root, ProgramEpoch, RuntimeTimerAwareUpgradePlan, RuntimeTimerUpgradePlan,
+        next_lineage_root, ProgramEpoch, RuntimeAllTimerUpgradePlan, RuntimeAllTimerUpgradeReport,
+        RuntimeDynamicTimerUpgradePlan, RuntimeTimerAwareUpgradePlan, RuntimeTimerUpgradePlan,
         RuntimeUpgradeAuthority, RuntimeUpgradeError, RuntimeUpgradeHash,
         RuntimeUpgradeLineageRecord, RuntimeUpgradePlan, RuntimeUpgradeReport,
     },
@@ -63,8 +64,10 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.16";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.17";
 const RUNTIME_UPGRADE_REPLAY_DOMAIN: &[u8] = b"NORDOI-RUNTIME-PROGRAM-UPGRADE-1.1";
+const RUNTIME_DYNAMIC_TIMER_UPGRADE_REPLAY_DOMAIN: &[u8] =
+    b"NORDOI-RUNTIME-PROGRAM-UPGRADE-DYNAMIC-TIMER-1.0";
 const RUNTIME_PROGRAM_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-PROGRAM-1.0";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
@@ -102,29 +105,55 @@ pub struct EventLoopCycleReport {
 enum RuntimeUpgradePlanRef<'a> {
     AtomOnly(&'a RuntimeUpgradePlan),
     TimerAware(&'a RuntimeTimerAwareUpgradePlan),
+    AllTimers(&'a RuntimeAllTimerUpgradePlan),
 }
 
 impl<'a> RuntimeUpgradePlanRef<'a> {
     fn atom_plan(self) -> &'a RuntimeUpgradePlan {
         match self {
             Self::AtomOnly(plan) => plan,
-            Self::TimerAware(plan) => plan.atom_plan(),
+            Self::TimerAware(plan) => RuntimeTimerAwareUpgradePlan::atom_plan(plan),
+            Self::AllTimers(plan) => RuntimeAllTimerUpgradePlan::atom_plan(plan),
         }
     }
 
     fn timer_plan(self) -> Option<&'a RuntimeTimerUpgradePlan> {
         match self {
             Self::AtomOnly(_) => None,
-            Self::TimerAware(plan) => Some(plan.timer_plan()),
+            Self::TimerAware(plan) => Some(RuntimeTimerAwareUpgradePlan::timer_plan(plan)),
+            Self::AllTimers(plan) => Some(RuntimeAllTimerUpgradePlan::timer_plan(plan)),
+        }
+    }
+
+    fn dynamic_timer_plan(self) -> Option<&'a RuntimeDynamicTimerUpgradePlan> {
+        match self {
+            Self::AllTimers(plan) => Some(plan.dynamic_timer_plan()),
+            Self::AtomOnly(_) | Self::TimerAware(_) => None,
         }
     }
 
     fn semantic_plan_hash(self) -> RuntimeUpgradeHash {
         match self {
             Self::AtomOnly(plan) => plan.plan_hash(),
-            Self::TimerAware(plan) => plan.composite_plan_hash(),
+            Self::TimerAware(plan) => RuntimeTimerAwareUpgradePlan::composite_plan_hash(plan),
+            Self::AllTimers(plan) => RuntimeAllTimerUpgradePlan::composite_plan_hash(plan),
         }
     }
+
+    fn replay_domain(self) -> &'static [u8] {
+        match self {
+            Self::AllTimers(_) => RUNTIME_DYNAMIC_TIMER_UPGRADE_REPLAY_DOMAIN,
+            Self::AtomOnly(_) | Self::TimerAware(_) => RUNTIME_UPGRADE_REPLAY_DOMAIN,
+        }
+    }
+}
+
+#[derive(Debug)]
+struct RuntimeUpgradeExecutionReport {
+    upgrade: RuntimeUpgradeReport,
+    migrated_dynamic_timers: usize,
+    dropped_dynamic_timers: usize,
+    dynamic_timer_mappings: BTreeMap<TimerId, TimerId>,
 }
 
 #[derive(Debug, Clone)]
@@ -861,14 +890,15 @@ impl AtomicEventLoop {
         plan: &RuntimeUpgradePlan,
         journal: &mut GovernedAuditedEffectJournal<S>,
     ) -> EventLoopResult<RuntimeUpgradeReport> {
-        self.upgrade_program_with_runtime_checkpoint_internal(
+        let execution = self.upgrade_program_with_runtime_checkpoint_internal(
             target_program,
             reaction_authority,
             completion_authority,
             upgrade_authority,
             RuntimeUpgradePlanRef::AtomOnly(plan),
             journal,
-        )
+        )?;
+        Ok(execution.upgrade)
     }
 
     pub fn upgrade_program_with_runtime_checkpoint_and_timers<S: FencedRuntimeCheckpointStore>(
@@ -880,14 +910,43 @@ impl AtomicEventLoop {
         migration: &RuntimeTimerAwareUpgradePlan,
         journal: &mut GovernedAuditedEffectJournal<S>,
     ) -> EventLoopResult<RuntimeUpgradeReport> {
-        self.upgrade_program_with_runtime_checkpoint_internal(
+        let execution = self.upgrade_program_with_runtime_checkpoint_internal(
             target_program,
             reaction_authority,
             completion_authority,
             upgrade_authority,
             RuntimeUpgradePlanRef::TimerAware(migration),
             journal,
-        )
+        )?;
+        Ok(execution.upgrade)
+    }
+
+    pub fn upgrade_program_with_runtime_checkpoint_and_dynamic_timers<
+        S: FencedRuntimeCheckpointStore,
+    >(
+        &mut self,
+        target_program: &NairProgram,
+        reaction_authority: &NairReactionAuthority,
+        completion_authority: &NairCompletionAuthority,
+        upgrade_authority: &RuntimeUpgradeAuthority,
+        migration: &RuntimeAllTimerUpgradePlan,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<RuntimeAllTimerUpgradeReport> {
+        let execution = self.upgrade_program_with_runtime_checkpoint_internal(
+            target_program,
+            reaction_authority,
+            completion_authority,
+            upgrade_authority,
+            RuntimeUpgradePlanRef::AllTimers(migration),
+            journal,
+        )?;
+        Ok(RuntimeAllTimerUpgradeReport {
+            upgrade: execution.upgrade,
+            dynamic_timer_plan_hash: migration.dynamic_timer_plan().plan_hash(),
+            migrated_dynamic_timers: execution.migrated_dynamic_timers,
+            dropped_dynamic_timers: execution.dropped_dynamic_timers,
+            dynamic_timer_mappings: execution.dynamic_timer_mappings,
+        })
     }
 
     fn upgrade_program_with_runtime_checkpoint_internal<S: FencedRuntimeCheckpointStore>(
@@ -898,9 +957,10 @@ impl AtomicEventLoop {
         upgrade_authority: &RuntimeUpgradeAuthority,
         migration: RuntimeUpgradePlanRef<'_>,
         journal: &mut GovernedAuditedEffectJournal<S>,
-    ) -> EventLoopResult<RuntimeUpgradeReport> {
+    ) -> EventLoopResult<RuntimeUpgradeExecutionReport> {
         let plan = migration.atom_plan();
         let timer_plan = migration.timer_plan();
+        let dynamic_timer_plan = migration.dynamic_timer_plan();
         if !self.runtime_checkpoint_bound {
             return Err(RuntimeUpgradeError::UpgradeRequiresDurableRuntimeBinding.into());
         }
@@ -921,6 +981,9 @@ impl AtomicEventLoop {
 
         if let Some(timer_plan) = timer_plan {
             timer_plan.verify_hash()?;
+        }
+        if let Some(dynamic_timer_plan) = dynamic_timer_plan {
+            dynamic_timer_plan.verify_hash()?;
         }
 
         let source_checkpoint = self.semantic_checkpoint(journal)?;
@@ -1010,17 +1073,33 @@ impl AtomicEventLoop {
             }
         }
 
-        let (migrated_timers, dropped_timers, defaulted_timers, timer_plan_hash) = match timer_plan
-        {
+        let (
+            migrated_timers,
+            dropped_timers,
+            defaulted_timers,
+            migrated_dynamic_timers,
+            dropped_dynamic_timers,
+            dynamic_timer_mappings,
+            timer_plan_hash,
+        ) = match timer_plan {
             Some(timer_plan) => {
-                let (migrated, dropped, defaulted) = migrate_timer_upgrade_state(
+                let timer_migration = migrate_timer_upgrade_state(
                     &source_time,
                     &mut target_time,
                     &self.native_timer_bindings,
                     &candidate.native_timer_bindings,
                     timer_plan,
+                    dynamic_timer_plan,
                 )?;
-                (migrated, dropped, defaulted, Some(timer_plan.plan_hash()))
+                (
+                    timer_migration.migrated_native,
+                    timer_migration.dropped_native,
+                    timer_migration.defaulted_native,
+                    timer_migration.migrated_dynamic,
+                    timer_migration.dropped_dynamic,
+                    timer_migration.dynamic_mappings,
+                    Some(timer_plan.plan_hash()),
+                )
             }
             None => {
                 for timer in &target_time.timers {
@@ -1036,7 +1115,7 @@ impl AtomicEventLoop {
                 target_time.now = source_time.now;
                 target_time.next_timer_id =
                     target_time.next_timer_id.max(source_time.next_timer_id);
-                (0, 0, 0, None)
+                (0, 0, 0, 0, 0, BTreeMap::new(), None)
             }
         };
 
@@ -1058,7 +1137,7 @@ impl AtomicEventLoop {
         };
 
         let mut runtime_replay_state = target_runtime.replay_state;
-        hash_bytes(&mut runtime_replay_state, RUNTIME_UPGRADE_REPLAY_DOMAIN);
+        hash_bytes(&mut runtime_replay_state, migration.replay_domain());
         hash_component(
             &mut runtime_replay_state,
             &source_runtime.replay_state.to_le_bytes(),
@@ -1088,7 +1167,7 @@ impl AtomicEventLoop {
         candidate.last_upgrade = Some(lineage_record);
 
         let mut event_replay_state = candidate.replay_state;
-        hash_bytes(&mut event_replay_state, RUNTIME_UPGRADE_REPLAY_DOMAIN);
+        hash_bytes(&mut event_replay_state, migration.replay_domain());
         hash_component(&mut event_replay_state, &self.replay_state.to_le_bytes());
         hash_component(&mut event_replay_state, &self.program_hash);
         hash_component(&mut event_replay_state, &candidate.program_hash);
@@ -1127,8 +1206,14 @@ impl AtomicEventLoop {
             cycle: candidate.cycle,
             logical_time: candidate.logical_time(),
         };
+        let execution = RuntimeUpgradeExecutionReport {
+            upgrade: report,
+            migrated_dynamic_timers,
+            dropped_dynamic_timers,
+            dynamic_timer_mappings,
+        };
         *self = candidate;
-        Ok(report)
+        Ok(execution)
     }
 
     pub fn schedule_once_at(&mut self, deadline: LogicalTime) -> EventLoopResult<TimerId> {
@@ -1497,13 +1582,24 @@ fn hash_effect(replay_state: &mut u64, effect: &Effect) {
     }
 }
 
+#[derive(Debug, Default)]
+struct TimerUpgradeMigrationReport {
+    migrated_native: usize,
+    dropped_native: usize,
+    defaulted_native: usize,
+    migrated_dynamic: usize,
+    dropped_dynamic: usize,
+    dynamic_mappings: BTreeMap<TimerId, TimerId>,
+}
+
 fn migrate_timer_upgrade_state(
     source_time: &TimeCheckpointState,
     target_time: &mut TimeCheckpointState,
     source_bindings: &BTreeMap<TimerSlot, TimerId>,
     target_bindings: &BTreeMap<TimerSlot, TimerId>,
     timer_plan: &RuntimeTimerUpgradePlan,
-) -> Result<(usize, usize, usize), RuntimeUpgradeError> {
+    dynamic_timer_plan: Option<&RuntimeDynamicTimerUpgradePlan>,
+) -> Result<TimerUpgradeMigrationReport, RuntimeUpgradeError> {
     for source in timer_plan.source_dispositions().keys() {
         if !source_bindings.contains_key(source) {
             return Err(RuntimeUpgradeError::UnknownSourceTimerSlot(*source));
@@ -1537,6 +1633,7 @@ fn migrate_timer_upgrade_state(
     }
 
     let source_native_ids: BTreeSet<TimerId> = source_bindings.values().copied().collect();
+    let target_native_ids: BTreeSet<TimerId> = target_bindings.values().copied().collect();
     for timer in &source_time.timers {
         if timer.next_deadline < source_time.now {
             return Err(RuntimeUpgradeError::SourceTimerDeadlineBeforeUpgradeTime {
@@ -1544,9 +1641,6 @@ fn migrate_timer_upgrade_state(
                 deadline: timer.next_deadline.0,
                 logical_time: source_time.now.0,
             });
-        }
-        if !source_native_ids.contains(&timer.id) {
-            return Err(RuntimeUpgradeError::DynamicSourceTimerUnsupported { timer: timer.id.0 });
         }
     }
 
@@ -1556,6 +1650,37 @@ fn migrate_timer_upgrade_state(
         .copied()
         .map(|timer| (timer.id, timer))
         .collect();
+    let source_dynamic_ids: BTreeSet<TimerId> = source_timers
+        .keys()
+        .copied()
+        .filter(|id| !source_native_ids.contains(id))
+        .collect();
+
+    match dynamic_timer_plan {
+        Some(dynamic_plan) => {
+            for source in dynamic_plan.source_dispositions().keys() {
+                if source_native_ids.contains(source) {
+                    return Err(RuntimeUpgradeError::DynamicSourceTimerIsNative(*source));
+                }
+                if !source_dynamic_ids.contains(source) {
+                    return Err(RuntimeUpgradeError::UnknownDynamicSourceTimer(*source));
+                }
+            }
+            for source in &source_dynamic_ids {
+                if !dynamic_plan.source_dispositions().contains_key(source) {
+                    return Err(RuntimeUpgradeError::MissingDynamicSourceTimerDisposition(
+                        *source,
+                    ));
+                }
+            }
+        }
+        None => {
+            if let Some(timer) = source_dynamic_ids.iter().next() {
+                return Err(RuntimeUpgradeError::DynamicSourceTimerUnsupported { timer: timer.0 });
+            }
+        }
+    }
+
     let mut target_timers: BTreeMap<TimerId, TimerSnapshot> = target_time
         .timers
         .iter()
@@ -1563,8 +1688,8 @@ fn migrate_timer_upgrade_state(
         .map(|timer| (timer.id, timer))
         .collect();
 
-    let mut migrated = 0_usize;
-    let mut dropped = 0_usize;
+    let mut migrated_native = 0_usize;
+    let mut dropped_native = 0_usize;
     for (source_slot, target_slot) in timer_plan.source_dispositions() {
         let source_id = source_bindings
             .get(source_slot)
@@ -1615,9 +1740,9 @@ fn migrate_timer_upgrade_state(
                         target_timers.remove(&target_id);
                     }
                 }
-                migrated += 1;
+                migrated_native += 1;
             }
-            None => dropped += 1,
+            None => dropped_native += 1,
         }
     }
 
@@ -1637,11 +1762,76 @@ fn migrate_timer_upgrade_state(
         }
     }
 
+    let mut migrated_dynamic = 0_usize;
+    let mut dropped_dynamic = 0_usize;
+    let mut dynamic_mappings = BTreeMap::new();
+    let allocation_floor = source_time.next_timer_id.max(target_time.next_timer_id);
+    let mut dynamic_next_frontier = allocation_floor;
+
+    if let Some(dynamic_plan) = dynamic_timer_plan {
+        for (source_id, target_id) in dynamic_plan.source_dispositions() {
+            match target_id {
+                Some(target_id) => {
+                    if target_native_ids.contains(target_id) {
+                        return Err(RuntimeUpgradeError::DynamicTargetTimerConflictsWithNative(
+                            *target_id,
+                        ));
+                    }
+                    if target_id != source_id && target_id.0 < allocation_floor {
+                        return Err(RuntimeUpgradeError::DynamicTargetTimerIdentityNotFresh {
+                            source: *source_id,
+                            target: *target_id,
+                            minimum: allocation_floor,
+                        });
+                    }
+                    let source_timer = source_timers
+                        .get(source_id)
+                        .copied()
+                        .ok_or(RuntimeUpgradeError::UnknownDynamicSourceTimer(*source_id))?;
+                    match target_timers.entry(*target_id) {
+                        std::collections::btree_map::Entry::Vacant(entry) => {
+                            entry.insert(TimerSnapshot {
+                                id: *target_id,
+                                next_deadline: source_timer.next_deadline,
+                                interval: source_timer.interval,
+                                occurrences: source_timer.occurrences,
+                            });
+                        }
+                        std::collections::btree_map::Entry::Occupied(_) => {
+                            return Err(
+                                RuntimeUpgradeError::DuplicateDynamicTargetTimerDisposition(
+                                    *target_id,
+                                ),
+                            );
+                        }
+                    }
+                    dynamic_mappings.insert(*source_id, *target_id);
+                    dynamic_next_frontier =
+                        dynamic_next_frontier.max(target_id.0.checked_add(1).ok_or(
+                            RuntimeUpgradeError::DynamicTargetTimerIdentityExhausted(*target_id),
+                        )?);
+                    migrated_dynamic += 1;
+                }
+                None => dropped_dynamic += 1,
+            }
+        }
+    }
+
     target_time.now = source_time.now;
-    target_time.next_timer_id = target_time.next_timer_id.max(source_time.next_timer_id);
+    target_time.next_timer_id = target_time
+        .next_timer_id
+        .max(source_time.next_timer_id)
+        .max(dynamic_next_frontier);
     target_time.timers = target_timers.into_values().collect();
 
-    Ok((migrated, dropped, timer_plan.target_defaults().len()))
+    Ok(TimerUpgradeMigrationReport {
+        migrated_native,
+        dropped_native,
+        defaulted_native: timer_plan.target_defaults().len(),
+        migrated_dynamic,
+        dropped_dynamic,
+        dynamic_mappings,
+    })
 }
 
 fn apply_native_time_bootstrap(

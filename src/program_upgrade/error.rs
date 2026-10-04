@@ -3,7 +3,10 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::nair::{AtomSlot, TimerSlot};
+use crate::{
+    nair::{AtomSlot, TimerSlot},
+    time::TimerId,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeUpgradeError {
@@ -25,11 +28,35 @@ pub enum RuntimeUpgradeError {
         rules: usize,
         limit: usize,
     },
+    DynamicTimerPlanRuleLimitExceeded {
+        rules: usize,
+        limit: usize,
+    },
     PendingTimersUnsupported {
         count: usize,
     },
     DynamicSourceTimerUnsupported {
         timer: u64,
+    },
+    DuplicateDynamicSourceTimerDisposition(TimerId),
+    DuplicateDynamicTargetTimerDisposition(TimerId),
+    UnknownDynamicSourceTimer(TimerId),
+    DynamicSourceTimerIsNative(TimerId),
+    MissingDynamicSourceTimerDisposition(TimerId),
+    DynamicTargetTimerConflictsWithNative(TimerId),
+    DynamicTargetTimerIdentityNotFresh {
+        source: TimerId,
+        target: TimerId,
+        minimum: u64,
+    },
+    InvalidDynamicTargetTimerId(TimerId),
+    DynamicTargetTimerIdentityExhausted(TimerId),
+    DynamicTimerUpgradeHashMismatch,
+    DynamicTimerPlanSourceProgramMismatch,
+    DynamicTimerPlanTargetProgramMismatch,
+    DynamicTimerPlanSourceEpochMismatch {
+        expected: u64,
+        actual: u64,
     },
     DuplicateSourceTimerDisposition(TimerSlot),
     DuplicateTargetTimerDisposition(TimerSlot),
@@ -88,8 +115,22 @@ impl Display for RuntimeUpgradeError {
             Self::UpgradeRequiresDurableRuntimeBinding => write!(f, "runtime upgrade requires an established K1.14 durable runtime lineage"),
             Self::PlanRuleLimitExceeded { rules, limit } => write!(f, "runtime upgrade plan has {rules} rules, limit is {limit}"),
             Self::TimerPlanRuleLimitExceeded { rules, limit } => write!(f, "runtime timer upgrade plan has {rules} rules, limit is {limit}"),
+            Self::DynamicTimerPlanRuleLimitExceeded { rules, limit } => write!(f, "runtime dynamic timer upgrade plan has {rules} rules, limit is {limit}"),
             Self::PendingTimersUnsupported { count } => write!(f, "legacy K1.15 upgrade path requires zero pending source timers; found {count}"),
             Self::DynamicSourceTimerUnsupported { timer } => write!(f, "source timer {timer} is pending but is not bound to a native NAIR TimerSlot"),
+            Self::DuplicateDynamicSourceTimerDisposition(timer) => write!(f, "dynamic source timer {} has more than one upgrade disposition", timer.0),
+            Self::DuplicateDynamicTargetTimerDisposition(timer) => write!(f, "dynamic target timer {} is claimed by more than one source timer", timer.0),
+            Self::UnknownDynamicSourceTimer(timer) => write!(f, "runtime dynamic timer upgrade references unknown or inactive source timer {}", timer.0),
+            Self::DynamicSourceTimerIsNative(timer) => write!(f, "runtime dynamic timer upgrade references source timer {} that is bound to a native TimerSlot", timer.0),
+            Self::MissingDynamicSourceTimerDisposition(timer) => write!(f, "active dynamic source timer {} has no explicit carry/drop disposition", timer.0),
+            Self::DynamicTargetTimerConflictsWithNative(timer) => write!(f, "dynamic target timer {} conflicts with a target native TimerSlot identity", timer.0),
+            Self::DynamicTargetTimerIdentityNotFresh { source, target, minimum } => write!(f, "dynamic timer remap {} -> {} reuses an old identity; remapped target must be at least {minimum}", source.0, target.0),
+            Self::InvalidDynamicTargetTimerId(timer) => write!(f, "dynamic target timer id {} is invalid", timer.0),
+            Self::DynamicTargetTimerIdentityExhausted(timer) => write!(f, "dynamic target timer id {} cannot advance the timer allocation frontier", timer.0),
+            Self::DynamicTimerUpgradeHashMismatch => write!(f, "runtime dynamic timer upgrade plan canonical hash mismatch"),
+            Self::DynamicTimerPlanSourceProgramMismatch => write!(f, "runtime dynamic timer upgrade plan source program does not match the atom migration plan"),
+            Self::DynamicTimerPlanTargetProgramMismatch => write!(f, "runtime dynamic timer upgrade plan target program does not match the atom migration plan"),
+            Self::DynamicTimerPlanSourceEpochMismatch { expected, actual } => write!(f, "runtime dynamic timer upgrade source epoch mismatch: atom plan expects {expected}, dynamic timer plan has {actual}"),
             Self::DuplicateSourceTimerDisposition(slot) => write!(f, "source timer slot {} has more than one upgrade disposition", slot.0),
             Self::DuplicateTargetTimerDisposition(slot) => write!(f, "target timer slot {} has more than one upgrade disposition", slot.0),
             Self::UnknownSourceTimerSlot(slot) => write!(f, "runtime timer upgrade references unknown source timer slot {}", slot.0),

@@ -1555,3 +1555,111 @@ SHALL remain format 0.6 and no new opcode is required by this milestone.
 
 K1.16 SHALL NOT freeze human-facing timer-migration or upgrade syntax. Future `.noi` frontends may
 express these certified laws without changing their runtime semantics.
+
+## C285 — Dynamic Timer Migration Is Explicit And Additive
+
+K1.17 SHALL NOT weaken the certified K1.16 timer-aware upgrade path. Active dynamic timers remain
+rejected by that API. Dynamic timer continuity is permitted only through the separate K1.17
+full-timer upgrade protocol with a validated `RuntimeDynamicTimerUpgradePlan`.
+
+## C286 — Every Active Dynamic Source Timer Has An Explicit Disposition
+
+Every active source timer not bound to a native source `TimerSlot` SHALL be explicitly carried to one
+target `TimerId` or explicitly dropped. Omission SHALL fail closed.
+
+## C287 — Canceled Dynamic Timers Need No Synthetic State
+
+A dynamic timer that has already been canceled has no active timer snapshot and SHALL NOT require a
+synthetic migration rule. Its allocation history SHALL remain protected by the preserved timer
+identity frontier.
+
+## C288 — Raw TimerId Gains Meaning Only Inside A Governed Dynamic Plan
+
+A raw `TimerId` SHALL NOT acquire program-level migration meaning by numeric coincidence. It may be
+used as dynamic resource identity only inside a canonical K1.17 plan bound to exact source/target
+program identity, source epoch, durable source state and separately supplied upgrade authority.
+
+## C289 — Dynamic Carry May Preserve Or Explicitly Remap Identity
+
+A carried dynamic timer MAY preserve its exact identity or MAY map to one explicit target identity.
+No implicit target identity selection is permitted.
+
+## C290 — Remapped Dynamic Timer Identity Must Be Fresh
+
+If a dynamic timer is remapped to a different target ID, that target SHALL be at or beyond the
+maximum source/target allocation frontier. Exact `source == target` preservation is the only
+exception because it continues an existing identity rather than recycling one.
+
+## C291 — Target Native Timer Identities Remain Reserved
+
+A dynamic timer SHALL NOT migrate onto any `TimerId` bound to a target native `TimerSlot`, including
+a slot whose bootstrap timer is already canceled. Native reaction topology owns that identity.
+
+## C292 — Dynamic Carry Preserves Timer Progress Exactly
+
+A carried dynamic timer SHALL preserve next logical deadline, interval and occurrence count exactly.
+K1.17 SHALL NOT synthesize elapsed firings or implicitly change one-shot/repeating cadence.
+
+## C293 — Dynamic Target Identity Zero And Exhaustion Fail Closed
+
+`TimerId(0)` SHALL NOT be a valid carried dynamic target. A target identity that cannot advance the
+allocation frontier without overflow SHALL also fail closed.
+
+## C294 — Dynamic Timer Plans Have Canonical Identity
+
+`RuntimeDynamicTimerUpgradePlan` SHALL have deterministic canonical bytes and a domain-separated
+SHA-256 identity independent of host iteration or rule insertion order.
+
+## C295 — Full Timer Upgrade Commits Atom, Native Timer And Dynamic Timer Semantics
+
+A K1.17 full-timer upgrade SHALL derive one domain-separated composite plan hash from the certified
+atom-plan hash, native-timer-plan hash and dynamic-timer-plan hash. Durable upgrade lineage SHALL
+commit this full identity.
+
+## C296 — Dynamic Timer Mapping Changes Replay Meaning
+
+Different dynamic timer carry/drop/remap semantics SHALL produce different runtime/event replay
+identity. Backend receipts, audit roots, writer/fence metadata and source-checkpoint digest remain
+excluded from semantic replay as required by C266.
+
+## C297 — Dynamic Timer Mapping Is Observable Upgrade Output
+
+A successful K1.17 upgrade SHALL report the exact source→target dynamic timer mappings that were
+published so hosts retaining dynamic timer handles can update them deterministically.
+
+## C298 — Dynamic Timer Upgrade Remains Persistence-First
+
+The target runtime and all migrated dynamic timer state SHALL remain private until the existing
+fenced combined effect/runtime checkpoint commit succeeds.
+
+## C299 — Failed Dynamic Timer Upgrade Preserves Source State
+
+Validation or persistence failure during K1.17 SHALL preserve the live source program, source timer
+state, timer identities, replay state, program epoch, upgrade lineage and effect state unchanged.
+
+## C300 — Dynamic Timer Recovery Restores Target Identity And Progress
+
+After successful publication, ordinary exact-program recovery SHALL restore each carried dynamic
+timer under its target identity with the persisted deadline, interval and occurrence count.
+
+## C301 — Timer Allocation Frontier Never Moves Backward Or Behind A Remap
+
+The target timer allocation frontier SHALL be at least the source frontier, target bootstrap frontier
+and one greater than every carried dynamic target identity. Dropped, canceled and remapped identities
+SHALL NOT become silently reusable.
+
+## C302 — K1.17 Preserves Runtime Checkpoint Format 1.1
+
+K1.17 SHALL NOT add checkpoint fields merely for dynamic timer migration. `NDRTSM01` format 1.1
+remains canonical; the existing latest-upgrade `plan_hash` MAY contain the K1.17 full composite
+migration identity.
+
+## C303 — K1.17 Does Not Increment NAIR
+
+K1.17 governs runtime-resource continuity for timers already represented by the certified time core.
+NAIR SHALL remain format 0.6 and no new opcode is required by this milestone.
+
+## C304 — K1.17 Does Not Freeze `.noi` Surface Syntax
+
+K1.17 SHALL NOT freeze human-facing dynamic timer migration or upgrade syntax. Future `.noi`
+frontends may express these certified runtime laws without changing their semantic protocol.
