@@ -12,6 +12,7 @@ pub mod effect_fencing;
 pub mod effect_persistence;
 pub mod effect_retry;
 pub mod error;
+pub mod frontend;
 pub mod input;
 pub mod kernel;
 pub mod nair;
@@ -77,6 +78,10 @@ pub use effect_retry::{
     MAX_EFFECT_RETRY_CHECKPOINT_BYTES, MAX_EFFECT_RETRY_ENTRIES,
 };
 pub use error::{AtomicError, AtomicResult};
+pub use frontend::{
+    lex, ByteOffset, LexError, LexResult, Lexer, SourceError, SourceId, SourcePosition,
+    SourceResult, SourceSpan, SourceText, Token, TokenKind, MAX_SOURCE_BYTES,
+};
 pub use input::{
     AtomicInputCore, InputAtomBridge, InputBatch, InputBridgeReport, InputDeviceId, InputError,
     InputEvent, InputPayload, InputResult, InputSelector, InputSequence, InputSignal, InputSource,

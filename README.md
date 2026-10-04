@@ -1,181 +1,137 @@
-# NORDOI K1.18 — Kernel Consolidation & Semantic Stability Map
+# NORDOI L0.1 — Source Text, Source Spans & Lexer
 
-K1.18 is the first deliberate **consolidation milestone** after the K1.0→K1.17 runtime build-out.
-It adds no new runtime capability. Instead, it makes the certified semantic boundary explicit and
-machine-readable so the upcoming language/compiler work can evolve without silently changing laws
-that the kernel already guarantees.
+L0.1 opens NORDOI's language track on top of the **certified K1.18 kernel**. It is the first concrete
+`.noi` frontend layer, but it intentionally stops before grammar and semantics.
 
 ```text
-K1.0 → K1.17
-certified semantic machinery
+K1.18 certified semantic floor
         ↓
-K1.18
-classify + hash + test the semantic boundary
+L0.1
+SourceText → SourceSpan → lossless Lexer
         ↓
-L0.1 / C0.1 / T0.1
-experimental language + compiler + CLI above stable law
+future L0.x parser / language surface
+        ↓
+future C0.x semantic compiler / HIR
+        ↓
+NAIR 0.6+ → NAM/runtime
 ```
 
-## Why K1.18 exists
+## What L0.1 adds
 
-NORDOI now has certified semantics for atomic state, ownership, capabilities, deterministic input,
-logical time, reactions, rendering, governed effects, persistence/recovery and program/timer upgrade.
-The next architectural risk is no longer missing runtime machinery. It is **boundary confusion**:
-
-- treating a Rust API name as if it were permanent semantic law;
-- accidentally turning host authority into program-serializable privilege;
-- letting delivery/audit metadata leak into replay meaning;
-- freezing `.noi` syntax before real source programs exist;
-- allowing a future compiler to depend on private runtime implementation details.
-
-K1.18 creates an explicit stability map to prevent those mistakes.
-
-## Machine-readable stability manifest
-
-The kernel exports:
+The new `frontend` module provides:
 
 ```rust
-kernel_semantic_stability_manifest()
-kernel_semantic_stability_manifest_bytes()
-kernel_semantic_stability_manifest_hash()
+SourceId
+ByteOffset
+SourceSpan
+SourcePosition
+SourceText
+TokenKind
+Token
+Lexer
+lex(...)
 ```
 
-The canonical manifest domain is:
+The token stream is **lossless**: every accepted source byte is covered exactly once by non-EOF token
+spans, including whitespace and comments.
+
+## What L0.1 deliberately does not freeze
+
+L0.1 does **not** define:
+
+- final `.noi` grammar;
+- keywords;
+- multi-character operators or precedence;
+- numeric value/type semantics;
+- final string escape semantics;
+- AST;
+- HIR/NSIR;
+- type/effect/capability source syntax;
+- lowering to NAIR.
+
+The K1.18 stability manifest remains unchanged: `.noi` is still experimental and the compiler
+frontend is still internal.
+
+## Security-first lexical bootstrap
+
+Executable-code identifiers are ASCII-only in L0.1. Unicode remains available inside comments and
+quoted text, but NUL and Unicode bidi control characters are rejected everywhere.
+
+This is a temporary fail-closed policy, not a declaration that final NORDOI identifiers will be
+ASCII-only. Unicode identifiers will require a separately reviewed, versioned profile covering UAX
+#31 identifier rules, normalization and UTS #39 security/confusable policy.
+
+## Lossless trivia
+
+L0.1 preserves:
 
 ```text
-NORDOI-KERNEL-SEMANTIC-STABILITY-MAP-1.0
+Whitespace
+// line comments
+/* nested block comments */
 ```
 
-K1.18 candidate manifest SHA-256:
+as tokens with exact source spans. Future parsers may ignore trivia while formatters, diagnostics and
+IDEs can retain it without re-reading or guessing the source structure.
+
+## Source positions
+
+Spans use half-open UTF-8 byte offsets and are source-specific. Position lookup exposes one-based
+physical line and Unicode-scalar column values. LF, CRLF and CR are recognized without source
+normalization.
+
+## Kernel compatibility
+
+L0.1 changes no certified kernel semantics:
 
 ```text
-0cab1dcaf93b82d1974701058741b271dcb550374effa4d047c27adb92efdb29
-```
-
-This hash is a deterministic release/tooling identity. It is **not a signature** and does not replace
-K1.11 effect-audit attestation.
-
-## Three independent classification axes
-
-Every surface is classified by:
-
-```text
-StabilityClass
-    Stable
-    Experimental
-    Internal
-
-SemanticKind
-    ProgramSemantic
-    HostAuthority
-    OperationalMetadata
-    DurableEncoding
-    DeveloperSurface
-
-ChangePolicy
-    AdditiveOnly
-    VersionedEvolution
-    InternalOnly
-```
-
-A surface can therefore be a stable host-authority boundary without becoming program replay meaning,
-or a stable durable encoding without becoming a semantic event.
-
-## Stable lower laws
-
-The stability map marks the already-certified semantics for these areas as `Stable`:
-
-```text
-atomic transaction / ownership / capability law
-input semantics
-logical time
-reaction semantics
-render semantics
-effect intent + completion semantics
-runtime closed execution + event loop
-runtime recovery checkpoint
-program upgrade
-native timer upgrade
-dynamic timer upgrade
-NAIR 0.6
-```
-
-`Stable` means future milestones must preserve the law or evolve it through an explicit versioned
-protocol. It does **not** mean every current Rust symbol name is frozen forever.
-
-## Explicitly unfrozen surfaces
-
-K1.18 intentionally classifies:
-
-```text
-host.rust_public_api    EXPERIMENTAL
-language.noi_surface    EXPERIMENTAL
-tooling.compiler_frontend INTERNAL
-```
-
-This is a feature, not a deficiency. It lets NORDOI begin L0/C0 work while the lower semantics remain
-protected.
-
-## Host authority stays outside program bytes
-
-Host authority surfaces remain separately classified. The manifest asserts that program bytes do not
-serialize ambient authority. This preserves the security model already established by effects,
-completion bindings, fencing and governed program upgrade.
-
-## Operational metadata stays outside replay meaning
-
-Fencing, retry scheduling, audit and attestation protect delivery/trust history but remain
-operational metadata rather than program replay meaning unless a future explicit semantic promotion
-says otherwise.
-
-## Binary compatibility preserved
-
-K1.18 does not change:
-
-```text
+Kernel baseline          K1.18
 NAIR                     0.6
-runtime checkpoint       NDRTSM01 / 1.1
-effect journal families  inherited unchanged
+Runtime checkpoint       NDRTSM01 / 1.1
+Semantic stability map   K1.18 identity unchanged
 ```
 
-There is no new opcode and no checkpoint field.
+The Cargo package remains `nordoi_kernel` version `1.18.0` because L0.1 is a frontend-track milestone,
+not a K-series kernel semantic version bump.
 
-## Test gate
+## Design intelligence
 
-K1.18 adds tests that enforce:
-
-- unique/sorted manifest IDs;
-- stable surfaces have real specification files;
-- stable surfaces never use internal-only evolution policy;
-- host authority is never program-serialized;
-- operational metadata is not replay semantic;
-- stable program semantics are replay relevant;
-- `.noi` and Rust public API remain explicitly unfrozen;
-- NAIR remains 0.6;
-- runtime checkpoint remains `NDRTSM01/1.1`;
-- canonical manifest bytes have a golden SHA-256 identity.
-
-## What comes after certification
-
-After K1.18 is certified, NORDOI should begin parallel tracks instead of continuing runtime-only
-feature accumulation:
+Before implementation, L0.1 records the lexer/identifier tradeoffs of Rust, Python, Swift, Go and
+Unicode guidance in:
 
 ```text
-L0.1 — source text, spans and lexer
-C0.1 — compiler semantic/HIR boundary
-T0.1 — nordoi CLI shell
+research/LEXICAL_FOUNDATION_INTELLIGENCE_0_1.md
 ```
 
-Kernel milestones should then be driven mainly by blockers discovered by those vertical-slice tracks.
+The normative candidate design is:
+
+```text
+docs/NOI_LEXICAL_FOUNDATION_SPEC_0_1.md
+```
+
+## Tests
+
+`tests/frontend_lexer.rs` covers source identity, UTF-8 span safety, physical line mapping, lossless
+reconstruction, keyword/operator neutrality, nested comments, quoted text, Unicode containment,
+NUL rejection, bidi-control rejection and EOF identity.
+
+All prior K1.18 regression tests remain present.
 
 ## Release Gate
 
+Run:
+
 ```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets -- -D warnings
-cargo check --all-targets
-cargo test --all-targets
+cargo fmt --all
+./scripts/release_gate.sh
 ```
 
-K1.18 is certified only after local gate success, GitHub CI success on all required platforms and an
-annotated `k1.18` tag.
+L0.1 is a candidate until the local gate passes, GitHub CI is green on all required platforms and an
+annotated `l0.1` tag is pushed.
+
+## Next architectural boundary
+
+After L0.1 certification, the next language work should remain vertical rather than returning to
+runtime-only accumulation. The likely next slices are parser/green-tree work on the L track and the
+semantic/HIR boundary on the C track, while K-series work resumes only when those layers discover a
+real certified-kernel blocker.
