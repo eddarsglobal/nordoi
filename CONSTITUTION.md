@@ -1453,3 +1453,105 @@ The durable upgrade lineage MAY bind the exact source runtime checkpoint and the
 prefix. Runtime/event replay identity SHALL NOT hash the source checkpoint digest, audit root,
 backend receipt or upgrade-lineage root. Upgrade replay meaning is derived from semantic source
 replay state, exact source/target program identity, migration-plan identity and program epoch.
+
+## C267 — Timer Migration Requires An Explicit Upgrade Protocol
+
+K1.16 SHALL NOT weaken the K1.15 zero-pending-timer rule on the legacy upgrade API. Pending timer
+continuity is permitted only through the explicit timer-aware upgrade path with a validated
+`RuntimeTimerUpgradePlan`.
+
+## C268 — Every Source Native Timer Slot Has An Explicit Disposition
+
+Every native source `TimerSlot` SHALL be explicitly carried to one target timer slot or explicitly
+dropped. Missing source timer disposition SHALL fail closed, including for source slots whose timer
+was already canceled.
+
+## C269 — Every Target Native Timer Slot Has An Explicit Origin
+
+Every native target `TimerSlot` SHALL either receive exactly one explicit carried source timer or
+explicitly retain its target bootstrap default. Duplicate or unstated target timer disposition SHALL
+fail closed.
+
+## C270 — Timer Continuity Preserves State But Adopts Target Identity
+
+A carried active timer SHALL preserve its remaining logical deadline, interval and occurrence count,
+but SHALL use the `TimerId` bound to the target `TimerSlot`. Source runtime timer identity SHALL NOT
+override target reaction topology.
+
+## C271 — Carried Cancellation Remains Cancellation
+
+If a carried source timer slot is no longer pending, K1.16 SHALL treat that state as cancellation and
+remove the corresponding target timer rather than resurrecting target bootstrap work.
+
+## C272 — Timer Kind And Cadence Are Not Implicitly Converted
+
+K1.16 SHALL carry one-shot timers only to one-shot timers and repeating timers only to repeating
+timers with the exact same logical interval. Kind or interval conversion requires a later separately
+certified protocol.
+
+## C273 — Pending Dynamic Timers Are Not Inferred Across Upgrade
+
+A pending timer that is not bound to a native source `TimerSlot` SHALL fail the K1.16 timer-aware
+upgrade. Raw `TimerId` values SHALL NOT be treated as sufficient program-level migration identity.
+
+## C274 — Target Default Timers Cannot Begin In The Preserved Past
+
+A target timer explicitly kept at its bootstrap default SHALL continue to obey the K1.15 rule that
+its next deadline may not precede the preserved logical time.
+
+## C275 — Explicit Carry May Replace An Obsolete Target Bootstrap Deadline
+
+A target timer selected by `Carry` MAY have a bootstrap deadline that precedes the preserved logical
+time, because the bootstrap schedule is replaced before target time-state publication. The carried
+source deadline itself MUST remain valid at or after preserved logical time.
+
+## C276 — Timer Allocation Identity Never Moves Backward Across Upgrade
+
+K1.16 SHALL preserve the source timer-allocation frontier. The target `next TimerId` frontier SHALL be
+at least the maximum of source and target frontiers, including identities of dynamic timers that were
+allocated and later canceled.
+
+## C277 — Timer Upgrade Plans Have Canonical Identity
+
+`RuntimeTimerUpgradePlan` SHALL have deterministic canonical bytes and a domain-separated SHA-256
+identity independent of host iteration or rule input order.
+
+## C278 — Atom And Timer Migration Semantics Share One Upgrade Commitment
+
+For a timer-aware upgrade, K1.16 SHALL derive a domain-separated composite migration hash from the
+certified atom-plan hash and timer-plan hash. The durable upgrade-lineage record SHALL commit this
+composite identity.
+
+## C279 — Timer Migration Changes Replay Meaning
+
+Different timer migration semantics SHALL produce different runtime/event replay identity even when
+source state, target program and atom migration are otherwise identical. Backend receipts, audit
+roots and other delivery metadata remain excluded from semantic replay as required by C266.
+
+## C280 — Timer-Aware Upgrade Remains Persistence-First
+
+The migrated target time state SHALL remain private until the same fenced combined effect/runtime
+checkpoint commit required by K1.15 succeeds. A validation or persistence failure SHALL leave the
+source program and source timers live and unchanged.
+
+## C281 — K1.16 Preserves Runtime Checkpoint Format 1.1
+
+K1.16 SHALL NOT require a new runtime checkpoint field merely to represent timer-aware upgrade
+identity. `NDRTSM01` format 1.1 remains canonical; the existing latest-upgrade `plan_hash` field MAY
+contain the K1.16 composite atom+timer migration hash.
+
+## C282 — Timer Migration Does Not Mint Upgrade Authority
+
+A timer plan SHALL NOT authorize a program transition. Exact source→target authorization continues
+to come only from host-supplied `RuntimeUpgradeAuthority`, and timer-plan bytes SHALL NOT serialize
+that authority as program privilege.
+
+## C283 — K1.16 Does Not Increment NAIR
+
+K1.16 governs continuity of already-certified native timer state across program replacement. NAIR
+SHALL remain format 0.6 and no new opcode is required by this milestone.
+
+## C284 — K1.16 Does Not Freeze `.noi` Surface Syntax
+
+K1.16 SHALL NOT freeze human-facing timer-migration or upgrade syntax. Future `.noi` frontends may
+express these certified laws without changing their runtime semantics.

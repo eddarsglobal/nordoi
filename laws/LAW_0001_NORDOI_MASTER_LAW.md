@@ -655,3 +655,39 @@ core may not execute arbitrary host scripts as hidden migration authority.
 External effect identity, completion deduplication, logical time and input sequence frontiers survive
 program replacement. Pending source timers remain a fail-closed boundary until NORDOI certifies a
 stable timer migration protocol.
+
+---
+
+## 30. Governed timer continuity law
+
+Program evolution must preserve future semantic work only when that work can be identified and
+mapped explicitly. Timer state may not be guessed from matching numbers, declaration order or host
+clock assumptions.
+
+For K1.16:
+
+```text
+source native TimerSlot + durable timer state
+        ↓
+explicit carry / drop disposition
+        ↓
+explicit target carry / default origin
+        ↓
+shape-compatible target TimerSlot
+        ↓
+preserve deadline + interval + occurrences
+        ↓
+adopt target TimerId
+        ↓
+composite atom+timer migration identity
+        ↓
+fenced durable target publication
+```
+
+A canceled source timer carried forward remains canceled. A pending dynamic timer without native
+program identity blocks the timer-aware upgrade. Target defaults may not begin in preserved logical
+past, while an explicitly carried timer may replace an obsolete target bootstrap deadline with its
+valid source continuation.
+
+Timer allocation identity must never move backward. The upgrade plan itself changes semantic replay,
+while delivery/audit metadata remains outside replay meaning.

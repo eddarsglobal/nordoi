@@ -95,9 +95,10 @@ pub use nair::{
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{
-    AtomUpgradeRule, ProgramEpoch, RuntimeUpgradeAuthority, RuntimeUpgradeError,
-    RuntimeUpgradeHash, RuntimeUpgradeLineageRecord, RuntimeUpgradePlan, RuntimeUpgradeReport,
-    RuntimeUpgradeResult, MAX_RUNTIME_UPGRADE_RULES,
+    AtomUpgradeRule, ProgramEpoch, RuntimeTimerAwareUpgradePlan, RuntimeTimerUpgradePlan,
+    RuntimeUpgradeAuthority, RuntimeUpgradeError, RuntimeUpgradeHash, RuntimeUpgradeLineageRecord,
+    RuntimeUpgradePlan, RuntimeUpgradeReport, RuntimeUpgradeResult, TimerUpgradeRule,
+    MAX_RUNTIME_UPGRADE_RULES,
 };
 pub use reaction::{
     AtomicReactionCore, EffectIntent, ReactionBatchReport, ReactionError, ReactionId,

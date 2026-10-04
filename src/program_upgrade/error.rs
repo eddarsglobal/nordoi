@@ -3,7 +3,7 @@ use std::{
     fmt::{Display, Formatter},
 };
 
-use crate::nair::AtomSlot;
+use crate::nair::{AtomSlot, TimerSlot};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeUpgradeError {
@@ -21,8 +21,44 @@ pub enum RuntimeUpgradeError {
         rules: usize,
         limit: usize,
     },
+    TimerPlanRuleLimitExceeded {
+        rules: usize,
+        limit: usize,
+    },
     PendingTimersUnsupported {
         count: usize,
+    },
+    DynamicSourceTimerUnsupported {
+        timer: u64,
+    },
+    DuplicateSourceTimerDisposition(TimerSlot),
+    DuplicateTargetTimerDisposition(TimerSlot),
+    UnknownSourceTimerSlot(TimerSlot),
+    UnknownTargetTimerSlot(TimerSlot),
+    MissingSourceTimerDisposition(TimerSlot),
+    MissingTargetTimerDisposition(TimerSlot),
+    TimerUpgradeHashMismatch,
+    TimerPlanSourceProgramMismatch,
+    TimerPlanTargetProgramMismatch,
+    TimerPlanSourceEpochMismatch {
+        expected: u64,
+        actual: u64,
+    },
+    TargetTimerInactive(TimerSlot),
+    TimerKindMismatch {
+        source: TimerSlot,
+        target: TimerSlot,
+    },
+    TimerIntervalMismatch {
+        source: TimerSlot,
+        target: TimerSlot,
+        source_interval: u64,
+        target_interval: u64,
+    },
+    SourceTimerDeadlineBeforeUpgradeTime {
+        timer: u64,
+        deadline: u64,
+        logical_time: u64,
     },
     TargetTimerDeadlineBeforeUpgradeTime {
         timer: u64,
@@ -51,7 +87,23 @@ impl Display for RuntimeUpgradeError {
             Self::ProgramEpochExhausted => write!(f, "runtime program epoch space is exhausted"),
             Self::UpgradeRequiresDurableRuntimeBinding => write!(f, "runtime upgrade requires an established K1.14 durable runtime lineage"),
             Self::PlanRuleLimitExceeded { rules, limit } => write!(f, "runtime upgrade plan has {rules} rules, limit is {limit}"),
-            Self::PendingTimersUnsupported { count } => write!(f, "K1.15 upgrade-safe boundary requires zero pending source timers; found {count}"),
+            Self::TimerPlanRuleLimitExceeded { rules, limit } => write!(f, "runtime timer upgrade plan has {rules} rules, limit is {limit}"),
+            Self::PendingTimersUnsupported { count } => write!(f, "legacy K1.15 upgrade path requires zero pending source timers; found {count}"),
+            Self::DynamicSourceTimerUnsupported { timer } => write!(f, "source timer {timer} is pending but is not bound to a native NAIR TimerSlot"),
+            Self::DuplicateSourceTimerDisposition(slot) => write!(f, "source timer slot {} has more than one upgrade disposition", slot.0),
+            Self::DuplicateTargetTimerDisposition(slot) => write!(f, "target timer slot {} has more than one upgrade disposition", slot.0),
+            Self::UnknownSourceTimerSlot(slot) => write!(f, "runtime timer upgrade references unknown source timer slot {}", slot.0),
+            Self::UnknownTargetTimerSlot(slot) => write!(f, "runtime timer upgrade references unknown target timer slot {}", slot.0),
+            Self::MissingSourceTimerDisposition(slot) => write!(f, "source timer slot {} has no explicit carry/drop disposition", slot.0),
+            Self::MissingTargetTimerDisposition(slot) => write!(f, "target timer slot {} has no explicit carry/default disposition", slot.0),
+            Self::TimerUpgradeHashMismatch => write!(f, "runtime timer upgrade plan canonical hash mismatch"),
+            Self::TimerPlanSourceProgramMismatch => write!(f, "runtime timer upgrade plan source program does not match the atom migration plan"),
+            Self::TimerPlanTargetProgramMismatch => write!(f, "runtime timer upgrade plan target program does not match the atom migration plan"),
+            Self::TimerPlanSourceEpochMismatch { expected, actual } => write!(f, "runtime timer upgrade source epoch mismatch: atom plan expects {expected}, timer plan has {actual}"),
+            Self::TargetTimerInactive(slot) => write!(f, "target timer slot {} is canceled at bootstrap and cannot receive active carried state", slot.0),
+            Self::TimerKindMismatch { source, target } => write!(f, "timer kind mismatch while carrying source slot {} to target slot {}", source.0, target.0),
+            Self::TimerIntervalMismatch { source, target, source_interval, target_interval } => write!(f, "repeating timer interval mismatch while carrying source slot {} ({source_interval}) to target slot {} ({target_interval})", source.0, target.0),
+            Self::SourceTimerDeadlineBeforeUpgradeTime { timer, deadline, logical_time } => write!(f, "source timer {timer} deadline {deadline} is before upgrade logical time {logical_time}"),
             Self::TargetTimerDeadlineBeforeUpgradeTime { timer, deadline, logical_time } => write!(f, "target timer {timer} deadline {deadline} is before upgrade logical time {logical_time}"),
             Self::DuplicateSourceAtomDisposition(slot) => write!(f, "source atom slot {} has more than one upgrade disposition", slot.0),
             Self::DuplicateTargetAtomDisposition(slot) => write!(f, "target atom slot {} has more than one upgrade disposition", slot.0),
