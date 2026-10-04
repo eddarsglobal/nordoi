@@ -1,4 +1,86 @@
-# NORDOI T0.1 — CLI / Tooling Entry Point
+# NORDOI C0.1 — Semantic Boundary / HIR-NSIR Foundation
+
+C0.1 adds the first compiler-owned semantic boundary on top of the **certified K1.18 kernel**, the
+**certified L0.1/L0.2/L0.3 frontend**, and the **certified T0.1 CLI**.
+
+```text
+.noi SourceText
+    ↓
+L0.1 lexer → L0.2 structural AST → L0.3 ModuleUnit
+    ↓
+C0.1 source-backed HIR
+    ↓ validate-before-publication
+C0.1 NSIR (module identity + diagnostic origin + UNLOWERED body)
+    ↓
+future semantic declarations / names / types / effects
+    ↓
+future explicit NSIR → NAIR lowering
+    ↓
+NAIR 0.6+ → NAM/runtime
+```
+
+C0.1 deliberately does **not** compile to NAIR. It creates a safe semantic seam first.
+
+## What C0.1 adds
+
+The new `compiler` module exposes:
+
+```rust
+SemanticName
+SemanticPath
+SemanticModuleIdentity
+HirBodyState
+HirUnit
+NsirBodyState
+NsirOrigin
+NsirUnit
+CompilerError
+CompilerResult
+
+lower_module_unit_to_hir(...)
+validate_hir(...)
+compile_semantic_boundary(...)
+```
+
+A source module such as `module alpha.beta;` receives compiler-owned canonical semantic identity.
+Comments, whitespace, source IDs and spans do not alter its canonical identity bytes. Exact spans
+remain available through `NsirOrigin` for diagnostics.
+
+The body is intentionally published only as:
+
+```text
+UNLOWERED
+```
+
+C0.1 therefore does not pretend that the current structural AST already defines declarations,
+expressions, types or effects.
+
+The certified T0.1 tool gains:
+
+```text
+nordoi semantic <path|->
+```
+
+Normative candidate design: `docs/NOI_SEMANTIC_BOUNDARY_SPEC_0_1.md`.
+Architecture record: `research/SEMANTIC_BOUNDARY_INTELLIGENCE_0_1.md`.
+
+`tests/compiler_semantic.rs` adds 21 compiler-boundary tests, while the tooling suite gains three
+real `semantic` command tests. All prior frontend and K1.18 regression tests remain mandatory.
+
+## C0.1 does not freeze
+
+C0.1 still does not define imports, packages, declarations, expressions, operator precedence,
+symbol resolution, visibility, aliases, source-level types, effects/capability syntax, control flow,
+executable NSIR instructions or NSIR → NAIR lowering.
+
+## Certified floor remains unchanged
+
+```text
+Kernel baseline          K1.18
+NAIR                     0.6
+Runtime checkpoint       NDRTSM01 / 1.1
+Semantic stability map   K1.18 identity unchanged
+```
 
 T0.1 adds the first executable developer-tooling boundary on top of the **certified K1.18 kernel** and the **certified L0.1 / L0.2 / L0.3 frontend stack**.
 

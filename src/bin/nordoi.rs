@@ -1,6 +1,7 @@
 use nordoi_kernel::{
-    analyze_module_unit, lex, parse, AstElement, Delimiter, LexError, ModuleError, ParseError,
-    SourceId, SourceSpan, SourceText, Token, TokenKind,
+    analyze_module_unit, compile_semantic_boundary, lex, parse, AstElement, CompilerError,
+    Delimiter, LexError, ModuleError, NsirBodyState, ParseError, SourceId, SourceSpan, SourceText,
+    Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -10,6 +11,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 const TOOL_VERSION: &str = "T0.1";
+const COMPILER_VERSION: &str = "C0.1";
 const MAX_TOOL_INPUT_BYTES: u64 = 16 * 1024 * 1024;
 const EXIT_OK: u8 = 0;
 const EXIT_USAGE: u8 = 2;
@@ -22,6 +24,7 @@ Usage:\n\
   nordoi lex <path|->\n\
   nordoi parse <path|->\n\
   nordoi module <path|->\n\
+  nordoi semantic <path|->\n\
   nordoi --help\n\
   nordoi --version\n\
 \n\
@@ -29,9 +32,10 @@ Commands:\n\
   lex      Print the lossless L0.1 token stream.\n\
   parse    Print the lossless L0.2 structural AST.\n\
   module   Print the L0.3 contextual module identity.\n\
+  semantic Print the C0.1 validated HIR-NSIR semantic boundary.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
-T0.1 inspects .noi source only; it does not lower or execute NAIR.\n";
+C0.1 inspects validated semantic identity only; it does not lower or execute NAIR.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -53,7 +57,9 @@ fn run() -> u8 {
     }
 
     if arguments.len() == 1 && arguments[0].as_os_str() == OsStr::new("--version") {
-        let version = format!("nordoi {TOOL_VERSION} (kernel K1.18, NAIR 0.6)\n");
+        let version = format!(
+            "nordoi {TOOL_VERSION} (compiler {COMPILER_VERSION}, kernel K1.18, NAIR 0.6)\n"
+        );
         return match write_stdout(version.as_bytes()) {
             Ok(()) => EXIT_OK,
             Err(error) => {
@@ -69,7 +75,7 @@ fn run() -> u8 {
     }
 
     let command = arguments[0].to_string_lossy();
-    if !matches!(command.as_ref(), "lex" | "parse" | "module") {
+    if !matches!(command.as_ref(), "lex" | "parse" | "module" | "semantic") {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
     }
@@ -98,6 +104,7 @@ fn run() -> u8 {
         "lex" => run_lex(&source, &mut output),
         "parse" => run_parse(&source, &mut output),
         "module" => run_module(&source, &mut output),
+        "semantic" => run_semantic(&source, &mut output),
         _ => unreachable!("validated command must be exhaustive"),
     };
 
@@ -125,6 +132,10 @@ fn run() -> u8 {
             report_frontend_error("module", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::CompilerFailure(error) => {
+            report_frontend_error("semantic", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
     }
 }
 
@@ -134,6 +145,7 @@ enum CommandResult {
     LexFailure(LexError),
     ParseFailure(ParseError),
     ModuleFailure(ModuleError),
+    CompilerFailure(CompilerError),
 }
 
 fn run_lex(source: &SourceText, output: &mut impl Write) -> CommandResult {
@@ -227,6 +239,52 @@ fn run_module(source: &SourceText, output: &mut impl Write) -> CommandResult {
     }
 
     CommandResult::Success
+}
+
+fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match compile_semantic_boundary(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::CompilerFailure(error),
+    };
+
+    let module = match unit.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let body = match unit.body_state() {
+        NsirBodyState::Unlowered => "UNLOWERED",
+    };
+    let identity = hex_bytes(&unit.canonical_identity_bytes());
+    let origin = unit.origin();
+
+    if let Err(error) = writeln!(
+        output,
+        "nsir module={module} body={body} identity={identity}"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+    if let Err(error) = writeln!(
+        output,
+        "origin file={}..{} body={}..{}",
+        origin.file_span().start().get(),
+        origin.file_span().end().get(),
+        origin.body_span().start().get(),
+        origin.body_span().end().get()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn hex_bytes(bytes: &[u8]) -> String {
+    const HEX: &[u8; 16] = b"0123456789abcdef";
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        output.push(HEX[(byte >> 4) as usize] as char);
+        output.push(HEX[(byte & 0x0f) as usize] as char);
+    }
+    output
 }
 
 fn write_ast_elements(

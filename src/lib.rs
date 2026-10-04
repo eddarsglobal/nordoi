@@ -2,6 +2,7 @@ pub mod action;
 pub mod atom;
 pub mod authority;
 pub mod capability;
+pub mod compiler;
 pub mod dependency;
 pub mod effect;
 pub mod effect_attestation;
@@ -32,6 +33,12 @@ pub use action::ActionSpec;
 pub use atom::{Atom, AtomId};
 pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
+pub use compiler::{
+    compile_semantic_boundary, lower_module_unit_to_hir, validate_hir, CompilerError,
+    CompilerResult, HirBodyState, HirUnit, NsirBodyState, NsirOrigin, NsirUnit,
+    SemanticModuleIdentity, SemanticName, SemanticPath, MAX_SEMANTIC_NAME_BYTES,
+    MAX_SEMANTIC_PATH_SEGMENTS,
+};
 pub use effect::{Effect, EffectSet};
 pub use effect_attestation::{
     EffectAttestationAlgorithmId, EffectAttestationBackendError, EffectAttestationCommitReceipt,

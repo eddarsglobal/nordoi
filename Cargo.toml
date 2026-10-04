@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI T0.1 — CLI / Tooling Entry Point on certified L0.3 frontend"
+description = "NORDOI C0.1 — Semantic Boundary / HIR-NSIR Foundation"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 
