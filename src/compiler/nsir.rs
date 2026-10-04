@@ -3,6 +3,7 @@ use super::hir::{
     HirBodyState, HirUnit, SemanticDeclarationKind, SemanticModuleIdentity, SemanticName,
     MAX_SEMANTIC_DECLARATIONS,
 };
+use super::symbols::SemanticRegistry;
 use crate::frontend::SourceSpan;
 use std::collections::BTreeMap;
 
@@ -49,6 +50,7 @@ pub struct NsirUnit {
     module: SemanticModuleIdentity,
     origin: NsirOrigin,
     declarations: Vec<NsirDeclaration>,
+    registry: SemanticRegistry,
     body_state: NsirBodyState,
 }
 
@@ -57,12 +59,14 @@ impl NsirUnit {
         module: SemanticModuleIdentity,
         origin: NsirOrigin,
         declarations: Vec<NsirDeclaration>,
+        registry: SemanticRegistry,
         body_state: NsirBodyState,
     ) -> Self {
         Self {
             module,
             origin,
             declarations,
+            registry,
             body_state,
         }
     }
@@ -77,6 +81,10 @@ impl NsirUnit {
 
     pub fn declarations(&self) -> &[NsirDeclaration] {
         &self.declarations
+    }
+
+    pub fn registry(&self) -> &SemanticRegistry {
+        &self.registry
     }
 
     pub fn type_declaration_count(&self) -> usize {
@@ -128,6 +136,23 @@ impl NsirUnit {
         }
         bytes
     }
+
+    /// C0.2 semantic registry witness. C0.1 and L0.4 witnesses remain unchanged.
+    /// Source spans, comments, whitespace and declaration order do not participate.
+    pub fn canonical_c02_bytes(&self) -> Vec<u8> {
+        const DOMAIN: &[u8] = b"NORDOI-C0.2-SEMANTIC\0";
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(DOMAIN);
+
+        let module = self.module.canonical_bytes();
+        bytes.extend_from_slice(&(module.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&module);
+
+        let registry = self.registry.canonical_bytes();
+        bytes.extend_from_slice(&(registry.len() as u32).to_be_bytes());
+        bytes.extend_from_slice(&registry);
+        bytes
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -160,6 +185,7 @@ pub fn validate_hir(unit: HirUnit) -> CompilerResult<NsirUnit> {
         HirBodyState::Unlowered => NsirBodyState::Unlowered,
     };
 
+    let registry = SemanticRegistry::from_hir(unit.declarations());
     let origin = NsirOrigin {
         file_span: unit.file_span(),
         module_span: unit.module_span(),
@@ -181,6 +207,7 @@ pub fn validate_hir(unit: HirUnit) -> CompilerResult<NsirUnit> {
         unit.module().clone(),
         origin,
         declarations,
+        registry,
         body_state,
     ))
 }

@@ -37,6 +37,9 @@ pub enum CompilerError {
     DuplicateEffectRequirement {
         name: String,
     },
+    UnknownEffectRequirement {
+        name: String,
+    },
     SourceMismatch {
         file: SourceSpan,
         other: SourceSpan,
@@ -93,7 +96,8 @@ impl CompilerError {
             | Self::TooManySemanticSegments { .. }
             | Self::TooManySemanticDeclarations { .. }
             | Self::TooManyEffectRequirements { .. }
-            | Self::DuplicateEffectRequirement { .. } => None,
+            | Self::DuplicateEffectRequirement { .. }
+            | Self::UnknownEffectRequirement { .. } => None,
         }
     }
 }
@@ -144,6 +148,13 @@ impl Display for CompilerError {
             Self::DuplicateEffectRequirement { name } => write!(
                 f,
                 "semantic effect set contains duplicate requirement '{}'",
+                name.chars()
+                    .flat_map(char::escape_default)
+                    .collect::<String>()
+            ),
+            Self::UnknownEffectRequirement { name } => write!(
+                f,
+                "semantic effect requirement '{}' is not declared in this module",
                 name.chars()
                     .flat_map(char::escape_default)
                     .collect::<String>()

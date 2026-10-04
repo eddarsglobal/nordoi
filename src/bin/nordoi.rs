@@ -1,5 +1,5 @@
 use nordoi_kernel::{
-    analyze_module_unit, compile_type_effect_boundary, lex, parse, AstElement, CompilerError,
+    analyze_module_unit, compile_resolved_semantic_boundary, lex, parse, AstElement, CompilerError,
     Delimiter, LexError, ModuleError, NsirBodyState, ParseError, SourceId, SourceSpan, SourceText,
     Token, TokenKind,
 };
@@ -11,7 +11,7 @@ use std::path::Path;
 use std::process::ExitCode;
 
 const TOOL_VERSION: &str = "T0.1";
-const COMPILER_VERSION: &str = "C0.1";
+const COMPILER_VERSION: &str = "C0.2";
 const MAX_TOOL_INPUT_BYTES: u64 = 16 * 1024 * 1024;
 const EXIT_OK: u8 = 0;
 const EXIT_USAGE: u8 = 2;
@@ -32,10 +32,10 @@ Commands:\n\
   lex      Print the lossless L0.1 token stream.\n\
   parse    Print the lossless L0.2 structural AST.\n\
   module   Print the L0.3 contextual module identity.\n\
-  semantic Print the validated C0.1 + L0.4 HIR-NSIR semantic boundary.\n\
+  semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
-L0.4 inspects validated semantic declarations only; it does not lower or execute NAIR.\n";
+C0.2 resolves type/effect symbols only; it does not lower or execute NAIR.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -242,7 +242,7 @@ fn run_module(source: &SourceText, output: &mut impl Write) -> CommandResult {
 }
 
 fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
-    let unit = match compile_type_effect_boundary(source) {
+    let unit = match compile_resolved_semantic_boundary(source) {
         Ok(unit) => unit,
         Err(error) => return CommandResult::CompilerFailure(error),
     };
@@ -258,11 +258,20 @@ fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
     let origin = unit.origin();
 
     let semantic = hex_bytes(&unit.canonical_semantic_bytes());
+    let registry_witness = hex_bytes(&unit.canonical_c02_bytes());
     if let Err(error) = writeln!(
         output,
-        "nsir module={module} body={body} identity={identity} types={} effects={} semantic={semantic}",
+        "nsir module={module} body={body} identity={identity} types={} effects={} semantic={semantic} registry={registry_witness}",
         unit.type_declaration_count(),
         unit.effect_declaration_count()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+    if let Err(error) = writeln!(
+        output,
+        "symbols types=[{}] effects=[{}]",
+        format_type_symbols(unit.registry()),
+        format_effect_symbols(unit.registry())
     ) {
         return CommandResult::OutputFailure(error);
     }
@@ -278,6 +287,24 @@ fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
     }
 
     CommandResult::Success
+}
+
+fn format_type_symbols(registry: &nordoi_kernel::SemanticRegistry) -> String {
+    registry
+        .types()
+        .iter()
+        .map(|symbol| format!("{}:{}", symbol.id().get(), symbol.name().as_str()))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn format_effect_symbols(registry: &nordoi_kernel::SemanticRegistry) -> String {
+    registry
+        .effects()
+        .iter()
+        .map(|symbol| format!("{}:{}", symbol.id().get(), symbol.name().as_str()))
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 fn hex_bytes(bytes: &[u8]) -> String {

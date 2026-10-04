@@ -1,4 +1,56 @@
-# NORDOI L0.4 — Types & Effects Foundation
+# NORDOI C0.2 — Semantic Registry & Resolved IDs
+
+C0.2 builds on the **certified K1.18 kernel**, **certified L0.1/L0.2/L0.3/L0.4 language foundations**,
+**certified T0.1 CLI**, and **certified C0.1 semantic boundary**.
+
+It does not add runtime behavior. It turns the already-valid L0.4 `type` / `effect` declarations into a
+canonical compiler-owned registry with separate typed IDs:
+
+```text
+type UserId;       -> SemanticTypeId(1)
+effect Network;    -> SemanticEffectId(1)
+```
+
+IDs are module-local, non-zero, deterministic, and assigned from canonical name order rather than
+source declaration order. Type and effect namespaces remain distinct, so `type State; effect State;`
+is unambiguous.
+
+```text
+.noi source
+  ↓
+L0.1/L0.2/L0.3/L0.4 frontend
+  ↓
+C0.1/L0.4 HIR validation
+  ↓
+C0.2 canonical SemanticRegistry
+  ├─ NsirTypeSymbol + SemanticTypeId
+  └─ NsirEffectSymbol + SemanticEffectId
+  ↓
+resolved semantic requirements
+  ↓
+future body semantics / explicit NSIR → NAIR lowering
+```
+
+`SemanticEffectSet` can now be resolved against the registry into `ResolvedEffectSet`. An undeclared
+effect fails closed. Resolution is **not authority**: resolving `Network` proves only that the declared
+semantic identity exists. Host capability checks remain outside program bytes and outside C0.2.
+
+C0.2 preserves both older witnesses unchanged:
+
+- C0.1 `canonical_identity_bytes()`
+- L0.4 `canonical_semantic_bytes()`
+
+and adds `canonical_c02_bytes()` for module + canonical symbol-registry identity.
+
+The body remains explicitly `UNLOWERED`; C0.2 defines no functions, calls, expressions, handlers,
+control flow, ABI, memory layout, capability grants, NAIR instructions, or runtime execution.
+
+Normative candidate design: `docs/NOI_SEMANTIC_REGISTRY_SPEC_0_2.md`.  
+Architecture/research record: `research/SEMANTIC_REGISTRY_INTELLIGENCE_0_2.md`.
+
+The T0.1 `nordoi semantic` command reports the C0.2 registry witness and deterministic symbol IDs.
+
+## Certified L0.4 foundation carried forward
 
 L0.4 builds on the **certified K1.18 kernel**, **certified L0.1/L0.2/L0.3 frontend**,
 **certified T0.1 CLI** and **certified C0.1 semantic boundary**.

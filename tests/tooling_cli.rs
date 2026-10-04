@@ -42,7 +42,7 @@ fn version_reports_tool_kernel_and_nair_versions() {
     assert!(output.status.success());
     assert_eq!(
         String::from_utf8(output.stdout).expect("version must be UTF-8"),
-        "nordoi T0.1 (compiler C0.1, kernel K1.18, NAIR 0.6)\n"
+        "nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)\n"
     );
 }
 

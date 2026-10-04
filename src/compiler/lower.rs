@@ -78,3 +78,9 @@ pub fn compile_type_effect_boundary(source: &SourceText) -> CompilerResult<NsirU
     let hir = lower_type_effect_unit_to_hir(source, &unit)?;
     validate_hir(hir)
 }
+
+/// C0.2 resolved semantic boundary. Builds the canonical type/effect registry after full HIR
+/// validation. It still performs no NSIR -> NAIR lowering and grants no host authority.
+pub fn compile_resolved_semantic_boundary(source: &SourceText) -> CompilerResult<NsirUnit> {
+    compile_type_effect_boundary(source)
+}
