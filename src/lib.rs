@@ -79,8 +79,9 @@ pub use effect_retry::{
 };
 pub use error::{AtomicError, AtomicResult};
 pub use frontend::{
-    lex, ByteOffset, LexError, LexResult, Lexer, SourceError, SourceId, SourcePosition,
-    SourceResult, SourceSpan, SourceText, Token, TokenKind, MAX_SOURCE_BYTES,
+    lex, parse, AstElement, AstFile, AstGroup, ByteOffset, Delimiter, LexError, LexResult, Lexer,
+    ParseError, ParseResult, Parser, SourceError, SourceId, SourcePosition, SourceResult,
+    SourceSpan, SourceText, Token, TokenKind, MAX_PARSE_NESTING, MAX_SOURCE_BYTES,
 };
 pub use input::{
     AtomicInputCore, InputAtomBridge, InputBatch, InputBridgeReport, InputDeviceId, InputError,
