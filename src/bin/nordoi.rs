@@ -1,0 +1,418 @@
+use nordoi_kernel::{
+    analyze_module_unit, lex, parse, AstElement, Delimiter, LexError, ModuleError, ParseError,
+    SourceId, SourceSpan, SourceText, Token, TokenKind,
+};
+use std::env;
+use std::ffi::OsStr;
+use std::fs::File;
+use std::io::{self, BufWriter, Read, Write};
+use std::path::Path;
+use std::process::ExitCode;
+
+const TOOL_VERSION: &str = "T0.1";
+const MAX_TOOL_INPUT_BYTES: u64 = 16 * 1024 * 1024;
+const EXIT_OK: u8 = 0;
+const EXIT_USAGE: u8 = 2;
+const EXIT_IO: u8 = 3;
+const EXIT_FRONTEND: u8 = 4;
+
+const HELP: &str = "NORDOI T0.1 tooling\n\
+\n\
+Usage:\n\
+  nordoi lex <path|->\n\
+  nordoi parse <path|->\n\
+  nordoi module <path|->\n\
+  nordoi --help\n\
+  nordoi --version\n\
+\n\
+Commands:\n\
+  lex      Print the lossless L0.1 token stream.\n\
+  parse    Print the lossless L0.2 structural AST.\n\
+  module   Print the L0.3 contextual module identity.\n\
+\n\
+Use '-' as the path to read UTF-8 source from standard input.\n\
+T0.1 inspects .noi source only; it does not lower or execute NAIR.\n";
+
+fn main() -> ExitCode {
+    ExitCode::from(run())
+}
+
+fn run() -> u8 {
+    let arguments: Vec<_> = env::args_os().skip(1).collect();
+
+    if arguments.is_empty()
+        || (arguments.len() == 1 && arguments[0].as_os_str() == OsStr::new("--help"))
+    {
+        return match write_stdout(HELP.as_bytes()) {
+            Ok(()) => EXIT_OK,
+            Err(error) => {
+                report_io_error("<stdout>", &error);
+                EXIT_IO
+            }
+        };
+    }
+
+    if arguments.len() == 1 && arguments[0].as_os_str() == OsStr::new("--version") {
+        let version = format!("nordoi {TOOL_VERSION} (kernel K1.18, NAIR 0.6)\n");
+        return match write_stdout(version.as_bytes()) {
+            Ok(()) => EXIT_OK,
+            Err(error) => {
+                report_io_error("<stdout>", &error);
+                EXIT_IO
+            }
+        };
+    }
+
+    if arguments.len() != 2 {
+        report_usage_error("expected a command and exactly one source path");
+        return EXIT_USAGE;
+    }
+
+    let command = arguments[0].to_string_lossy();
+    if !matches!(command.as_ref(), "lex" | "parse" | "module") {
+        report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
+        return EXIT_USAGE;
+    }
+
+    let (name, text) = match load_source(&arguments[1]) {
+        Ok(input) => input,
+        Err(error) => {
+            report_load_error(&arguments[1], &error);
+            return EXIT_IO;
+        }
+    };
+
+    let source = match SourceText::new(SourceId::new(1), name, text) {
+        Ok(source) => source,
+        Err(error) => {
+            let source_name = arguments[1].to_string_lossy();
+            report_plain_error("source", source_name.as_ref(), &error);
+            return EXIT_FRONTEND;
+        }
+    };
+
+    let stdout = io::stdout();
+    let mut output = BufWriter::new(stdout.lock());
+
+    let result = match command.as_ref() {
+        "lex" => run_lex(&source, &mut output),
+        "parse" => run_parse(&source, &mut output),
+        "module" => run_module(&source, &mut output),
+        _ => unreachable!("validated command must be exhaustive"),
+    };
+
+    match result {
+        CommandResult::Success => match output.flush() {
+            Ok(()) => EXIT_OK,
+            Err(error) => {
+                report_io_error("<stdout>", &error);
+                EXIT_IO
+            }
+        },
+        CommandResult::OutputFailure(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+        CommandResult::LexFailure(error) => {
+            report_frontend_error("lex", &source, error.span(), &error);
+            EXIT_FRONTEND
+        }
+        CommandResult::ParseFailure(error) => {
+            report_frontend_error("parse", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
+        CommandResult::ModuleFailure(error) => {
+            report_frontend_error("module", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
+    }
+}
+
+enum CommandResult {
+    Success,
+    OutputFailure(io::Error),
+    LexFailure(LexError),
+    ParseFailure(ParseError),
+    ModuleFailure(ModuleError),
+}
+
+fn run_lex(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let tokens = match lex(source) {
+        Ok(tokens) => tokens,
+        Err(error) => return CommandResult::LexFailure(error),
+    };
+
+    if let Err(error) = writeln!(
+        output,
+        "source \"{}\" bytes={} tokens={}",
+        escape_fragment(source.name()),
+        source.len().get(),
+        tokens.len()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    for token in &tokens {
+        if let Err(error) = write_token_line(source, token, 0, output) {
+            return CommandResult::OutputFailure(error);
+        }
+    }
+
+    CommandResult::Success
+}
+
+fn run_parse(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let file = match parse(source) {
+        Ok(file) => file,
+        Err(error) => return CommandResult::ParseFailure(error),
+    };
+
+    if let Err(error) = writeln!(
+        output,
+        "file {}..{} top-level-elements={}",
+        file.span().start().get(),
+        file.span().end().get(),
+        file.elements().len()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = write_ast_elements(source, file.elements(), 1, output) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = write_token_line(source, file.eof(), 1, output) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_module(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match analyze_module_unit(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::ModuleFailure(error),
+    };
+
+    let write_result = match unit.module() {
+        Some(declaration) => {
+            let canonical = match declaration.path().canonical_text(source) {
+                Ok(canonical) => canonical,
+                Err(error) => return CommandResult::ModuleFailure(error),
+            };
+            writeln!(
+                output,
+                "module \"{}\" span={}..{} segments={}",
+                escape_fragment(&canonical),
+                declaration.span().start().get(),
+                declaration.span().end().get(),
+                declaration.path().segments().len()
+            )
+        }
+        None => writeln!(output, "module <anonymous>"),
+    };
+
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "file {}..{} top-level-elements={}",
+        unit.file().span().start().get(),
+        unit.file().span().end().get(),
+        unit.file().elements().len()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn write_ast_elements(
+    source: &SourceText,
+    elements: &[AstElement],
+    depth: usize,
+    output: &mut impl Write,
+) -> io::Result<()> {
+    for element in elements {
+        match element {
+            AstElement::Token(token) => write_token_line(source, token, depth, output)?,
+            AstElement::Group(group) => {
+                let indent = "  ".repeat(depth);
+                writeln!(
+                    output,
+                    "{indent}group {} {}..{} elements={}",
+                    delimiter_label(group.delimiter()),
+                    group.span().start().get(),
+                    group.span().end().get(),
+                    group.elements().len()
+                )?;
+                write_token_line(source, group.open(), depth + 1, output)?;
+                write_ast_elements(source, group.elements(), depth + 1, output)?;
+                write_token_line(source, group.close(), depth + 1, output)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn write_token_line(
+    source: &SourceText,
+    token: &Token,
+    depth: usize,
+    output: &mut impl Write,
+) -> io::Result<()> {
+    let span = token.span();
+    let start = position_label(source, span.start().get());
+    let end = position_label(source, span.end().get());
+    let text = source.slice(span).unwrap_or("<invalid-span>");
+    let indent = "  ".repeat(depth);
+    writeln!(
+        output,
+        "{indent}token {} {}..{} {}..{} \"{}\"",
+        token_kind_label(token.kind()),
+        span.start().get(),
+        span.end().get(),
+        start,
+        end,
+        escape_fragment(text)
+    )
+}
+
+fn position_label(source: &SourceText, raw_offset: u32) -> String {
+    match source.position(nordoi_kernel::ByteOffset::new(raw_offset)) {
+        Ok(position) => format!("{}:{}", position.line(), position.column()),
+        Err(_) => "?:?".to_owned(),
+    }
+}
+
+fn token_kind_label(kind: &TokenKind) -> String {
+    match kind {
+        TokenKind::Identifier => "IDENTIFIER".to_owned(),
+        TokenKind::NumericCandidate => "NUMERIC_CANDIDATE".to_owned(),
+        TokenKind::QuotedText => "QUOTED_TEXT".to_owned(),
+        TokenKind::Punctuation(character) => {
+            format!("PUNCTUATION({})", escape_fragment(&character.to_string()))
+        }
+        TokenKind::Whitespace => "WHITESPACE".to_owned(),
+        TokenKind::LineComment => "LINE_COMMENT".to_owned(),
+        TokenKind::BlockComment => "BLOCK_COMMENT".to_owned(),
+        TokenKind::Eof => "EOF".to_owned(),
+    }
+}
+
+fn delimiter_label(delimiter: Delimiter) -> &'static str {
+    match delimiter {
+        Delimiter::Parenthesis => "PARENTHESIS",
+        Delimiter::Bracket => "BRACKET",
+        Delimiter::Brace => "BRACE",
+    }
+}
+
+fn load_source(path: &OsStr) -> Result<(String, String), LoadError> {
+    if path == OsStr::new("-") {
+        let stdin = io::stdin();
+        let bytes = read_bounded(stdin.lock())?;
+        let text = String::from_utf8(bytes).map_err(|_| LoadError::InvalidUtf8)?;
+        return Ok(("<stdin>".to_owned(), text));
+    }
+
+    let path = Path::new(path);
+    let file = File::open(path).map_err(LoadError::Io)?;
+    let bytes = read_bounded(file)?;
+    let text = String::from_utf8(bytes).map_err(|_| LoadError::InvalidUtf8)?;
+    Ok((path.to_string_lossy().into_owned(), text))
+}
+
+fn read_bounded(reader: impl Read) -> Result<Vec<u8>, LoadError> {
+    let mut bytes = Vec::new();
+    reader
+        .take(MAX_TOOL_INPUT_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(LoadError::Io)?;
+    if bytes.len() as u64 > MAX_TOOL_INPUT_BYTES {
+        return Err(LoadError::TooLarge {
+            bytes: bytes.len() as u64,
+            maximum: MAX_TOOL_INPUT_BYTES,
+        });
+    }
+    Ok(bytes)
+}
+
+enum LoadError {
+    Io(io::Error),
+    TooLarge { bytes: u64, maximum: u64 },
+    InvalidUtf8,
+}
+
+fn report_load_error(path: &OsStr, error: &LoadError) {
+    let name = if path == OsStr::new("-") {
+        "<stdin>".to_owned()
+    } else {
+        path.to_string_lossy().into_owned()
+    };
+
+    match error {
+        LoadError::Io(error) => report_io_error(&name, error),
+        LoadError::TooLarge { bytes, maximum } => report_plain_error(
+            "input",
+            &name,
+            format_args!("input has {bytes} bytes; T0.1 maximum is {maximum} bytes"),
+        ),
+        LoadError::InvalidUtf8 => {
+            report_plain_error("input", &name, "source is not valid UTF-8");
+        }
+    }
+}
+
+fn report_frontend_error(
+    stage: &str,
+    source: &SourceText,
+    span: Option<SourceSpan>,
+    error: &dyn std::fmt::Display,
+) {
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    let name = escape_fragment(source.name());
+    if let Some(span) = span {
+        if let Ok(position) = source.position(span.start()) {
+            let _ = writeln!(
+                stderr,
+                "error[{stage}]: \"{name}\":{}:{}: {error}",
+                position.line(),
+                position.column()
+            );
+            return;
+        }
+    }
+    let _ = writeln!(stderr, "error[{stage}]: \"{name}\": {error}");
+}
+
+fn report_plain_error(stage: &str, name: &str, error: impl std::fmt::Display) {
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    let name = escape_fragment(name);
+    let _ = writeln!(stderr, "error[{stage}]: \"{name}\": {error}");
+}
+
+fn report_io_error(name: &str, error: &io::Error) {
+    report_plain_error("io", name, error);
+}
+
+fn report_usage_error(message: &str) {
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    let _ = writeln!(stderr, "error[usage]: {message}\n\n{HELP}");
+}
+
+fn write_stdout(bytes: &[u8]) -> io::Result<()> {
+    let stdout = io::stdout();
+    let mut stdout = stdout.lock();
+    stdout.write_all(bytes)?;
+    stdout.flush()
+}
+
+fn escape_fragment(text: &str) -> String {
+    text.chars().flat_map(char::escape_default).collect()
+}

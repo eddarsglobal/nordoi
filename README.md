@@ -1,7 +1,6 @@
-# NORDOI L0.3 — Names & Modules
+# NORDOI T0.1 — CLI / Tooling Entry Point
 
-L0.3 continues NORDOI's language track on top of the **certified K1.18 kernel**, **certified L0.1
-lexical foundation** and **certified L0.2 structural parser**.
+T0.1 adds the first executable developer-tooling boundary on top of the **certified K1.18 kernel** and the **certified L0.1 / L0.2 / L0.3 frontend stack**.
 
 ```text
 K1.18 certified semantic floor
@@ -10,15 +9,56 @@ L0.1 certified SourceText / SourceSpan / lossless Lexer
         ↓
 L0.2 certified structural Parser / experimental AST
         ↓
-L0.3
-bounded Name + optional contextual module header
+L0.3 certified Names & Modules
         ↓
-T0.1 CLI / tooling entry point
+T0.1
+inspection CLI: lex / parse / module
         ↓
 future C0.x semantic compiler / HIR-NSIR
         ↓
 NAIR 0.6+ → NAM/runtime
 ```
+
+
+## What T0.1 adds
+
+The repository now builds a `nordoi` executable with three deliberately narrow inspection commands:
+
+```text
+nordoi lex <path|->
+nordoi parse <path|->
+nordoi module <path|->
+```
+
+`-` reads UTF-8 source from standard input. The CLI does not compile or execute `.noi`; it exposes
+the already-defined L0.1 lexer, L0.2 structural AST and L0.3 module analysis through one deterministic
+tooling entry point.
+
+```bash
+cargo run --bin nordoi -- --help
+cargo run --bin nordoi -- lex example.noi
+cargo run --bin nordoi -- parse example.noi
+cargo run --bin nordoi -- module example.noi
+```
+
+T0.1 reserves exit status `2` for usage errors, `3` for input/I/O failures and `4` for frontend
+failures. Whole-file CLI input is bounded to 16 MiB. No network, shell, plugin loading or ambient
+filesystem module inference is introduced.
+
+Normative candidate design:
+
+```text
+docs/NOI_CLI_TOOLING_SPEC_0_1.md
+```
+
+Architecture/research record:
+
+```text
+research/CLI_TOOLING_INTELLIGENCE_0_1.md
+```
+
+`tests/tooling_cli.rs` exercises help/version, all three commands, standard input, deterministic
+output and stable failure classes.
 
 ## What L0.3 adds
 
@@ -169,7 +209,7 @@ The certified L0.1/L0.2 specs and research records remain present.
 source spans, canonical identity, malformed headers, inherited lexer/parser failures and API
 determinism.
 
-All L0.1 lexer tests, L0.2 parser tests and K1.18 regression tests remain mandatory.
+All L0.1 lexer tests, L0.2 parser tests, L0.3 module tests and K1.18 regression tests remain mandatory.
 
 ## Release Gate
 
@@ -180,12 +220,13 @@ cargo fmt --all
 ./scripts/release_gate.sh
 ```
 
-L0.3 is a candidate until the local gate passes, GitHub CI is green for the exact L0.3 commit on all
-required platforms and an annotated `l0.3` tag is pushed.
+T0.1 is a candidate until the local gate passes, GitHub CI is green for the exact T0.1 commit on all
+required platforms and an annotated `t0.1` tag is pushed.
 
 ## Next architectural boundary
 
-After L0.3 certification, the intended next milestone is **T0.1 — CLI / Tooling Entry Point**.
+After T0.1 certification, the intended next milestone is **C0.1 — Typed Semantic IR / HIR-NSIR**.
 
-The CLI should expose the language foundation for inspection without pretending that semantic
-compilation or `.noi` → NAIR lowering already exists.
+C0.1 should introduce an explicit semantic representation between the experimental source surface
+and NAIR without changing certified K1.18 semantics or prematurely binding source syntax directly to
+NAIR instructions.
