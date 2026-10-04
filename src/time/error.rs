@@ -7,6 +7,7 @@ use crate::{
     effect_audit::EffectAuditError, effect_dispatch::EffectDispatchError,
     effect_fencing::EffectFencingError, effect_persistence::EffectPersistenceError,
     effect_retry::EffectRetryError, runtime::RuntimeError,
+    runtime_checkpoint::RuntimeCheckpointError,
 };
 
 use super::{LogicalTime, TimerId};
@@ -70,6 +71,7 @@ pub enum EventLoopError {
     Fencing(EffectFencingError),
     Retry(EffectRetryError),
     Audit(EffectAuditError),
+    RuntimeCheckpoint(RuntimeCheckpointError),
 }
 
 impl Display for EventLoopError {
@@ -84,6 +86,9 @@ impl Display for EventLoopError {
             Self::Fencing(error) => write!(f, "atomic event-loop effect fencing failure: {error}"),
             Self::Retry(error) => write!(f, "atomic event-loop effect retry failure: {error}"),
             Self::Audit(error) => write!(f, "atomic event-loop effect audit failure: {error}"),
+            Self::RuntimeCheckpoint(error) => {
+                write!(f, "atomic event-loop runtime checkpoint failure: {error}")
+            }
         }
     }
 }
@@ -98,6 +103,7 @@ impl Error for EventLoopError {
             Self::Fencing(error) => Some(error),
             Self::Retry(error) => Some(error),
             Self::Audit(error) => Some(error),
+            Self::RuntimeCheckpoint(error) => Some(error),
         }
     }
 }
@@ -141,6 +147,12 @@ impl From<EffectRetryError> for EventLoopError {
 impl From<EffectAuditError> for EventLoopError {
     fn from(value: EffectAuditError) -> Self {
         Self::Audit(value)
+    }
+}
+
+impl From<RuntimeCheckpointError> for EventLoopError {
+    fn from(value: RuntimeCheckpointError) -> Self {
+        Self::RuntimeCheckpoint(value)
     }
 }
 

@@ -268,6 +268,31 @@ impl AtomicKernel {
         executed
     }
 
+    pub(crate) const fn next_transaction_id_for_checkpoint(&self) -> u64 {
+        self.next_transaction_id
+    }
+
+    pub(crate) fn restore_atom_for_checkpoint(
+        &mut self,
+        id: AtomId,
+        value: Value,
+        version: u64,
+    ) -> AtomicResult<()> {
+        self.ensure_exists(id)?;
+        let atom = self
+            .atoms
+            .get_mut(&id)
+            .expect("atom existence was validated");
+        atom.value = value;
+        atom.version = version;
+        atom.dirty = false;
+        Ok(())
+    }
+
+    pub(crate) fn restore_next_transaction_id_for_checkpoint(&mut self, next: u64) {
+        self.next_transaction_id = next;
+    }
+
     pub fn allow(&mut self, capability: Capability) {
         self.capabilities.allow(capability);
     }

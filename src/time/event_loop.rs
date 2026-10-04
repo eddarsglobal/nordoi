@@ -8,8 +8,8 @@ use crate::{
         GovernedEffectAttestor,
     },
     effect_audit::{
-        EffectAuditCheckpoint, EffectAuditDispatchOutcome, EffectAuditLedger, EffectAuditResult,
-        GovernedAuditedEffectJournal,
+        hash::sha256, EffectAuditCheckpoint, EffectAuditDispatchOutcome, EffectAuditLedger,
+        EffectAuditResult, GovernedAuditedEffectJournal,
     },
     effect_completion::{
         AtomicEffectCompletionCore, EffectCompletionBatch, EffectCompletionBatchReport,
@@ -21,7 +21,10 @@ use crate::{
         EffectDispatchReceipt, EffectDispatchResult, EffectIntentId, EffectOutboxStageReport,
         GovernedEffectDispatcher, QueuedEffectIntent,
     },
-    effect_fencing::{EffectFencingResult, FencedEffectJournalStore, GovernedFencedEffectJournal},
+    effect_fencing::{
+        EffectFencingResult, EffectJournalLease, FencedEffectJournalStore,
+        GovernedFencedEffectJournal,
+    },
     effect_persistence::{
         EffectJournalStore, EffectOutboxCheckpoint, EffectPersistenceResult, GovernedEffectJournal,
     },
@@ -40,6 +43,10 @@ use crate::{
         hash_bytes, hash_component, PersistentAtomicRuntime, PersistentRuntimeTickReport,
         RuntimeAtomSnapshot, RuntimeError, FNV_OFFSET_BASIS,
     },
+    runtime_checkpoint::{
+        FencedRuntimeCheckpointStore, RuntimeCheckpointCommitReceipt, RuntimeCheckpointError,
+        RuntimeCheckpointRecoveryReport, RuntimeCheckpointResult, RuntimeSemanticCheckpoint,
+    },
     AtomSlot,
 };
 
@@ -50,7 +57,8 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.13";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.14";
+const RUNTIME_PROGRAM_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-PROGRAM-1.0";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
 const OP_CANCEL: u8 = 0x03;
@@ -90,6 +98,8 @@ pub struct AtomicEventLoop {
     cycle: u64,
     replay_state: u64,
     replay_key: EventLoopReplayKey,
+    program_hash: [u8; 32],
+    runtime_checkpoint_bound: bool,
     native_timer_bindings: BTreeMap<TimerSlot, TimerId>,
     reactions: AtomicReactionCore,
     native_reaction_bindings: BTreeMap<ReactionSlot, ReactionId>,
@@ -172,6 +182,11 @@ impl AtomicEventLoop {
     ) -> EventLoopResult<Self> {
         program.validate().map_err(RuntimeError::from)?;
         let program_bytes = program.canonical_bytes().map_err(RuntimeError::from)?;
+        let mut program_hash_input =
+            Vec::with_capacity(RUNTIME_PROGRAM_HASH_DOMAIN.len() + program_bytes.len());
+        program_hash_input.extend_from_slice(RUNTIME_PROGRAM_HASH_DOMAIN);
+        program_hash_input.extend_from_slice(&program_bytes);
+        let program_hash = sha256(&program_hash_input);
         let mut time = AtomicTimeCore::with_fire_budget(fire_budget)?;
         let native_timer_bindings = apply_native_time_bootstrap(program, &mut time)?;
         let runtime_program = NairProgram::from_instructions(
@@ -222,6 +237,8 @@ impl AtomicEventLoop {
             cycle: 0,
             replay_state,
             replay_key,
+            program_hash,
+            runtime_checkpoint_bound: false,
             native_timer_bindings,
             reactions,
             native_reaction_bindings,
@@ -584,6 +601,193 @@ impl AtomicEventLoop {
         self.runtime.snapshot().map_err(Into::into)
     }
 
+    pub fn semantic_checkpoint<S>(
+        &self,
+        journal: &GovernedAuditedEffectJournal<S>,
+    ) -> RuntimeCheckpointResult<RuntimeSemanticCheckpoint> {
+        let audit_events = u64::try_from(journal.audit_ledger().len()).map_err(|_| {
+            RuntimeCheckpointError::InternalState("audit length does not fit u64".into())
+        })?;
+        RuntimeSemanticCheckpoint::from_parts(
+            journal.namespace(),
+            self.program_hash,
+            audit_events,
+            journal.audit_ledger().root_hash(),
+            self.effect_outbox.next_intent_id(),
+            self.cycle,
+            self.replay_state,
+            self.runtime.capture_checkpoint_state()?,
+            self.time.capture_checkpoint_state(),
+            self.effect_completions.capture_checkpoint_state(),
+        )
+    }
+
+    pub fn checkpoint_runtime_with_audited_journal<S: FencedRuntimeCheckpointStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<RuntimeCheckpointCommitReceipt> {
+        let lease = self.runtime_checkpoint_commit_lease(journal)?;
+        let effect_checkpoint = journal.capture_checkpoint(&self.effect_outbox);
+        let runtime_checkpoint = self.semantic_checkpoint(journal)?;
+        let effect_bytes = effect_checkpoint.canonical_bytes();
+        let runtime_bytes = runtime_checkpoint.canonical_bytes()?;
+        let receipt = journal
+            .store_mut()
+            .commit_effect_and_runtime_fenced(lease, &effect_bytes, &runtime_bytes)
+            .map_err(RuntimeCheckpointError::from)?;
+        self.runtime_checkpoint_bound = true;
+        Ok(receipt)
+    }
+
+    fn runtime_checkpoint_commit_lease<S: FencedRuntimeCheckpointStore>(
+        &self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<EffectJournalLease> {
+        let lease = journal.assert_active()?;
+        if self.runtime_checkpoint_bound {
+            return Ok(lease);
+        }
+        let effect_bytes = journal
+            .store_mut()
+            .load_fenced(lease)
+            .map_err(crate::effect_fencing::EffectFencingError::from)?;
+        let runtime_bytes = journal
+            .store_mut()
+            .load_runtime_fenced(lease)
+            .map_err(RuntimeCheckpointError::from)?;
+        match (effect_bytes, runtime_bytes) {
+            (None, None) => Ok(lease),
+            (Some(_), Some(_)) => Err(RuntimeCheckpointError::RecoveryRequired.into()),
+            _ => Err(RuntimeCheckpointError::RecoveryBundleIncomplete.into()),
+        }
+    }
+
+    pub fn recover_runtime_from_audited_journal<S: FencedRuntimeCheckpointStore>(
+        &mut self,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<Option<RuntimeCheckpointRecoveryReport>> {
+        if self.cycle != 0 {
+            return Err(
+                RuntimeCheckpointError::RecoveryAfterCycleStarted { cycle: self.cycle }.into(),
+            );
+        }
+        let lease = journal.assert_active()?;
+        let effect_bytes = journal
+            .store_mut()
+            .load_fenced(lease)
+            .map_err(crate::effect_fencing::EffectFencingError::from)?;
+        let runtime_bytes = journal
+            .store_mut()
+            .load_runtime_fenced(lease)
+            .map_err(RuntimeCheckpointError::from)?;
+        let (effect_bytes, runtime_bytes) = match (effect_bytes, runtime_bytes) {
+            (None, None) => {
+                self.runtime_checkpoint_bound = true;
+                return Ok(None);
+            }
+            (Some(effect_bytes), Some(runtime_bytes)) => (effect_bytes, runtime_bytes),
+            _ => return Err(RuntimeCheckpointError::RecoveryBundleIncomplete.into()),
+        };
+
+        let effect_checkpoint = EffectAuditCheckpoint::from_canonical_bytes(&effect_bytes)?;
+        if effect_checkpoint.namespace() != journal.namespace() {
+            return Err(RuntimeCheckpointError::NamespaceMismatch {
+                expected: journal.namespace(),
+                actual: effect_checkpoint.namespace(),
+            }
+            .into());
+        }
+        if let Some(policy) = effect_checkpoint.retry().policy() {
+            if policy != journal.policy() {
+                return Err(crate::effect_audit::EffectAuditError::AuditPolicyMismatch.into());
+            }
+        }
+        let checkpoint = RuntimeSemanticCheckpoint::from_canonical_bytes(&runtime_bytes)?;
+        self.validate_runtime_recovery_checkpoint(journal, &effect_checkpoint, &checkpoint)?;
+
+        let mut candidate = self.clone();
+        candidate
+            .runtime
+            .restore_checkpoint_state(checkpoint.runtime_state())?;
+        candidate
+            .time
+            .restore_checkpoint_state(checkpoint.time_state())?;
+        candidate
+            .effect_completions
+            .restore_checkpoint_state(checkpoint.completion_state());
+        candidate.effect_outbox = effect_checkpoint.retry().outbox().to_outbox();
+        candidate.cycle = checkpoint.cycle();
+        candidate.replay_state = checkpoint.event_replay_state();
+        candidate.replay_key = EventLoopReplayKey(checkpoint.event_replay_state());
+        candidate.runtime_checkpoint_bound = true;
+
+        let audit_events = u64::try_from(effect_checkpoint.audit().len()).map_err(|_| {
+            RuntimeCheckpointError::InternalState("audit length does not fit u64".into())
+        })?;
+        let report = RuntimeCheckpointRecoveryReport {
+            cycle: checkpoint.cycle(),
+            runtime_tick: checkpoint.runtime_tick(),
+            logical_time: checkpoint.logical_time(),
+            audit_events,
+        };
+        journal.adopt_recovered_state(
+            effect_checkpoint.retry().ledger().clone(),
+            effect_checkpoint.audit().clone(),
+        );
+        *self = candidate;
+        Ok(Some(report))
+    }
+
+    fn validate_runtime_recovery_checkpoint<S>(
+        &self,
+        journal: &GovernedAuditedEffectJournal<S>,
+        effect_checkpoint: &EffectAuditCheckpoint,
+        checkpoint: &RuntimeSemanticCheckpoint,
+    ) -> RuntimeCheckpointResult<()> {
+        if checkpoint.namespace() != journal.namespace() {
+            return Err(RuntimeCheckpointError::NamespaceMismatch {
+                expected: journal.namespace(),
+                actual: checkpoint.namespace(),
+            });
+        }
+        if checkpoint.program_hash() != self.program_hash {
+            return Err(RuntimeCheckpointError::ProgramMismatch);
+        }
+        let actual_next = effect_checkpoint.retry().outbox().next_intent_id();
+        if actual_next != checkpoint.effect_next_intent_id() {
+            return Err(RuntimeCheckpointError::EffectIntentSequenceMismatch {
+                expected_next: checkpoint.effect_next_intent_id(),
+                actual_next,
+            });
+        }
+        let required = checkpoint.audit_events();
+        let actual = u64::try_from(effect_checkpoint.audit().len()).map_err(|_| {
+            RuntimeCheckpointError::InternalState("audit length does not fit u64".into())
+        })?;
+        if actual < required {
+            return Err(RuntimeCheckpointError::AuditHistoryTooShort { required, actual });
+        }
+        let actual_root = if required == 0 {
+            crate::effect_audit::EffectAuditHash::ZERO
+        } else {
+            let index = usize::try_from(required - 1)
+                .map_err(|_| RuntimeCheckpointError::InvalidAuditPrefix)?;
+            effect_checkpoint
+                .audit()
+                .records()
+                .get(index)
+                .ok_or(RuntimeCheckpointError::InvalidAuditPrefix)?
+                .hash
+        };
+        if actual_root != checkpoint.audit_root() {
+            return Err(RuntimeCheckpointError::AuditPrefixMismatch {
+                expected: checkpoint.audit_root(),
+                actual: actual_root,
+            });
+        }
+        Ok(())
+    }
+
     pub fn schedule_once_at(&mut self, deadline: LogicalTime) -> EventLoopResult<TimerId> {
         let id = self.time.schedule_once_at(deadline)?;
         self.hash_schedule_once(id, deadline);
@@ -804,6 +1008,61 @@ impl AtomicEventLoop {
             Some((completions, journal.audit_ledger())),
         )?;
         journal.checkpoint(&candidate.effect_outbox)?;
+        *self = candidate;
+        Ok(report)
+    }
+
+    pub fn cycle_to_with_runtime_checkpoint<S: FencedRuntimeCheckpointStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        let lease = self.runtime_checkpoint_commit_lease(journal)?;
+        let mut candidate = self.clone();
+        let report = candidate.cycle_to(target, input)?;
+        let effect_checkpoint = journal.capture_checkpoint(&candidate.effect_outbox);
+        let runtime_checkpoint = candidate.semantic_checkpoint(journal)?;
+        let runtime_bytes = runtime_checkpoint.canonical_bytes()?;
+        journal
+            .store_mut()
+            .commit_effect_and_runtime_fenced(
+                lease,
+                &effect_checkpoint.canonical_bytes(),
+                &runtime_bytes,
+            )
+            .map_err(RuntimeCheckpointError::from)?;
+        candidate.runtime_checkpoint_bound = true;
+        *self = candidate;
+        Ok(report)
+    }
+
+    pub fn cycle_to_with_runtime_checkpoint_and_completions<S: FencedRuntimeCheckpointStore>(
+        &mut self,
+        target: LogicalTime,
+        input: &InputBatch,
+        completions: &EffectCompletionBatch,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<EventLoopCycleReport> {
+        let lease = self.runtime_checkpoint_commit_lease(journal)?;
+        let mut candidate = self.clone();
+        let report = candidate.cycle_to_internal(
+            target,
+            input,
+            Some((completions, journal.audit_ledger())),
+        )?;
+        let effect_checkpoint = journal.capture_checkpoint(&candidate.effect_outbox);
+        let runtime_checkpoint = candidate.semantic_checkpoint(journal)?;
+        let runtime_bytes = runtime_checkpoint.canonical_bytes()?;
+        journal
+            .store_mut()
+            .commit_effect_and_runtime_fenced(
+                lease,
+                &effect_checkpoint.canonical_bytes(),
+                &runtime_bytes,
+            )
+            .map_err(RuntimeCheckpointError::from)?;
+        candidate.runtime_checkpoint_bound = true;
         *self = candidate;
         Ok(report)
     }

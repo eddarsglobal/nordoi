@@ -6,6 +6,7 @@ use crate::{
     effect_dispatch::{EffectDeliveryKey, EffectDeliveryNamespace},
     kernel::AtomicKernel,
     ownership::DomainId,
+    runtime_checkpoint::CompletionCheckpointState,
     value::Value,
 };
 
@@ -59,6 +60,18 @@ impl AtomicEffectCompletionCore {
 
     pub fn has_completed(&self, key: EffectDeliveryKey) -> bool {
         self.completed_deliveries.contains(&key)
+    }
+
+    pub(crate) fn capture_checkpoint_state(&self) -> CompletionCheckpointState {
+        CompletionCheckpointState {
+            last_sequences: self.last_sequences.clone(),
+            completed_deliveries: self.completed_deliveries.clone(),
+        }
+    }
+
+    pub(crate) fn restore_checkpoint_state(&mut self, state: &CompletionCheckpointState) {
+        self.last_sequences = state.last_sequences.clone();
+        self.completed_deliveries = state.completed_deliveries.clone();
     }
 
     pub fn register_projection(

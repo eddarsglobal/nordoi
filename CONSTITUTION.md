@@ -1209,3 +1209,122 @@ silently upgraded.
 
 K1.13 certifies native completion semantics in NAIR. It SHALL NOT be interpreted as freezing the
 human-facing `.noi` syntax, grammar or keywords used by future language frontends.
+
+## C223 — Whole-Runtime Semantic Durability Is Explicit
+
+Crash-consistent recovery of mutable runtime semantics SHALL occur only through an explicit,
+host-injected persistence protocol. K1.14 SHALL NOT acquire ambient filesystem, database, cloud or
+other storage authority.
+
+## C224 — Runtime Checkpoint Binds The Exact Canonical Program
+
+Every K1.14 runtime checkpoint SHALL bind the SHA-256 identity of the exact canonical NAIR program
+whose booted runtime produced it. Recovery under different canonical program bytes SHALL fail
+closed.
+
+## C225 — Mutable Semantic Continuation State Is Checkpointed
+
+A K1.14 checkpoint SHALL retain the mutable state required for deterministic continuation, including
+NAM values/versions, runtime and event-loop replay state, logical time/timers, input sequencing,
+render revisions, runtime identity frontiers and effect-completion deduplication state.
+
+## C226 — Static Program Structure And Host Authority Are Reconstructed, Not Minted
+
+Static program structure SHALL be rebuilt by booting the same canonical program. Host capabilities,
+completion-source authority and other privileges SHALL be supplied again by the host and SHALL NOT
+be restored from checkpoint bytes as authority.
+
+## C227 — Effect And Runtime Checkpoints Share One Fenced Publication Boundary
+
+A K1.14 durable publication SHALL commit the governed effect/audit checkpoint and runtime semantic
+checkpoint atomically under the same active effect-journal lease and fencing epoch.
+
+## C228 — Durable Commit Precedes Live Runtime Publication
+
+A candidate cycle using the K1.14 durable API SHALL become visible in the live runtime only after the
+combined host store commit succeeds.
+
+## C229 — Failed Bundle Commit Publishes Zero Runtime Progress
+
+If the combined runtime/effect checkpoint commit fails, the live event-loop cycle, NAM state, logical
+time, timers, replay state, render revisions, completion consumption state and effect outbox SHALL
+remain unchanged.
+
+## C230 — Whole-Runtime Recovery Is Bootstrap-Only
+
+K1.14 whole-runtime recovery SHALL be allowed only before the event loop has published a runtime
+cycle. Recovery SHALL fail closed if invoked after runtime execution has begun.
+
+## C231 — Recovery Is Continuation, Not A New Replay Cause
+
+Successful recovery SHALL restore the saved replay accumulators exactly. The act of recovery SHALL
+NOT add a synthetic semantic event or otherwise change replay identity.
+
+## C232 — Later Effect Audit Progress Must Descend From The Saved Prefix
+
+Effect dispatch, retry, dead-letter and in-doubt resolution MAY advance the effect audit after the
+last runtime checkpoint. Recovery SHALL accept such progress only when the current audit history
+contains the exact audit root recorded by K1.14 at the exact recorded prefix height.
+
+## C233 — Effect Intent Frontier Detects Non-Durable Semantic Progress
+
+Every runtime checkpoint SHALL bind the next `EffectIntentId` allocation frontier. A current effect
+checkpoint with a different frontier SHALL be rejected during K1.14 recovery, even if its audit
+history otherwise descends from the saved prefix.
+
+## C234 — Partial Runtime/Effect Bundles Fail Closed
+
+If exactly one half of the K1.14 effect/runtime bundle is available, recovery SHALL fail. NORDOI SHALL
+NOT guess, synthesize or silently pair checkpoint halves from unrelated durable points.
+
+## C235 — Stale Writers Cannot Publish A Runtime Bundle
+
+The host runtime-checkpoint store SHALL atomically validate the supplied K1.8 lease/fence. A stale
+writer SHALL NOT update either the runtime half or the effect/audit half of a K1.14 combined commit.
+
+## C236 — Recovered Semantic Identities And Versions Do Not Regress Behind Bootstrap
+
+Recovery SHALL reject state that would move transaction identity, timer identity, NAM atom versions
+or render revisions behind the state established by booting the same canonical program.
+
+## C237 — Completion Consumption Survives Recovery
+
+The last accepted completion sequence per source and every consumed `EffectDeliveryKey` SHALL be
+part of K1.14 semantic state. A delivery already applied as a semantic completion before the durable
+checkpoint SHALL remain deduplicated after recovery.
+
+## C238 — Runtime Checkpoint Format Is Canonical, Bounded And Integrity-Protected
+
+K1.14 checkpoint bytes SHALL use a versioned canonical format with deterministic collection order,
+explicit resource bounds, validated UTF-8/finite values and a SHA-256 integrity digest with domain
+separation.
+
+## C239 — Host Persistence Contract Defines Physical Durability
+
+A successful host combined-commit return is the K1.14 persistence contract boundary. NORDOI may
+validate protocol, fencing and canonical bytes but SHALL NOT claim to prove fsync, replication,
+power-loss or physical media guarantees of an arbitrary host implementation.
+
+## C240 — Legacy Runtime APIs Do Not Gain Hidden Durability
+
+Existing non-K1.14 cycle and scheduling APIs MAY remain available. Their use SHALL NOT imply crash
+durability. After a crash, semantic work not included in a successful K1.14 checkpoint MAY roll back
+to the last durable runtime point.
+
+## C241 — K1.14 Does Not Increment NAIR
+
+K1.14 adds runtime persistence and recovery protocol, not new canonical program semantics. NAIR SHALL
+remain format 0.6 and no new opcode is required by this milestone.
+
+## C242 — K1.14 Does Not Freeze `.noi` Surface Syntax
+
+K1.14 SHALL NOT be interpreted as freezing human-facing `.noi` syntax, grammar or persistence
+keywords. Future frontends may expose runtime durability without changing the certified semantic
+protocol.
+
+## C243 — Existing Runtime Bundle Requires Recovery Before Replacement
+
+A freshly booted K1.14 runtime SHALL NOT overwrite an already existing complete runtime/effect bundle
+merely because it acquired a newer fence. It SHALL first recover that bundle and establish its
+semantic lineage. An empty store MAY establish a new lineage. A legacy partial checkpoint SHALL fail
+closed unless a separately certified explicit migration protocol is used.

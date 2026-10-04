@@ -19,6 +19,7 @@ pub mod ownership;
 pub mod reaction;
 pub mod render;
 pub mod runtime;
+pub mod runtime_checkpoint;
 pub mod scheduler;
 pub mod time;
 pub mod transaction;
@@ -112,4 +113,12 @@ pub use value::Value;
 pub use runtime::{
     run_closed, AtomicRuntime, PersistentAtomicRuntime, PersistentRuntimeTickReport,
     RuntimeAtomSnapshot, RuntimeError, RuntimeReplayKey, RuntimeReport, RuntimeResult,
+};
+
+pub use runtime_checkpoint::{
+    FencedRuntimeCheckpointStore, RuntimeCheckpointCommitReceipt, RuntimeCheckpointError,
+    RuntimeCheckpointRecoveryReport, RuntimeCheckpointResult, RuntimeCheckpointStoreError,
+    RuntimeSemanticCheckpoint, MAX_RUNTIME_CHECKPOINT_ATOMS, MAX_RUNTIME_CHECKPOINT_BYTES,
+    MAX_RUNTIME_CHECKPOINT_COMPLETED_DELIVERIES, MAX_RUNTIME_CHECKPOINT_COMPLETION_SOURCES,
+    MAX_RUNTIME_CHECKPOINT_TEXT_BYTES, MAX_RUNTIME_CHECKPOINT_TIMERS,
 };

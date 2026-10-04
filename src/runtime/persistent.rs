@@ -19,6 +19,10 @@ use crate::{
     ownership::DomainId,
     reaction::{AtomicReactionCore, ReactionBatchReport},
     render::{AtomicRenderCore, NairRenderFrame, RenderNodeId},
+    runtime_checkpoint::{
+        PersistentRuntimeCheckpointState, RenderRevisionCheckpoint, RuntimeCheckpointError,
+        RuntimeCheckpointResult,
+    },
     time::TimerFire,
 };
 
@@ -237,6 +241,121 @@ impl PersistentAtomicRuntime {
 
     pub fn snapshot(&self) -> RuntimeResult<BTreeMap<AtomSlot, RuntimeAtomSnapshot>> {
         snapshot_atoms(&self.kernel, &self.atom_bindings)
+    }
+
+    pub(crate) fn capture_checkpoint_state(
+        &self,
+    ) -> RuntimeCheckpointResult<PersistentRuntimeCheckpointState> {
+        if !self.is_quiescent() {
+            return Err(RuntimeCheckpointError::InternalState(
+                "persistent runtime must be quiescent before checkpoint".into(),
+            ));
+        }
+        let atoms = self
+            .snapshot()
+            .map_err(|error| RuntimeCheckpointError::InternalState(error.to_string()))?;
+        let mut render_revisions = Vec::with_capacity(self.boot_report.render_bindings.len());
+        for (slot, id) in &self.boot_report.render_bindings {
+            let revision = self
+                .render
+                .revision_for_checkpoint(*id)
+                .map_err(|error| RuntimeCheckpointError::InternalState(error.to_string()))?;
+            render_revisions.push(RenderRevisionCheckpoint {
+                slot: *slot,
+                revision,
+            });
+        }
+        Ok(PersistentRuntimeCheckpointState {
+            tick: self.tick,
+            replay_state: self.replay_state,
+            last_input_sequence: self.last_input_sequence,
+            next_transaction_id: self.kernel.next_transaction_id_for_checkpoint(),
+            atoms,
+            render_revisions,
+        })
+    }
+
+    pub(crate) fn restore_checkpoint_state(
+        &mut self,
+        state: &PersistentRuntimeCheckpointState,
+    ) -> RuntimeCheckpointResult<()> {
+        if !self.is_quiescent() {
+            return Err(RuntimeCheckpointError::InternalState(
+                "persistent runtime must be quiescent before recovery".into(),
+            ));
+        }
+        if state.atoms.len() != self.atom_bindings.len()
+            || state.atoms.keys().ne(self.atom_bindings.keys())
+        {
+            return Err(RuntimeCheckpointError::AtomShapeMismatch);
+        }
+        if state.render_revisions.len() != self.boot_report.render_bindings.len()
+            || state
+                .render_revisions
+                .iter()
+                .map(|value| value.slot)
+                .ne(self.boot_report.render_bindings.keys().copied())
+        {
+            return Err(RuntimeCheckpointError::RenderShapeMismatch);
+        }
+
+        if state.next_transaction_id < self.kernel.next_transaction_id_for_checkpoint() {
+            return Err(RuntimeCheckpointError::InternalState(
+                "recovered transaction identity would move behind bootstrap state".into(),
+            ));
+        }
+
+        for (slot, snapshot) in &state.atoms {
+            let id = self
+                .atom_bindings
+                .get(slot)
+                .copied()
+                .ok_or(RuntimeCheckpointError::AtomShapeMismatch)?;
+            if snapshot.id != id {
+                return Err(RuntimeCheckpointError::AtomShapeMismatch);
+            }
+            let bootstrap_version = self
+                .kernel
+                .version(id)
+                .map_err(|error| RuntimeCheckpointError::InternalState(error.to_string()))?;
+            if snapshot.version < bootstrap_version {
+                return Err(RuntimeCheckpointError::InternalState(
+                    "recovered atom version would move behind bootstrap state".into(),
+                ));
+            }
+            self.kernel
+                .restore_atom_for_checkpoint(id, snapshot.value.clone(), snapshot.version)
+                .map_err(|error| RuntimeCheckpointError::InternalState(error.to_string()))?;
+        }
+        self.kernel
+            .restore_next_transaction_id_for_checkpoint(state.next_transaction_id);
+
+        for revision in &state.render_revisions {
+            let id = self
+                .boot_report
+                .render_bindings
+                .get(&revision.slot)
+                .copied()
+                .ok_or(RuntimeCheckpointError::RenderShapeMismatch)?;
+            let bootstrap_revision = self
+                .render
+                .revision_for_checkpoint(id)
+                .map_err(|error| RuntimeCheckpointError::InternalState(error.to_string()))?;
+            if revision.revision < bootstrap_revision {
+                return Err(RuntimeCheckpointError::InternalState(
+                    "recovered render revision would move behind bootstrap state".into(),
+                ));
+            }
+            self.render
+                .restore_revision_for_checkpoint(id, revision.revision)
+                .map_err(|error| RuntimeCheckpointError::InternalState(error.to_string()))?;
+        }
+
+        self.tick = state.tick;
+        self.replay_state = state.replay_state;
+        self.replay_key = RuntimeReplayKey(state.replay_state);
+        self.last_input_sequence = state.last_input_sequence;
+        Ok(())
     }
 
     pub fn is_quiescent(&self) -> bool {

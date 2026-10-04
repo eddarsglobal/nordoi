@@ -103,6 +103,25 @@ impl AtomicRenderCore {
         self.pending.len()
     }
 
+    pub(crate) fn revision_for_checkpoint(&self, id: RenderNodeId) -> RenderResult<u64> {
+        Ok(self.node(id)?.revision)
+    }
+
+    pub(crate) fn restore_revision_for_checkpoint(
+        &mut self,
+        id: RenderNodeId,
+        revision: u64,
+    ) -> RenderResult<()> {
+        let node = self
+            .nodes
+            .get_mut(&id)
+            .ok_or(RenderError::UnknownNode(id))?;
+        node.revision = revision;
+        node.dirty = DirtyMask::NONE;
+        self.pending.remove(&id);
+        Ok(())
+    }
+
     pub fn set_opacity(&mut self, id: RenderNodeId, opacity: f32) -> RenderResult<bool> {
         if !opacity.is_finite() || !(0.0..=1.0).contains(&opacity) {
             return Err(RenderError::InvalidOpacity(opacity));

@@ -586,3 +586,36 @@ redrive must preserve the original semantic delivery identity.
 The core must continue to avoid ambient time and ambient randomness. Hosts may map explicit retry
 ticks to real scheduling infrastructure, but policy and state transitions remain inspectable and
 recoverable.
+
+---
+
+## 28. Crash-consistent semantic runtime law
+
+Durable execution must not be simulated by serializing arbitrary process memory or by allowing
+storage to become ambient authority. A durable NORDOI runtime shall reconstruct static program
+structure from canonical NAIR and persist only the mutable semantic state required for exact
+continuation.
+
+For K1.14:
+
+```text
+candidate semantic cycle
+      ↓
+effect/audit checkpoint + runtime checkpoint
+      ↓
+one fenced atomic host commit
+      ↓
+live publication
+```
+
+Recovery must bind the exact canonical program, preserve replay identity, retain input/timer/NAM and
+completion-deduplication progress, and reject partial bundles, stale fences, audit forks, identity
+frontier mismatches and incompatible boot configuration. Recovery is continuation, not a new
+semantic event.
+
+Host authority remains host authority. A checkpoint may restore facts and identities, but it may not
+mint capabilities, credentials or completion-source permissions.
+
+A newer fence is not permission to erase a previously durable semantic lineage. If a complete
+runtime bundle already exists, a fresh process must recover it before replacement. Partial legacy
+state must fail closed unless a separately governed migration protocol explicitly handles it.

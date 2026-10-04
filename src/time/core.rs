@@ -1,5 +1,9 @@
 use std::collections::BTreeMap;
 
+use crate::runtime_checkpoint::{
+    RuntimeCheckpointError, RuntimeCheckpointResult, TimeCheckpointState,
+};
+
 use super::{LogicalDuration, LogicalTime, TimeError, TimeResult, TimerId};
 
 pub const DEFAULT_TIMER_FIRE_BUDGET: usize = 4096;
@@ -173,6 +177,60 @@ impl AtomicTimeCore {
         let report = candidate.advance_to_in_place(target)?;
         *self = candidate;
         Ok(report)
+    }
+
+    pub(crate) fn capture_checkpoint_state(&self) -> TimeCheckpointState {
+        let timers = self
+            .timers
+            .iter()
+            .map(|(id, timer)| TimerSnapshot {
+                id: *id,
+                next_deadline: timer.deadline,
+                interval: timer.interval,
+                occurrences: timer.occurrences,
+            })
+            .collect();
+        TimeCheckpointState {
+            now: self.now,
+            next_timer_id: self.next_timer_id,
+            fire_budget: self.max_fires_per_advance,
+            timers,
+        }
+    }
+
+    pub(crate) fn restore_checkpoint_state(
+        &mut self,
+        state: &TimeCheckpointState,
+    ) -> RuntimeCheckpointResult<()> {
+        if self.max_fires_per_advance != state.fire_budget {
+            return Err(RuntimeCheckpointError::FireBudgetMismatch {
+                expected: self.max_fires_per_advance,
+                actual: state.fire_budget,
+            });
+        }
+        if state.next_timer_id < self.next_timer_id {
+            return Err(RuntimeCheckpointError::InternalState(
+                "recovered timer identity would move behind bootstrap state".into(),
+            ));
+        }
+        let mut timers = BTreeMap::new();
+        let mut schedule = BTreeMap::new();
+        for timer in &state.timers {
+            timers.insert(
+                timer.id,
+                TimerState {
+                    deadline: timer.next_deadline,
+                    interval: timer.interval,
+                    occurrences: timer.occurrences,
+                },
+            );
+            schedule.insert((timer.next_deadline, timer.id), ());
+        }
+        self.now = state.now;
+        self.next_timer_id = state.next_timer_id;
+        self.timers = timers;
+        self.schedule = schedule;
+        Ok(())
     }
 
     fn advance_to_in_place(&mut self, target: LogicalTime) -> TimeResult<TimeAdvanceReport> {
