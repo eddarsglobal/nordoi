@@ -1663,3 +1663,98 @@ NAIR SHALL remain format 0.6 and no new opcode is required by this milestone.
 
 K1.17 SHALL NOT freeze human-facing dynamic timer migration or upgrade syntax. Future `.noi`
 frontends may express these certified runtime laws without changing their semantic protocol.
+
+## C305 — K1.18 Is A Consolidation Milestone
+
+K1.18 SHALL NOT require a new runtime capability merely to justify a milestone. Its purpose is to
+make the already-certified kernel boundary explicit, reviewable and machine-readable before the
+language/compiler vertical slice expands.
+
+## C306 — Semantic Stability Is Distinct From Rust API Stability
+
+A semantic law MAY be stable while the Rust symbol names or convenience APIs that expose it remain
+experimental. Future frontend/compiler work SHALL depend on semantic contracts, not accidental Rust
+module layout.
+
+## C307 — Every Classified Surface Has Independent Stability, Kind And Change Policy
+
+The K1.18 semantic stability map SHALL classify each surface independently by stability class,
+semantic kind and permitted change policy. These axes SHALL NOT be collapsed into one ambiguous
+"stable" flag.
+
+## C308 — Stable Program Semantics Require Explicit Evolution
+
+A surface classified as stable program semantics SHALL NOT change incompatibly without an explicit
+versioned semantic protocol, specification update and new constitutional law.
+
+## C309 — Stable Does Not Mean Unversioned Forever
+
+A stable binary or semantic surface MAY evolve, but breaking evolution SHALL be explicit and
+versioned. Silent reinterpretation of old canonical bytes is forbidden.
+
+## C310 — Host Authority Is Not Program Authority
+
+A surface classified as host authority SHALL NOT become program-serializable ambient privilege merely
+because the host API is stable. Authority remains injected, scoped and revocable according to the
+already-certified capability laws.
+
+## C311 — Operational Metadata Is Not Replay Meaning By Default
+
+Fencing, retry scheduling, delivery audit, attestation and comparable operational metadata SHALL NOT
+enter program replay identity unless a future law explicitly promotes a specific fact into program
+semantics.
+
+## C312 — Durable Encoding Is Not Automatically A Semantic Event
+
+A stable checkpoint/journal encoding may preserve semantic state without the act or byte layout of
+persistence becoming program replay meaning.
+
+## C313 — The `.noi` Surface Remains Experimental
+
+K1.18 SHALL explicitly classify the human-facing `.noi` surface as experimental and unfrozen. The
+upcoming language track MAY revise syntax while preserving certified lower semantic law.
+
+## C314 — The Rust Public API Remains Experimental As A Developer Surface
+
+K1.18 SHALL NOT claim full semver stability for every current public Rust symbol. Compatibility of
+semantic law has priority over premature freezing of implementation-facing names.
+
+## C315 — The Compiler Frontend Is Not Yet Certified Kernel Semantics
+
+Parser, AST, HIR and compiler frontend structures that do not yet exist as certified milestones SHALL
+be treated as internal/experimental development surfaces until explicitly promoted by later laws.
+
+## C316 — Stable Surfaces Require Traceable Specification
+
+Every surface classified as stable in the K1.18 manifest SHALL reference an existing specification
+or constitutional/master-law document describing the relevant contract.
+
+## C317 — The Stability Manifest Has Canonical Identity
+
+K1.18 SHALL define deterministic canonical bytes and a domain-separated SHA-256 identity for the
+semantic stability manifest so release tooling can detect unreviewed boundary changes.
+
+## C318 — Stability Manifest Hashing Is Not A Signature
+
+The K1.18 manifest hash provides deterministic integrity identity only. It SHALL NOT be represented as
+writer authentication, trust attestation or non-repudiation.
+
+## C319 — Stability Manifest Reclassification Is Reviewable Semantic Work
+
+Changing a stable surface to experimental/internal, changing its semantic kind, or weakening its
+change policy SHALL be treated as a semantic compatibility change requiring explicit review and laws.
+
+## C320 — Future Language Layers Target Stable Contracts, Not Private Internals
+
+L0/C0 and later compiler work SHALL lower toward certified semantic contracts and NAIR boundaries.
+It SHALL NOT depend on private kernel representation when a stable contract exists.
+
+## C321 — K1.18 Does Not Increment NAIR Or Runtime Checkpoint Format
+
+K1.18 SHALL preserve NAIR 0.6 and `NDRTSM01` runtime checkpoint format 1.1. No new opcode or durable
+checkpoint field is justified by semantic classification alone.
+
+## C322 — K1.18 Does Not Freeze `.noi` Surface Syntax
+
+K1.18 explicitly prepares the project to begin experimental `.noi` development. It SHALL NOT freeze
+human-facing syntax, grammar, module notation or type/effect spelling.

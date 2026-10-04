@@ -726,3 +726,31 @@ reaction topology still owns those bindings.
 Dynamic timer mapping is semantic and therefore participates in upgrade replay identity. Delivery
 and audit metadata remain outside replay meaning. K1.17 remains a timer-resource migration protocol,
 not a general process-resource migration engine.
+
+---
+
+## 32. Semantic stability boundary law
+
+After K1.17, NORDOI has enough certified runtime semantics that future development must distinguish
+**stable law** from **implementation surface**.
+
+K1.18 therefore requires a machine-readable semantic stability map. Stable program semantics,
+host-authority boundaries, operational metadata, durable encodings and developer-facing APIs are not
+interchangeable categories.
+
+```text
+certified semantic law
+        ≠
+current Rust API spelling
+        ≠
+host authority
+        ≠
+operational metadata
+        ≠
+experimental .noi syntax
+```
+
+A future compiler must target stable semantic contracts rather than private kernel layout. Host
+authority must remain external to program bytes. Delivery/audit metadata remains outside replay
+meaning unless explicitly promoted by constitutional law. `.noi` is now permitted to begin as an
+experimental language surface, but it is not frozen by K1.18.

@@ -22,6 +22,7 @@ pub mod render;
 pub mod runtime;
 pub mod runtime_checkpoint;
 pub mod scheduler;
+pub mod semantic_stability;
 pub mod time;
 pub mod transaction;
 pub mod value;
@@ -110,6 +111,15 @@ pub use render::{
     NairRenderFrame, RenderBackend, RenderBatch, RenderError, RenderNode, RenderNodeId,
     RenderPrimitive, RenderResult, RenderSpace, RenderUpdate,
 };
+
+pub use semantic_stability::{
+    kernel_semantic_stability_manifest, kernel_semantic_stability_manifest_bytes,
+    kernel_semantic_stability_manifest_hash, ChangePolicy, SemanticKind,
+    SemanticStabilityManifestHash, SemanticSurface, StabilityClass,
+    KERNEL_SEMANTIC_STABILITY_MANIFEST, KERNEL_STABILITY_MANIFEST_DOMAIN,
+    KERNEL_STABILITY_MANIFEST_MAJOR, KERNEL_STABILITY_MANIFEST_MINOR,
+};
+
 pub use time::{
     AtomicEventLoop, AtomicTimeCore, EventLoopCycleReport, EventLoopError, EventLoopReplayKey,
     EventLoopResult, LogicalDuration, LogicalTime, TimeAdvanceReport, TimeError, TimeResult,
