@@ -1328,3 +1328,128 @@ A freshly booted K1.14 runtime SHALL NOT overwrite an already existing complete 
 merely because it acquired a newer fence. It SHALL first recover that bundle and establish its
 semantic lineage. An empty store MAY establish a new lineage. A legacy partial checkpoint SHALL fail
 closed unless a separately certified explicit migration protocol is used.
+
+## C244 — Program Change Is A Governed Semantic Event
+
+Changing the canonical NAIR program of a durable runtime SHALL occur only through an explicit
+program-upgrade protocol. A program replacement is semantic work and SHALL NOT be disguised as
+ordinary recovery.
+
+## C245 — K1.14 Exact-Program Recovery Remains Fail-Closed
+
+K1.15 SHALL NOT weaken K1.14 `ProgramMismatch`. Ordinary recovery under different canonical program
+bytes SHALL continue to fail. Cross-program continuation requires the governed K1.15 upgrade path.
+
+## C246 — Upgrade Authority Is Exact To Source And Target Program Identity
+
+No program transition has ambient authority. `RuntimeUpgradeAuthority` SHALL grant an exact pair of
+source and target canonical program hashes. The target program SHALL NOT authorize its own
+installation.
+
+## C247 — Every Source Atom Has An Explicit Disposition
+
+Every source atom participating in K1.15 SHALL be explicitly copied to one target atom or explicitly
+dropped. Omission SHALL fail closed.
+
+## C248 — Every Target Atom Has An Explicit Origin
+
+Every target atom SHALL either receive one explicit source copy or retain its explicitly declared
+target bootstrap default. Unstated target initialization SHALL fail closed.
+
+## C249 — K1.15 Atom Migration Is One-To-One And Deterministic
+
+K1.15 SHALL NOT merge, split, fan out or invoke arbitrary migration code. A `Copy` transfers the
+semantic `Value` into the target atom while target identity, ownership and static dependency
+structure remain defined by the target program.
+
+## C250 — Upgrade Plans Have Canonical Identity
+
+A K1.15 upgrade plan SHALL have a deterministic canonical representation and domain-separated
+cryptographic hash independent of host iteration order.
+
+## C251 — Program Epochs Advance Monotonically
+
+Fresh boot begins at `ProgramEpoch(0)`. Every successfully published K1.15 program upgrade SHALL
+advance the epoch by exactly one. Epoch exhaustion SHALL fail closed.
+
+## C252 — Upgrade Lineage Is Cryptographically Chained
+
+Every successful K1.15 upgrade SHALL extend a SHA-256 lineage root over the prior lineage, target
+epoch, exact source/target program hashes, migration-plan hash and exact source semantic-checkpoint
+hash.
+
+## C253 — Upgrade Changes Replay Identity
+
+A program upgrade SHALL change runtime and event-loop replay identity. Equal source state, equal
+target program and equal migration plan SHALL be deterministic; different migration semantics SHALL
+not share replay identity accidentally.
+
+## C254 — Recovery And Upgrade Remain Distinct
+
+Recovery SHALL remain a continuation and SHALL NOT add a replay cause. Upgrade SHALL remain an
+explicit semantic transition and SHALL add replay meaning.
+
+## C255 — Durable Upgrade Commit Precedes Target Publication
+
+The target runtime SHALL remain private until the combined effect/runtime checkpoint for the target
+program succeeds under the active fenced lease.
+
+## C256 — Failed Upgrade Commit Preserves The Source Runtime
+
+If K1.15 target publication fails at the persistence boundary, the live source program, source NAM,
+time, replay, completion state and effect outbox SHALL remain unchanged.
+
+## C257 — External Effect Identity Does Not Reset Across Program Upgrade
+
+`EffectIntentId`, `EffectDeliveryKey`, pending outbox state and the governed audit/retry lineage SHALL
+survive K1.15 program replacement. Program upgrade SHALL NOT create a new external delivery identity
+universe.
+
+## C258 — Input, Time And Completion Deduplication Frontiers Survive Upgrade
+
+K1.15 SHALL preserve logical time, event-loop cycle/tick, last accepted public input sequence,
+completion-source sequences and consumed delivery-key state unless a later separately certified
+protocol explicitly changes those laws.
+
+## C259 — Pending Source Timers Block K1.15 Upgrade
+
+K1.15 SHALL fail if source timers remain pending. Timer topology SHALL NOT be silently guessed or
+reinterpreted across program versions.
+
+## C260 — Target Timers Cannot Begin In The Preserved Past
+
+A target native timer whose bootstrap deadline is before the preserved logical time SHALL cause the
+upgrade to fail closed.
+
+## C261 — Upgrade Authority Is Never Serialized As Program Privilege
+
+Host upgrade grants SHALL NOT be encoded in NAIR, checkpoint state or migration-plan bytes as
+program-owned authority. Authority must be supplied again by the host.
+
+## C262 — Certified K1.14 Runtime Checkpoints Remain Readable
+
+K1.15 runtime checkpoint format 1.1 SHALL decode certified K1.14 format 1.0 bytes using the certified
+K1.14 integrity domain. Legacy checkpoints SHALL enter K1.15 as epoch zero with empty upgrade
+lineage; no prior upgrade history may be invented.
+
+## C263 — K1.15 Migration Does Not Execute Arbitrary Host Code In The Core
+
+The certified K1.15 migration kernel SHALL use only bounded deterministic migration rules. Arbitrary
+host closures, scripts or model-generated code SHALL NOT execute as implicit migration authority.
+
+## C264 — K1.15 Does Not Increment NAIR
+
+K1.15 governs runtime program evolution and state migration, not new canonical program semantics.
+NAIR SHALL remain format 0.6.
+
+## C265 — K1.15 Does Not Freeze `.noi` Surface Syntax
+
+K1.15 SHALL NOT freeze human-facing program-upgrade or migration syntax. Future `.noi` frontends may
+express certified upgrade semantics without changing these underlying laws.
+
+## C266 — Delivery Audit Metadata Does Not Become Upgrade Replay Meaning
+
+The durable upgrade lineage MAY bind the exact source runtime checkpoint and therefore its audit
+prefix. Runtime/event replay identity SHALL NOT hash the source checkpoint digest, audit root,
+backend receipt or upgrade-lineage root. Upgrade replay meaning is derived from semantic source
+replay state, exact source/target program identity, migration-plan identity and program epoch.

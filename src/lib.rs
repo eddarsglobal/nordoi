@@ -16,6 +16,7 @@ pub mod input;
 pub mod kernel;
 pub mod nair;
 pub mod ownership;
+pub mod program_upgrade;
 pub mod reaction;
 pub mod render;
 pub mod runtime;
@@ -93,6 +94,11 @@ pub use nair::{
     NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
+pub use program_upgrade::{
+    AtomUpgradeRule, ProgramEpoch, RuntimeUpgradeAuthority, RuntimeUpgradeError,
+    RuntimeUpgradeHash, RuntimeUpgradeLineageRecord, RuntimeUpgradePlan, RuntimeUpgradeReport,
+    RuntimeUpgradeResult, MAX_RUNTIME_UPGRADE_RULES,
+};
 pub use reaction::{
     AtomicReactionCore, EffectIntent, ReactionBatchReport, ReactionError, ReactionId,
     ReactionResult, ReactionSpec, ReactionStep, ReactionTrigger, ReactionValue, TimerSelector,

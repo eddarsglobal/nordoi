@@ -619,3 +619,39 @@ mint capabilities, credentials or completion-source permissions.
 A newer fence is not permission to erase a previously durable semantic lineage. If a complete
 runtime bundle already exists, a fresh process must recover it before replacement. Partial legacy
 state must fail closed unless a separately governed migration protocol explicitly handles it.
+
+---
+
+## 29. Governed program evolution law
+
+Durable state must not make a NORDOI program impossible to evolve, but evolution must never become a
+backdoor around deterministic recovery.
+
+For K1.15:
+
+```text
+exact source program + durable state
+        ↓
+explicit source→target authority
+        ↓
+total deterministic migration plan
+        ↓
+private target boot + migration
+        ↓
+new program epoch + cryptographic lineage
+        ↓
+one fenced durable bundle commit
+        ↓
+target publication
+```
+
+Ordinary recovery still requires the exact program that produced the checkpoint. Upgrade is a
+separate semantic act and therefore changes replay identity.
+
+The migration core must prefer explicit loss over silent loss: every source atom is copied or
+dropped explicitly, and every target atom is copied or explicitly retains its target default. The
+core may not execute arbitrary host scripts as hidden migration authority.
+
+External effect identity, completion deduplication, logical time and input sequence frontiers survive
+program replacement. Pending source timers remain a fail-closed boundary until NORDOI certifies a
+stable timer migration protocol.

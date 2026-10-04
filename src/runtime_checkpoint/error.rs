@@ -96,6 +96,7 @@ pub enum RuntimeCheckpointError {
     },
     InvalidAuditPrefix,
     InvalidEffectNextIntentId(u64),
+    InvalidUpgradeLineage,
     CycleTickMismatch {
         cycle: u64,
         tick: u64,
@@ -165,6 +166,7 @@ impl Display for RuntimeCheckpointError {
             Self::TimerDeadlineBeforeLogicalTime { timer, deadline, logical_time } => write!(f, "timer {timer} deadline {deadline} is before recovered logical time {logical_time}"),
             Self::InvalidAuditPrefix => write!(f, "runtime checkpoint audit prefix is invalid"),
             Self::InvalidEffectNextIntentId(value) => write!(f, "effect next intent id must be non-zero, got {value}"),
+            Self::InvalidUpgradeLineage => write!(f, "runtime checkpoint program-upgrade lineage is invalid"),
             Self::CycleTickMismatch { cycle, tick } => write!(f, "runtime checkpoint cycle {cycle} does not equal runtime tick {tick}"),
             Self::NamespaceMismatch { expected, actual } => write!(f, "runtime checkpoint namespace mismatch: expected {expected}, actual {actual}"),
             Self::ProgramMismatch => write!(f, "runtime checkpoint was produced by a different canonical NAIR program"),

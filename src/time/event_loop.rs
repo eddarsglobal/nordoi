@@ -38,6 +38,10 @@ use crate::{
         NairCompletionAuthority, NairCompletionBinding, NairError, NairProgram,
         NairReactionAuthority, NairReactionCycleReport, ReactionSlot, TimerSlot,
     },
+    program_upgrade::{
+        next_lineage_root, ProgramEpoch, RuntimeUpgradeAuthority, RuntimeUpgradeError,
+        RuntimeUpgradeHash, RuntimeUpgradeLineageRecord, RuntimeUpgradePlan, RuntimeUpgradeReport,
+    },
     reaction::{AtomicReactionCore, ReactionId},
     runtime::{
         hash_bytes, hash_component, PersistentAtomicRuntime, PersistentRuntimeTickReport,
@@ -57,7 +61,8 @@ use super::{
     TimerId, TimerSnapshot, DEFAULT_TIMER_FIRE_BUDGET,
 };
 
-const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.14";
+const EVENT_LOOP_REPLAY_DOMAIN: &[u8] = b"NORDOI-ATOMIC-EVENT-LOOP-1.15";
+const RUNTIME_UPGRADE_REPLAY_DOMAIN: &[u8] = b"NORDOI-RUNTIME-PROGRAM-UPGRADE-1.0";
 const RUNTIME_PROGRAM_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-PROGRAM-1.0";
 const OP_SCHEDULE_ONCE: u8 = 0x01;
 const OP_SCHEDULE_REPEATING: u8 = 0x02;
@@ -99,6 +104,9 @@ pub struct AtomicEventLoop {
     replay_state: u64,
     replay_key: EventLoopReplayKey,
     program_hash: [u8; 32],
+    program_epoch: ProgramEpoch,
+    upgrade_chain_root: RuntimeUpgradeHash,
+    last_upgrade: Option<RuntimeUpgradeLineageRecord>,
     runtime_checkpoint_bound: bool,
     native_timer_bindings: BTreeMap<TimerSlot, TimerId>,
     reactions: AtomicReactionCore,
@@ -238,6 +246,9 @@ impl AtomicEventLoop {
             replay_state,
             replay_key,
             program_hash,
+            program_epoch: ProgramEpoch(0),
+            upgrade_chain_root: RuntimeUpgradeHash::ZERO,
+            last_upgrade: None,
             runtime_checkpoint_bound: false,
             native_timer_bindings,
             reactions,
@@ -258,6 +269,22 @@ impl AtomicEventLoop {
 
     pub fn replay_key(&self) -> EventLoopReplayKey {
         self.replay_key
+    }
+
+    pub fn program_hash(&self) -> [u8; 32] {
+        self.program_hash
+    }
+
+    pub fn program_epoch(&self) -> ProgramEpoch {
+        self.program_epoch
+    }
+
+    pub fn upgrade_chain_root(&self) -> RuntimeUpgradeHash {
+        self.upgrade_chain_root
+    }
+
+    pub fn last_upgrade(&self) -> Option<&RuntimeUpgradeLineageRecord> {
+        self.last_upgrade.as_ref()
     }
 
     pub fn pending_timers(&self) -> usize {
@@ -611,6 +638,9 @@ impl AtomicEventLoop {
         RuntimeSemanticCheckpoint::from_parts(
             journal.namespace(),
             self.program_hash,
+            self.program_epoch,
+            self.upgrade_chain_root,
+            self.last_upgrade.clone(),
             audit_events,
             journal.audit_ledger().root_hash(),
             self.effect_outbox.next_intent_id(),
@@ -719,6 +749,9 @@ impl AtomicEventLoop {
         candidate.cycle = checkpoint.cycle();
         candidate.replay_state = checkpoint.event_replay_state();
         candidate.replay_key = EventLoopReplayKey(checkpoint.event_replay_state());
+        candidate.program_epoch = checkpoint.program_epoch();
+        candidate.upgrade_chain_root = checkpoint.upgrade_chain_root();
+        candidate.last_upgrade = checkpoint.last_upgrade().cloned();
         candidate.runtime_checkpoint_bound = true;
 
         let audit_events = u64::try_from(effect_checkpoint.audit().len()).map_err(|_| {
@@ -786,6 +819,219 @@ impl AtomicEventLoop {
             });
         }
         Ok(())
+    }
+
+    pub fn upgrade_program_with_runtime_checkpoint<S: FencedRuntimeCheckpointStore>(
+        &mut self,
+        target_program: &NairProgram,
+        reaction_authority: &NairReactionAuthority,
+        completion_authority: &NairCompletionAuthority,
+        upgrade_authority: &RuntimeUpgradeAuthority,
+        plan: &RuntimeUpgradePlan,
+        journal: &mut GovernedAuditedEffectJournal<S>,
+    ) -> EventLoopResult<RuntimeUpgradeReport> {
+        if !self.runtime_checkpoint_bound {
+            return Err(RuntimeUpgradeError::UpgradeRequiresDurableRuntimeBinding.into());
+        }
+        plan.verify_hash()?;
+        if plan.source_program_hash() != self.program_hash {
+            return Err(RuntimeUpgradeError::SourceProgramMismatch.into());
+        }
+        if plan.source_epoch() != self.program_epoch {
+            return Err(RuntimeUpgradeError::SourceEpochMismatch {
+                expected: plan.source_epoch().0,
+                actual: self.program_epoch.0,
+            }
+            .into());
+        }
+        if !upgrade_authority.allows(plan.source_program_hash(), plan.target_program_hash()) {
+            return Err(RuntimeUpgradeError::UnauthorizedTransition.into());
+        }
+
+        let source_checkpoint = self.semantic_checkpoint(journal)?;
+        let source_checkpoint_bytes = source_checkpoint.canonical_bytes()?;
+        let source_checkpoint_hash = sha256(&source_checkpoint_bytes);
+        let source_runtime = source_checkpoint.runtime_state().clone();
+        let source_time = source_checkpoint.time_state().clone();
+        let source_completions = source_checkpoint.completion_state().clone();
+        if !source_time.timers.is_empty() {
+            return Err(RuntimeUpgradeError::PendingTimersUnsupported {
+                count: source_time.timers.len(),
+            }
+            .into());
+        }
+
+        let target_epoch = ProgramEpoch(
+            self.program_epoch
+                .0
+                .checked_add(1)
+                .ok_or(RuntimeUpgradeError::ProgramEpochExhausted)?,
+        );
+        let mut candidate = Self::boot_with_fire_budget_and_authorities(
+            target_program,
+            source_time.fire_budget,
+            reaction_authority,
+            completion_authority,
+        )?;
+        if candidate.program_hash != plan.target_program_hash() {
+            return Err(RuntimeUpgradeError::TargetProgramMismatch.into());
+        }
+
+        let mut target_runtime = candidate.runtime.capture_checkpoint_state()?;
+        let mut target_time = candidate.time.capture_checkpoint_state();
+
+        for source in plan.source_dispositions().keys() {
+            if !source_runtime.atoms.contains_key(source) {
+                return Err(RuntimeUpgradeError::UnknownSourceAtom(*source).into());
+            }
+        }
+        for source in source_runtime.atoms.keys() {
+            if !plan.source_dispositions().contains_key(source) {
+                return Err(RuntimeUpgradeError::MissingSourceAtomDisposition(*source).into());
+            }
+        }
+        for target in plan.target_defaults() {
+            if !target_runtime.atoms.contains_key(target) {
+                return Err(RuntimeUpgradeError::UnknownTargetAtom(*target).into());
+            }
+        }
+        for target in plan.source_dispositions().values().flatten() {
+            if !target_runtime.atoms.contains_key(target) {
+                return Err(RuntimeUpgradeError::UnknownTargetAtom(*target).into());
+            }
+        }
+        for target in target_runtime.atoms.keys() {
+            let copied = plan
+                .source_dispositions()
+                .values()
+                .any(|mapped| mapped == &Some(*target));
+            if !copied && !plan.target_defaults().contains(target) {
+                return Err(RuntimeUpgradeError::MissingTargetAtomDisposition(*target).into());
+            }
+        }
+
+        let mut migrated_atoms = 0_usize;
+        let mut dropped_atoms = 0_usize;
+        for (source, target) in plan.source_dispositions() {
+            match target {
+                Some(target) => {
+                    let source_snapshot = source_runtime
+                        .atoms
+                        .get(source)
+                        .ok_or(RuntimeUpgradeError::UnknownSourceAtom(*source))?;
+                    let target_snapshot = target_runtime
+                        .atoms
+                        .get_mut(target)
+                        .ok_or(RuntimeUpgradeError::UnknownTargetAtom(*target))?;
+                    target_snapshot.value = source_snapshot.value.clone();
+                    target_snapshot.version = source_snapshot
+                        .version
+                        .max(target_snapshot.version)
+                        .checked_add(1)
+                        .ok_or(RuntimeUpgradeError::AtomVersionExhausted(*target))?;
+                    migrated_atoms += 1;
+                }
+                None => dropped_atoms += 1,
+            }
+        }
+
+        for timer in &target_time.timers {
+            if timer.next_deadline < source_time.now {
+                return Err(RuntimeUpgradeError::TargetTimerDeadlineBeforeUpgradeTime {
+                    timer: timer.id.0,
+                    deadline: timer.next_deadline.0,
+                    logical_time: source_time.now.0,
+                }
+                .into());
+            }
+        }
+
+        let plan_hash = plan.plan_hash();
+        let lineage_root = next_lineage_root(
+            self.upgrade_chain_root,
+            target_epoch,
+            self.program_hash,
+            candidate.program_hash,
+            plan_hash,
+            source_checkpoint_hash,
+        );
+        let lineage_record = RuntimeUpgradeLineageRecord {
+            source_program_hash: self.program_hash,
+            target_program_hash: candidate.program_hash,
+            plan_hash,
+            source_checkpoint_hash,
+        };
+
+        let mut runtime_replay_state = target_runtime.replay_state;
+        hash_bytes(&mut runtime_replay_state, RUNTIME_UPGRADE_REPLAY_DOMAIN);
+        hash_component(
+            &mut runtime_replay_state,
+            &source_runtime.replay_state.to_le_bytes(),
+        );
+        hash_component(&mut runtime_replay_state, &self.program_hash);
+        hash_component(&mut runtime_replay_state, &candidate.program_hash);
+        hash_component(&mut runtime_replay_state, &plan_hash.0);
+        hash_component(&mut runtime_replay_state, &target_epoch.0.to_le_bytes());
+        target_runtime.tick = source_runtime.tick;
+        target_runtime.replay_state = runtime_replay_state;
+        target_runtime.last_input_sequence = source_runtime.last_input_sequence;
+        target_runtime.next_transaction_id = target_runtime
+            .next_transaction_id
+            .max(source_runtime.next_transaction_id);
+
+        target_time.now = source_time.now;
+        target_time.next_timer_id = target_time.next_timer_id.max(source_time.next_timer_id);
+
+        candidate
+            .runtime
+            .restore_checkpoint_state(&target_runtime)?;
+        candidate.time.restore_checkpoint_state(&target_time)?;
+        candidate
+            .effect_completions
+            .restore_checkpoint_state(&source_completions);
+        candidate.effect_outbox = self.effect_outbox.clone();
+        candidate.cycle = self.cycle;
+        candidate.program_epoch = target_epoch;
+        candidate.upgrade_chain_root = lineage_root;
+        candidate.last_upgrade = Some(lineage_record);
+
+        let mut event_replay_state = candidate.replay_state;
+        hash_bytes(&mut event_replay_state, RUNTIME_UPGRADE_REPLAY_DOMAIN);
+        hash_component(&mut event_replay_state, &self.replay_state.to_le_bytes());
+        hash_component(&mut event_replay_state, &self.program_hash);
+        hash_component(&mut event_replay_state, &candidate.program_hash);
+        hash_component(&mut event_replay_state, &plan_hash.0);
+        hash_component(&mut event_replay_state, &target_epoch.0.to_le_bytes());
+        candidate.replay_state = event_replay_state;
+        candidate.replay_key = EventLoopReplayKey(event_replay_state);
+
+        let lease = journal.assert_active()?;
+        let effect_checkpoint = journal.capture_checkpoint(&candidate.effect_outbox);
+        let target_checkpoint = candidate.semantic_checkpoint(journal)?;
+        let effect_bytes = effect_checkpoint.canonical_bytes();
+        let runtime_bytes = target_checkpoint.canonical_bytes()?;
+        journal
+            .store_mut()
+            .commit_effect_and_runtime_fenced(lease, &effect_bytes, &runtime_bytes)
+            .map_err(RuntimeCheckpointError::from)?;
+
+        candidate.runtime_checkpoint_bound = true;
+        let report = RuntimeUpgradeReport {
+            source_epoch: self.program_epoch,
+            target_epoch,
+            source_program_hash: self.program_hash,
+            target_program_hash: candidate.program_hash,
+            plan_hash,
+            source_checkpoint_hash,
+            lineage_root,
+            migrated_atoms,
+            dropped_atoms,
+            defaulted_atoms: plan.target_defaults().len(),
+            cycle: candidate.cycle,
+            logical_time: candidate.logical_time(),
+        };
+        *self = candidate;
+        Ok(report)
     }
 
     pub fn schedule_once_at(&mut self, deadline: LogicalTime) -> EventLoopResult<TimerId> {

@@ -6,6 +6,7 @@ use crate::{
     effect_dispatch::{EffectDeliveryKey, EffectDeliveryNamespace, EffectIntentId},
     input::InputSequence,
     nair::{AtomSlot, RenderNodeSlot},
+    program_upgrade::{ProgramEpoch, RuntimeUpgradeHash, RuntimeUpgradeLineageRecord},
     runtime::RuntimeAtomSnapshot,
     time::{LogicalDuration, LogicalTime, TimerId, TimerSnapshot},
     value::Value,
@@ -18,8 +19,9 @@ use super::{
 
 const MAGIC: &[u8; 8] = b"NDRTSM01";
 const FORMAT_MAJOR: u16 = 1;
-const FORMAT_MINOR: u16 = 0;
-const CHECKPOINT_HASH_DOMAIN: &[u8] = b"NORDOI-RUNTIME-SEMANTIC-CHECKPOINT-1.0";
+const FORMAT_MINOR: u16 = 1;
+const CHECKPOINT_HASH_DOMAIN_V1_0: &[u8] = b"NORDOI-RUNTIME-SEMANTIC-CHECKPOINT-1.0";
+const CHECKPOINT_HASH_DOMAIN_V1_1: &[u8] = b"NORDOI-RUNTIME-SEMANTIC-CHECKPOINT-1.1";
 
 pub const MAX_RUNTIME_CHECKPOINT_BYTES: usize = 256 * 1024 * 1024;
 pub const MAX_RUNTIME_CHECKPOINT_ATOMS: usize = 262_144;
@@ -32,6 +34,9 @@ pub const MAX_RUNTIME_CHECKPOINT_TEXT_BYTES: usize = 1024 * 1024;
 pub struct RuntimeSemanticCheckpoint {
     namespace: EffectDeliveryNamespace,
     program_hash: [u8; 32],
+    program_epoch: ProgramEpoch,
+    upgrade_chain_root: RuntimeUpgradeHash,
+    last_upgrade: Option<RuntimeUpgradeLineageRecord>,
     audit_events: u64,
     audit_root: EffectAuditHash,
     effect_next_intent_id: u64,
@@ -47,6 +52,9 @@ impl RuntimeSemanticCheckpoint {
     pub(crate) fn from_parts(
         namespace: EffectDeliveryNamespace,
         program_hash: [u8; 32],
+        program_epoch: ProgramEpoch,
+        upgrade_chain_root: RuntimeUpgradeHash,
+        last_upgrade: Option<RuntimeUpgradeLineageRecord>,
         audit_events: u64,
         audit_root: EffectAuditHash,
         effect_next_intent_id: u64,
@@ -59,6 +67,9 @@ impl RuntimeSemanticCheckpoint {
         let checkpoint = Self {
             namespace,
             program_hash,
+            program_epoch,
+            upgrade_chain_root,
+            last_upgrade,
             audit_events,
             audit_root,
             effect_next_intent_id,
@@ -77,6 +88,15 @@ impl RuntimeSemanticCheckpoint {
     }
     pub fn program_hash(&self) -> [u8; 32] {
         self.program_hash
+    }
+    pub fn program_epoch(&self) -> ProgramEpoch {
+        self.program_epoch
+    }
+    pub fn upgrade_chain_root(&self) -> RuntimeUpgradeHash {
+        self.upgrade_chain_root
+    }
+    pub fn last_upgrade(&self) -> Option<&RuntimeUpgradeLineageRecord> {
+        self.last_upgrade.as_ref()
     }
     pub fn audit_events(&self) -> u64 {
         self.audit_events
@@ -133,6 +153,18 @@ impl RuntimeSemanticCheckpoint {
         bytes.extend_from_slice(&FORMAT_MINOR.to_le_bytes());
         bytes.extend_from_slice(&self.namespace.0);
         bytes.extend_from_slice(&self.program_hash);
+        bytes.extend_from_slice(&self.program_epoch.0.to_le_bytes());
+        bytes.extend_from_slice(&self.upgrade_chain_root.0);
+        match &self.last_upgrade {
+            Some(record) => {
+                bytes.push(1);
+                bytes.extend_from_slice(&record.source_program_hash);
+                bytes.extend_from_slice(&record.target_program_hash);
+                bytes.extend_from_slice(&record.plan_hash.0);
+                bytes.extend_from_slice(&record.source_checkpoint_hash);
+            }
+            None => bytes.push(0),
+        }
         bytes.extend_from_slice(&self.audit_events.to_le_bytes());
         bytes.extend_from_slice(&self.audit_root.0);
         bytes.extend_from_slice(&self.effect_next_intent_id.to_le_bytes());
@@ -218,7 +250,14 @@ impl RuntimeSemanticCheckpoint {
         let expected: [u8; 32] = digest_bytes
             .try_into()
             .map_err(|_| RuntimeCheckpointError::Truncated)?;
-        let actual = checkpoint_digest(payload);
+        if payload.len() < 12 {
+            return Err(RuntimeCheckpointError::Truncated);
+        }
+        if &payload[..8] != MAGIC {
+            return Err(RuntimeCheckpointError::InvalidMagic);
+        }
+        let minor = u16::from_le_bytes([payload[10], payload[11]]);
+        let actual = checkpoint_digest_for_minor(payload, minor);
         if expected != actual {
             return Err(RuntimeCheckpointError::DigestMismatch { expected, actual });
         }
@@ -234,6 +273,23 @@ impl RuntimeSemanticCheckpoint {
         }
         let namespace = EffectDeliveryNamespace::new(reader.read_array_16()?);
         let program_hash = reader.read_array_32()?;
+        let (program_epoch, upgrade_chain_root, last_upgrade) = if minor >= 1 {
+            let program_epoch = ProgramEpoch(reader.read_u64()?);
+            let upgrade_chain_root = RuntimeUpgradeHash(reader.read_array_32()?);
+            let last_upgrade = match reader.read_u8()? {
+                0 => None,
+                1 => Some(RuntimeUpgradeLineageRecord {
+                    source_program_hash: reader.read_array_32()?,
+                    target_program_hash: reader.read_array_32()?,
+                    plan_hash: RuntimeUpgradeHash(reader.read_array_32()?),
+                    source_checkpoint_hash: reader.read_array_32()?,
+                }),
+                _ => return Err(RuntimeCheckpointError::Truncated),
+            };
+            (program_epoch, upgrade_chain_root, last_upgrade)
+        } else {
+            (ProgramEpoch(0), RuntimeUpgradeHash::ZERO, None)
+        };
         let audit_events = reader.read_u64()?;
         let audit_root = EffectAuditHash(reader.read_array_32()?);
         let effect_next_intent_id = reader.read_u64()?;
@@ -401,6 +457,9 @@ impl RuntimeSemanticCheckpoint {
         Self::from_parts(
             namespace,
             program_hash,
+            program_epoch,
+            upgrade_chain_root,
+            last_upgrade,
             audit_events,
             audit_root,
             effect_next_intent_id,
@@ -416,6 +475,21 @@ impl RuntimeSemanticCheckpoint {
     }
 
     fn validate(&self) -> RuntimeCheckpointResult<()> {
+        if self.program_epoch.0 == 0 {
+            if self.upgrade_chain_root != RuntimeUpgradeHash::ZERO || self.last_upgrade.is_some() {
+                return Err(RuntimeCheckpointError::InvalidUpgradeLineage);
+            }
+        } else {
+            let record = self
+                .last_upgrade
+                .as_ref()
+                .ok_or(RuntimeCheckpointError::InvalidUpgradeLineage)?;
+            if self.upgrade_chain_root == RuntimeUpgradeHash::ZERO
+                || record.target_program_hash != self.program_hash
+            {
+                return Err(RuntimeCheckpointError::InvalidUpgradeLineage);
+            }
+        }
         if self.effect_next_intent_id == 0 {
             return Err(RuntimeCheckpointError::InvalidEffectNextIntentId(
                 self.effect_next_intent_id,
@@ -536,8 +610,21 @@ impl RuntimeSemanticCheckpoint {
 }
 
 fn checkpoint_digest(payload: &[u8]) -> [u8; 32] {
-    let mut input = Vec::with_capacity(CHECKPOINT_HASH_DOMAIN.len() + payload.len());
-    input.extend_from_slice(CHECKPOINT_HASH_DOMAIN);
+    checkpoint_digest_with_domain(payload, CHECKPOINT_HASH_DOMAIN_V1_1)
+}
+
+fn checkpoint_digest_for_minor(payload: &[u8], minor: u16) -> [u8; 32] {
+    let domain = if minor == 0 {
+        CHECKPOINT_HASH_DOMAIN_V1_0
+    } else {
+        CHECKPOINT_HASH_DOMAIN_V1_1
+    };
+    checkpoint_digest_with_domain(payload, domain)
+}
+
+fn checkpoint_digest_with_domain(payload: &[u8], domain: &[u8]) -> [u8; 32] {
+    let mut input = Vec::with_capacity(domain.len() + payload.len());
+    input.extend_from_slice(domain);
     input.extend_from_slice(payload);
     sha256(&input)
 }
@@ -687,5 +774,105 @@ impl<'a> Reader<'a> {
             tag => return Err(RuntimeCheckpointError::UnknownValueTag(tag)),
         };
         Ok(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::program_upgrade::{ProgramEpoch, RuntimeUpgradeHash, RuntimeUpgradeLineageRecord};
+
+    fn minimal_checkpoint() -> RuntimeSemanticCheckpoint {
+        RuntimeSemanticCheckpoint::from_parts(
+            EffectDeliveryNamespace::new([7; 16]),
+            [3; 32],
+            ProgramEpoch(0),
+            RuntimeUpgradeHash::ZERO,
+            None,
+            0,
+            EffectAuditHash::ZERO,
+            1,
+            0,
+            11,
+            PersistentRuntimeCheckpointState {
+                tick: 0,
+                replay_state: 13,
+                last_input_sequence: None,
+                next_transaction_id: 1,
+                atoms: BTreeMap::new(),
+                render_revisions: Vec::new(),
+            },
+            TimeCheckpointState {
+                now: LogicalTime::ZERO,
+                next_timer_id: 1,
+                fire_budget: 1,
+                timers: Vec::new(),
+            },
+            CompletionCheckpointState::default(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn legacy_k114_minor_zero_checkpoint_decodes_as_epoch_zero() {
+        let current = minimal_checkpoint().canonical_bytes().unwrap();
+        let current_payload = &current[..current.len() - 32];
+        const EXTENSION_START: usize = 60;
+        const EPOCH_ZERO_EXTENSION_LEN: usize = 41;
+        let mut legacy = Vec::new();
+        legacy.extend_from_slice(&current_payload[..EXTENSION_START]);
+        legacy[10..12].copy_from_slice(&0_u16.to_le_bytes());
+        legacy.extend_from_slice(&current_payload[EXTENSION_START + EPOCH_ZERO_EXTENSION_LEN..]);
+        let digest = checkpoint_digest_with_domain(&legacy, CHECKPOINT_HASH_DOMAIN_V1_0);
+        legacy.extend_from_slice(&digest);
+
+        let decoded = RuntimeSemanticCheckpoint::from_canonical_bytes(&legacy).unwrap();
+        assert_eq!(decoded.program_epoch(), ProgramEpoch(0));
+        assert_eq!(decoded.upgrade_chain_root(), RuntimeUpgradeHash::ZERO);
+        assert!(decoded.last_upgrade().is_none());
+        assert_ne!(decoded.canonical_bytes().unwrap(), legacy);
+    }
+
+    #[test]
+    fn upgraded_lineage_round_trip_is_byte_stable() {
+        let record = RuntimeUpgradeLineageRecord {
+            source_program_hash: [1; 32],
+            target_program_hash: [2; 32],
+            plan_hash: RuntimeUpgradeHash([3; 32]),
+            source_checkpoint_hash: [4; 32],
+        };
+        let checkpoint = RuntimeSemanticCheckpoint::from_parts(
+            EffectDeliveryNamespace::new([8; 16]),
+            [2; 32],
+            ProgramEpoch(1),
+            RuntimeUpgradeHash([5; 32]),
+            Some(record.clone()),
+            0,
+            EffectAuditHash::ZERO,
+            1,
+            0,
+            17,
+            PersistentRuntimeCheckpointState {
+                tick: 0,
+                replay_state: 19,
+                last_input_sequence: None,
+                next_transaction_id: 1,
+                atoms: BTreeMap::new(),
+                render_revisions: Vec::new(),
+            },
+            TimeCheckpointState {
+                now: LogicalTime::ZERO,
+                next_timer_id: 1,
+                fire_budget: 1,
+                timers: Vec::new(),
+            },
+            CompletionCheckpointState::default(),
+        )
+        .unwrap();
+        let bytes = checkpoint.canonical_bytes().unwrap();
+        let decoded = RuntimeSemanticCheckpoint::from_canonical_bytes(&bytes).unwrap();
+        assert_eq!(decoded.canonical_bytes().unwrap(), bytes);
+        assert_eq!(decoded.program_epoch(), ProgramEpoch(1));
+        assert_eq!(decoded.last_upgrade(), Some(&record));
     }
 }

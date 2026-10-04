@@ -6,7 +6,7 @@ use std::{
 use crate::{
     effect_audit::EffectAuditError, effect_dispatch::EffectDispatchError,
     effect_fencing::EffectFencingError, effect_persistence::EffectPersistenceError,
-    effect_retry::EffectRetryError, runtime::RuntimeError,
+    effect_retry::EffectRetryError, program_upgrade::RuntimeUpgradeError, runtime::RuntimeError,
     runtime_checkpoint::RuntimeCheckpointError,
 };
 
@@ -72,6 +72,7 @@ pub enum EventLoopError {
     Retry(EffectRetryError),
     Audit(EffectAuditError),
     RuntimeCheckpoint(RuntimeCheckpointError),
+    Upgrade(RuntimeUpgradeError),
 }
 
 impl Display for EventLoopError {
@@ -89,6 +90,7 @@ impl Display for EventLoopError {
             Self::RuntimeCheckpoint(error) => {
                 write!(f, "atomic event-loop runtime checkpoint failure: {error}")
             }
+            Self::Upgrade(error) => write!(f, "atomic event-loop program upgrade failure: {error}"),
         }
     }
 }
@@ -104,6 +106,7 @@ impl Error for EventLoopError {
             Self::Retry(error) => Some(error),
             Self::Audit(error) => Some(error),
             Self::RuntimeCheckpoint(error) => Some(error),
+            Self::Upgrade(error) => Some(error),
         }
     }
 }
@@ -153,6 +156,12 @@ impl From<EffectAuditError> for EventLoopError {
 impl From<RuntimeCheckpointError> for EventLoopError {
     fn from(value: RuntimeCheckpointError) -> Self {
         Self::RuntimeCheckpoint(value)
+    }
+}
+
+impl From<RuntimeUpgradeError> for EventLoopError {
+    fn from(value: RuntimeUpgradeError) -> Self {
+        Self::Upgrade(value)
     }
 }
 
