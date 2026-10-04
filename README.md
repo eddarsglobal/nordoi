@@ -1,4 +1,54 @@
-# NORDOI C0.2 — Semantic Registry & Resolved IDs
+# NORDOI L0.5 — Minimal Body Semantics
+
+L0.5 builds on the **certified K1.18 kernel**, **certified L0.1/L0.2/L0.3/L0.4 frontend**,
+**certified T0.1 CLI**, and **certified C0.1/C0.2 semantic compiler boundaries**.
+
+It adds the first body form that NORDOI understands completely:
+
+```noi
+module demo.app;
+type User;
+effect Network;
+
+entry main;
+```
+
+The L0.5 body is exactly either empty/trivia-only or one contextual `entry Name;`. The entry is a
+**pure zero-work semantic entrypoint**: no parameters, no return value, no calls, no statements, no
+effect operations, no host authority and no runtime execution. Any other significant body syntax
+fails closed at the L0.5 boundary.
+
+```text
+L0.4 residual body
+  ↓
+L0.5 complete body recognition
+  ↓
+HirBodyUnit
+  ↓ validate-before-publication
+NsirBodyUnit (EMPTY | pure ENTRY)
+  ↓
+future executable semantic plan
+  ↓
+future explicit NSIR → NAIR lowering
+```
+
+The certified C0.2 `nordoi semantic` path remains unchanged and continues to report its residual body
+as `UNLOWERED`. L0.5 adds a separate inspection command:
+
+```text
+nordoi body <path|->
+```
+
+L0.5 adds `canonical_l05_bytes()` while preserving C0.1 `canonical_identity_bytes()`, L0.4
+`canonical_semantic_bytes()` and C0.2 `canonical_c02_bytes()` unchanged. Source spans, comments and
+whitespace remain diagnostic metadata outside canonical identity.
+
+Normative candidate design: `docs/NOI_MINIMAL_BODY_SPEC_0_5.md`.  
+Architecture/research record: `research/MINIMAL_BODY_INTELLIGENCE_0_5.md`.
+
+The kernel, NAIR 0.6, runtime, runtime checkpoint and K1.18 stability map are unchanged.
+
+## Certified C0.2 foundation carried forward
 
 C0.2 builds on the **certified K1.18 kernel**, **certified L0.1/L0.2/L0.3/L0.4 language foundations**,
 **certified T0.1 CLI**, and **certified C0.1 semantic boundary**.

@@ -1,11 +1,12 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.2 builds a canonical semantic registry over the C0.1/L0.4 HIR-NSIR boundary. Opaque nominal
-//! `type` declarations and named `effect` identities receive typed, deterministic module-local IDs
-//! in separate namespaces. Effect identity remains declared intent only: it grants no host authority
-//! and performs no runtime work. Expressions, functions, handlers, effect operations and NSIR → NAIR
-//! lowering remain deliberately undefined.
+//! L0.5 layers one fully understood body form over the certified C0.2 semantic registry: an empty
+//! body or one pure zero-work `entry Name;` declaration. The existing C0.1, L0.4 and C0.2 boundaries
+//! and witnesses remain available unchanged. Entry identity grants no host authority and performs no
+//! runtime work. General functions, parameters, calls, expressions, handlers and NSIR → NAIR lowering
+//! remain deliberately undefined.
 
+mod body;
 mod effects;
 mod error;
 mod hir;
@@ -13,6 +14,10 @@ mod lower;
 mod nsir;
 mod symbols;
 
+pub use body::{
+    compile_minimal_body_boundary, lower_minimal_body_unit_to_hir, validate_body_hir, HirBodyUnit,
+    HirEntryPoint, HirMinimalBody, NsirBodyUnit, NsirEntryPoint, NsirMinimalBody,
+};
 pub use effects::{SemanticEffectSet, MAX_SEMANTIC_EFFECT_REQUIREMENTS};
 pub use error::{CompilerError, CompilerResult};
 pub use hir::{

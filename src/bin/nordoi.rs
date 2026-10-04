@@ -1,7 +1,7 @@
 use nordoi_kernel::{
-    analyze_module_unit, compile_resolved_semantic_boundary, lex, parse, AstElement, CompilerError,
-    Delimiter, LexError, ModuleError, NsirBodyState, ParseError, SourceId, SourceSpan, SourceText,
-    Token, TokenKind,
+    analyze_module_unit, compile_minimal_body_boundary, compile_resolved_semantic_boundary, lex,
+    parse, AstElement, CompilerError, Delimiter, LexError, ModuleError, NsirBodyState,
+    NsirMinimalBody, ParseError, SourceId, SourceSpan, SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -25,6 +25,7 @@ Usage:\n\
   nordoi parse <path|->\n\
   nordoi module <path|->\n\
   nordoi semantic <path|->\n\
+  nordoi body <path|->\n\
   nordoi --help\n\
   nordoi --version\n\
 \n\
@@ -33,9 +34,10 @@ Commands:\n\
   parse    Print the lossless L0.2 structural AST.\n\
   module   Print the L0.3 contextual module identity.\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
+  body     Print the fully understood L0.5 minimal body boundary.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
-C0.2 resolves type/effect symbols only; it does not lower or execute NAIR.\n";
+C0.2 resolves type/effect symbols. L0.5 body inspection does not lower or execute NAIR.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -75,7 +77,10 @@ fn run() -> u8 {
     }
 
     let command = arguments[0].to_string_lossy();
-    if !matches!(command.as_ref(), "lex" | "parse" | "module" | "semantic") {
+    if !matches!(
+        command.as_ref(),
+        "lex" | "parse" | "module" | "semantic" | "body"
+    ) {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
     }
@@ -105,6 +110,7 @@ fn run() -> u8 {
         "parse" => run_parse(&source, &mut output),
         "module" => run_module(&source, &mut output),
         "semantic" => run_semantic(&source, &mut output),
+        "body" => run_body(&source, &mut output),
         _ => unreachable!("validated command must be exhaustive"),
     };
 
@@ -136,6 +142,10 @@ fn run() -> u8 {
             report_frontend_error("semantic", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::BodyCompilerFailure(error) => {
+            report_frontend_error("body", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
     }
 }
 
@@ -146,6 +156,7 @@ enum CommandResult {
     ParseFailure(ParseError),
     ModuleFailure(ModuleError),
     CompilerFailure(CompilerError),
+    BodyCompilerFailure(CompilerError),
 }
 
 fn run_lex(source: &SourceText, output: &mut impl Write) -> CommandResult {
@@ -283,6 +294,60 @@ fn run_semantic(source: &SourceText, output: &mut impl Write) -> CommandResult {
         origin.body_span().start().get(),
         origin.body_span().end().get()
     ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_body(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match compile_minimal_body_boundary(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::BodyCompilerFailure(error),
+    };
+
+    let semantic = unit.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c02 = hex_bytes(&semantic.canonical_c02_bytes());
+    let l05 = hex_bytes(&unit.canonical_l05_bytes());
+
+    let result = match unit.body() {
+        NsirMinimalBody::Empty => writeln!(
+            output,
+            "body module={module} form=EMPTY pure=true c02={c02} l05={l05}"
+        ),
+        NsirMinimalBody::Entry(entry) => writeln!(
+            output,
+            "body module={module} form=ENTRY name=\"{}\" pure={} effects={} c02={c02} l05={l05}",
+            escape_fragment(entry.name().as_str()),
+            entry.is_pure(),
+            entry.required_effects().effects().len()
+        ),
+    };
+    if let Err(error) = result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let origin = semantic.origin();
+    if let Err(error) = match unit.entry() {
+        Some(entry) => writeln!(
+            output,
+            "origin body={}..{} entry={}..{}",
+            origin.body_span().start().get(),
+            origin.body_span().end().get(),
+            entry.origin_span().start().get(),
+            entry.origin_span().end().get()
+        ),
+        None => writeln!(
+            output,
+            "origin body={}..{} entry=<none>",
+            origin.body_span().start().get(),
+            origin.body_span().end().get()
+        ),
+    } {
         return CommandResult::OutputFailure(error);
     }
 

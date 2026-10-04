@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI C0.2 — Semantic Registry & Resolved IDs"
+description = "NORDOI L0.5 — Minimal Body Semantics"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

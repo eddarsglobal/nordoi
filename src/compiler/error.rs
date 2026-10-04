@@ -1,4 +1,4 @@
-use crate::frontend::{ModuleError, SourceError, SourceSpan, TypeEffectError};
+use crate::frontend::{BodyError, ModuleError, SourceError, SourceSpan, TypeEffectError};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -6,6 +6,7 @@ use std::fmt::{Display, Formatter};
 pub enum CompilerError {
     Frontend(ModuleError),
     TypeEffectFrontend(TypeEffectError),
+    BodyFrontend(BodyError),
     Source(SourceError),
     EmptySemanticName,
     SemanticNameTooLong {
@@ -72,6 +73,14 @@ pub enum CompilerError {
         module: SourceSpan,
         body: SourceSpan,
     },
+    BodyLayerSpanMismatch {
+        semantic_body: SourceSpan,
+        body: SourceSpan,
+    },
+    EntrySpanOutsideBody {
+        body: SourceSpan,
+        entry: SourceSpan,
+    },
 }
 
 impl CompilerError {
@@ -79,6 +88,7 @@ impl CompilerError {
         match self {
             Self::Frontend(error) => error.primary_span(),
             Self::TypeEffectFrontend(error) => error.primary_span(),
+            Self::BodyFrontend(error) => error.primary_span(),
             Self::Source(_) => None,
             Self::SourceMismatch { other, .. } => Some(*other),
             Self::ModuleSpanOutsideFile { module, .. } => Some(*module),
@@ -87,7 +97,9 @@ impl CompilerError {
             | Self::DeclarationOrderViolation { declaration, .. }
             | Self::DeclarationOverlapsBody { declaration, .. } => Some(*declaration),
             Self::BodySpanOutsideFile { body, .. }
-            | Self::BodyStartsBeforeModuleEnds { body, .. } => Some(*body),
+            | Self::BodyStartsBeforeModuleEnds { body, .. }
+            | Self::BodyLayerSpanMismatch { body, .. } => Some(*body),
+            Self::EntrySpanOutsideBody { entry, .. } => Some(*entry),
             Self::DuplicateSemanticDeclaration { duplicate, .. } => Some(*duplicate),
             Self::EmptySemanticName
             | Self::SemanticNameTooLong { .. }
@@ -107,6 +119,7 @@ impl Display for CompilerError {
         match self {
             Self::Frontend(error) => Display::fmt(error, f),
             Self::TypeEffectFrontend(error) => Display::fmt(error, f),
+            Self::BodyFrontend(error) => Display::fmt(error, f),
             Self::Source(error) => Display::fmt(error, f),
             Self::EmptySemanticName => write!(f, "semantic name must not be empty"),
             Self::SemanticNameTooLong { bytes, maximum } => write!(
@@ -193,6 +206,16 @@ impl Display for CompilerError {
                     "HIR body cannot begin before the module declaration ends"
                 )
             }
+            Self::BodyLayerSpanMismatch { .. } => write!(
+                f,
+                "L0.5 body layer must cover exactly the residual body span published by L0.4"
+            ),
+            Self::EntrySpanOutsideBody { .. } => {
+                write!(
+                    f,
+                    "L0.5 entry span must be contained by the residual body span"
+                )
+            }
         }
     }
 }
@@ -202,6 +225,7 @@ impl Error for CompilerError {
         match self {
             Self::Frontend(error) => Some(error),
             Self::TypeEffectFrontend(error) => Some(error),
+            Self::BodyFrontend(error) => Some(error),
             Self::Source(error) => Some(error),
             _ => None,
         }
@@ -217,6 +241,12 @@ impl From<ModuleError> for CompilerError {
 impl From<TypeEffectError> for CompilerError {
     fn from(value: TypeEffectError) -> Self {
         Self::TypeEffectFrontend(value)
+    }
+}
+
+impl From<BodyError> for CompilerError {
+    fn from(value: BodyError) -> Self {
+        Self::BodyFrontend(value)
     }
 }
 

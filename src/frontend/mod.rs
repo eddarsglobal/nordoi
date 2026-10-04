@@ -1,11 +1,13 @@
 //! Experimental `.noi` language frontend foundation.
 //!
-//! L0.4 adds a bounded contextual declaration prelude on top of the certified L0.1/L0.2/L0.3
-//! frontend. Only opaque nominal `type Name;` and named `effect Name;` declarations are recognized.
-//! It still does not define imports, symbol resolution, expressions, functions, handlers, packages or
-//! NAIR lowering.
+//! L0.5 adds the first fully understood minimal body form on top of L0.4: an empty body or one
+//! contextual `entry Name;` declaration. `entry` remains a lexical identifier outside this exact body
+//! position. General functions, parameters, calls, expressions, handlers, packages and NAIR lowering
+//! remain deliberately undefined.
 
 mod ast;
+mod body;
+mod body_error;
 mod error;
 mod lexer;
 mod module;
@@ -18,6 +20,10 @@ mod type_effect;
 mod type_effect_error;
 
 pub use ast::{AstElement, AstFile, AstGroup, Delimiter};
+pub use body::{
+    analyze_minimal_body_unit, MinimalBodyAnalyzer, MinimalBodyForm, MinimalBodyUnit, SurfaceEntry,
+};
+pub use body_error::{BodyError, BodyResult};
 pub use error::{LexError, LexResult, SourceError, SourceResult};
 pub use lexer::{lex, Lexer, Token, TokenKind};
 pub use module::{
