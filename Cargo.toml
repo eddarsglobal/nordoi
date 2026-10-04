@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI L0.2 — Structural Parser & Experimental AST on certified K1.18 kernel"
+description = "NORDOI L0.3 — Names & Modules on certified K1.18 kernel"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 
