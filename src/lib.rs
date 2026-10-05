@@ -25,6 +25,7 @@ pub mod runtime;
 pub mod runtime_checkpoint;
 pub mod scheduler;
 pub mod semantic_stability;
+pub mod source_execution;
 pub mod time;
 pub mod transaction;
 pub mod value;
@@ -144,6 +145,11 @@ pub use semantic_stability::{
     SemanticStabilityManifestHash, SemanticSurface, StabilityClass,
     KERNEL_SEMANTIC_STABILITY_MANIFEST, KERNEL_STABILITY_MANIFEST_DOMAIN,
     KERNEL_STABILITY_MANIFEST_MAJOR, KERNEL_STABILITY_MANIFEST_MINOR,
+};
+
+pub use source_execution::{
+    execute_source_v01, validate_v01_execution, SourceExecutionError, SourceExecutionReport,
+    SourceExecutionResult,
 };
 
 pub use time::{

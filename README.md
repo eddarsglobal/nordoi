@@ -1,4 +1,45 @@
-# NORDOI C0.4 — Semantic Plan → NAIR Lowering Foundation
+# NORDOI V0.1 — First Executable `.noi` Program
+
+V0.1 builds on certified **C0.4 Semantic Plan → NAIR Lowering Foundation** and closes the first
+complete `.noi` source-to-runtime path without broadening NAIR, runtime authority, or the source
+language.
+
+```text
+.noi source
+  ↓ L0.1–L0.5
+validated minimal source semantics
+  ↓ C0.1–C0.4
+NAIR 0.6 [Halt]
+  ↓ V0.1
+closed AtomicRuntime execution with canonical empty input
+```
+
+V0.1 adds:
+
+```text
+execute_source_v01(...)
+validate_v01_execution(...)
+SourceExecutionReport
+SourceExecutionError
+canonical_v01_receipt_bytes()
+
+nordoi run <path|->
+```
+
+The execution boundary validates a strict zero-work result: exactly one executed `Halt`, zero input,
+zero domains, zero atoms, zero transactions, zero frames, zero input bridges, zero scheduled work,
+and a quiescent runtime. No effect or host authority is granted or consumed.
+
+The V0.1 receipt binds C0.4 compiler provenance to canonical empty input and the deterministic runtime
+replay key. It is execution evidence, not source semantics, NAIR bytes, or a runtime checkpoint.
+
+Normative candidate design: `docs/NOI_FIRST_EXECUTION_SPEC_0_1.md`.  
+Architecture/research record: `research/FIRST_EXECUTION_INTELLIGENCE_0_1.md`.
+
+The existing NAIR 0.6 implementation, runtime implementation, runtime checkpoint, K1.18 kernel
+semantics, CI and Release Gate are unchanged.
+
+## Certified C0.4 foundation carried forward
 
 C0.4 builds on certified **C0.3 Executable Semantic Plan** and introduces the first explicit
 compiler-owned lowering into existing **NAIR 0.6**, without changing NAIR and without invoking the

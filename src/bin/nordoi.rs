@@ -1,8 +1,9 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_nair_lowering_boundary, compile_resolved_semantic_boundary, lex, parse, AstElement,
-    CompilerError, Delimiter, LexError, ModuleError, NsirBodyState, NsirMinimalBody, ParseError,
-    SemanticPlanForm, SourceId, SourceSpan, SourceText, Token, TokenKind,
+    compile_nair_lowering_boundary, compile_resolved_semantic_boundary, execute_source_v01, lex,
+    parse, AstElement, CompilerError, Delimiter, LexError, ModuleError, NsirBodyState,
+    NsirMinimalBody, ParseError, SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan,
+    SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -18,6 +19,7 @@ const EXIT_OK: u8 = 0;
 const EXIT_USAGE: u8 = 2;
 const EXIT_IO: u8 = 3;
 const EXIT_FRONTEND: u8 = 4;
+const EXIT_RUNTIME: u8 = 5;
 
 const HELP: &str = "NORDOI T0.1 tooling\n\
 \n\
@@ -29,6 +31,7 @@ Usage:\n\
   nordoi body <path|->\n\
   nordoi plan <path|->\n\
   nordoi lower <path|->\n\
+  nordoi run <path|->\n\
   nordoi --help\n\
   nordoi --version\n\
 \n\
@@ -40,11 +43,13 @@ Commands:\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   plan     Print the C0.3 zero-work executable semantic plan.\n\
   lower    Lower the C0.3 validated zero-work plan to NAIR 0.6.\n\
+  run      Execute the certified C0.4 HALT-only NAIR through the closed runtime.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
 C0.2 resolves type/effect symbols. L0.5 understands the minimal body. C0.3 plans zero work.\n\
 C0.3 plan does not lower or execute NAIR. C0.4 lower performs the explicit NAIR 0.6 lowering.\n\
-C0.4 lowering does not execute the runtime.\n";
+C0.4 lowering does not execute the runtime.\n\
+V0.1 run is the explicit source-to-closed-runtime execution boundary.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -86,7 +91,7 @@ fn run() -> u8 {
     let command = arguments[0].to_string_lossy();
     if !matches!(
         command.as_ref(),
-        "lex" | "parse" | "module" | "semantic" | "body" | "plan" | "lower"
+        "lex" | "parse" | "module" | "semantic" | "body" | "plan" | "lower" | "run"
     ) {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
@@ -120,6 +125,7 @@ fn run() -> u8 {
         "body" => run_body(&source, &mut output),
         "plan" => run_plan(&source, &mut output),
         "lower" => run_lower(&source, &mut output),
+        "run" => run_source(&source, &mut output),
         _ => unreachable!("validated command must be exhaustive"),
     };
 
@@ -163,6 +169,16 @@ fn run() -> u8 {
             report_frontend_error("lower", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::SourceExecutionFailure(error) => match &error {
+            SourceExecutionError::Compiler(compiler) => {
+                report_frontend_error("run", &source, compiler.primary_span(), compiler);
+                EXIT_FRONTEND
+            }
+            SourceExecutionError::Runtime(_) | SourceExecutionError::InvariantViolation { .. } => {
+                report_plain_error("run", source.name(), &error);
+                EXIT_RUNTIME
+            }
+        },
     }
 }
 
@@ -176,6 +192,7 @@ enum CommandResult {
     BodyCompilerFailure(CompilerError),
     PlanCompilerFailure(CompilerError),
     LowerCompilerFailure(CompilerError),
+    SourceExecutionFailure(SourceExecutionError),
 }
 
 fn run_lex(source: &SourceText, output: &mut impl Write) -> CommandResult {
@@ -458,6 +475,62 @@ fn run_lower(source: &SourceText, output: &mut impl Write) -> CommandResult {
     if let Err(error) = writeln!(
         output,
         "nair version=0.6 instructions=[HALT] bytes={nair} runtime=NOT_INVOKED"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_source(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let report = match execute_source_v01(source) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::SourceExecutionFailure(error),
+    };
+
+    let lowering = report.lowering();
+    let plan = lowering.plan();
+    let body = plan.body_semantics();
+    let semantic = body.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c04 = hex_bytes(&lowering.canonical_c04_bytes());
+    let receipt = hex_bytes(&report.canonical_v01_receipt_bytes());
+    let runtime = report.runtime();
+    let execution = &runtime.execution.execution;
+
+    let result = match plan.form() {
+        SemanticPlanForm::Empty => writeln!(
+            output,
+            "run module={module} form=EMPTY work=0 effects=0 authority=NONE nair-instructions={} c04={c04} receipt={receipt}",
+            lowering.nair_instruction_count()
+        ),
+        SemanticPlanForm::Entry(entry) => writeln!(
+            output,
+            "run module={module} form=ENTRY entry=\"{}\" work=0 effects=0 authority=NONE nair-instructions={} c04={c04} receipt={receipt}",
+            escape_fragment(entry.name().as_str()),
+            lowering.nair_instruction_count()
+        ),
+    };
+    if let Err(error) = result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "runtime replay={} executed={} input={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result=HALTED",
+        runtime.replay_key,
+        execution.executed_instructions,
+        runtime.input_events,
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.execution.frames.len(),
+        runtime.execution.created_input_bridges,
+        execution.scheduled_work,
+        runtime.is_quiescent()
     ) {
         return CommandResult::OutputFailure(error);
     }
