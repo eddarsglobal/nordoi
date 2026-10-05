@@ -1,3 +1,41 @@
+# NORDOI C0.8 — Pure Expression → NAIR Lowering Foundation
+
+C0.8 builds on certified L0.7/C0.7 and N0.7 and lowers the exact pure-expression postfix plan to canonical NAIR without hidden constant folding.
+
+For:
+
+```noi
+entry main returns 20 + 22;
+```
+
+C0.8 emits:
+
+```text
+CONST r0, INT(20)
+CONST r1, INT(22)
+ADD_INT_CHECKED r2, r0, r1
+HALT
+```
+
+The final SSA register `r2` is compiler metadata for the source-level result. Each postfix node maps to exactly one NAIR instruction; grouping therefore remains visible in the operational IR.
+
+N0.7 minimal-required-minor encoding is preserved: literal-only/no-result programs remain byte-compatible NAIR 0.6, while expressions using `ADD_INT_CHECKED` encode as NAIR 0.7. C0.8 never invokes the runtime.
+
+C0.8 adds:
+
+```text
+PureExpressionNairArtifact
+compile_pure_expression_nair_boundary(...)
+lower_pure_expression_plan_to_nair(...)
+canonical_c08_bytes()
+nordoi expr-lower <path|->
+```
+
+Normative candidate spec: `docs/NOI_PURE_EXPRESSION_NAIR_LOWERING_SPEC_0_8.md`.  
+Architecture record: `research/PURE_EXPRESSION_NAIR_LOWERING_INTELLIGENCE_0_8.md`.
+
+---
+
 # NORDOI N0.7 — NAIR Pure Integer Arithmetic Foundation
 
 N0.7 is the compatibility-preserving bridge required before C0.8 can lower certified L0.7/C0.7 pure expressions faithfully.

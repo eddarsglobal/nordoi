@@ -1,13 +1,14 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.7 adds a separate pure-expression execution-plan boundary on top of certified L0.7.
-//! Earlier compiler/runtime boundaries and witnesses remain available unchanged. C0.7 preserves
-//! the exact pure postfix expression structure without lowering, executing, performing I/O,
-//! consulting capabilities, or granting authority.
+//! C0.8 adds faithful pure-expression-to-NAIR lowering on top of certified L0.7/C0.7 and N0.7.
+//! Earlier compiler/runtime boundaries and witnesses remain available unchanged. C0.8 preserves
+//! exact postfix calculation order as Const/IntAddChecked SSA instructions and never executes the
+//! runtime, performs I/O, consults capabilities, or grants authority.
 
 mod body;
 mod effects;
 mod error;
+mod expression_nair;
 mod expression_plan;
 mod hir;
 mod lower;
@@ -26,6 +27,10 @@ pub use body::{
 };
 pub use effects::{SemanticEffectSet, MAX_SEMANTIC_EFFECT_REQUIREMENTS};
 pub use error::{CompilerError, CompilerResult};
+pub use expression_nair::{
+    compile_pure_expression_nair_boundary, lower_pure_expression_plan_to_nair,
+    PureExpressionNairArtifact,
+};
 pub use expression_plan::{
     compile_pure_expression_execution_plan_boundary, validate_pure_expression_execution_plan,
     PlannedPureExpression, PureExpressionEntryPlan, PureExpressionExecutionPlan,

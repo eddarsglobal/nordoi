@@ -157,6 +157,20 @@ pub enum CompilerError {
     PureResultNairLoweringValidationFailed {
         message: String,
     },
+    PureExpressionNairLoweringRequiresZeroWork {
+        count: u32,
+    },
+    PureExpressionNairLoweringRequiresPurePlan {
+        count: u32,
+    },
+    PureExpressionNairLoweringRequiresNoAuthority,
+    PureExpressionNairRegisterSpaceExhausted,
+    PureExpressionNairInvalidPostfix {
+        depth: u32,
+    },
+    PureExpressionNairLoweringValidationFailed {
+        message: String,
+    },
 }
 
 impl CompilerError {
@@ -209,7 +223,13 @@ impl CompilerError {
             | Self::PureResultNairLoweringRequiresZeroWork { .. }
             | Self::PureResultNairLoweringRequiresPurePlan { .. }
             | Self::PureResultNairLoweringRequiresNoAuthority
-            | Self::PureResultNairLoweringValidationFailed { .. } => None,
+            | Self::PureResultNairLoweringValidationFailed { .. }
+            | Self::PureExpressionNairLoweringRequiresZeroWork { .. }
+            | Self::PureExpressionNairLoweringRequiresPurePlan { .. }
+            | Self::PureExpressionNairLoweringRequiresNoAuthority
+            | Self::PureExpressionNairRegisterSpaceExhausted
+            | Self::PureExpressionNairInvalidPostfix { .. }
+            | Self::PureExpressionNairLoweringValidationFailed { .. } => None,
         }
     }
 }
@@ -385,6 +405,30 @@ impl Display for CompilerError {
             Self::PureResultNairLoweringValidationFailed { message } => write!(
                 f,
                 "C0.6 produced invalid NAIR: {message}"
+            ),
+            Self::PureExpressionNairLoweringRequiresZeroWork { count } => write!(
+                f,
+                "C0.8 pure-expression NAIR lowering accepts only zero-work plans; found {count} work items"
+            ),
+            Self::PureExpressionNairLoweringRequiresPurePlan { count } => write!(
+                f,
+                "C0.8 pure-expression NAIR lowering accepts only pure plans; found {count} required effects"
+            ),
+            Self::PureExpressionNairLoweringRequiresNoAuthority => write!(
+                f,
+                "C0.8 pure-expression NAIR lowering accepts only plans requiring no host authority"
+            ),
+            Self::PureExpressionNairRegisterSpaceExhausted => write!(
+                f,
+                "C0.8 pure-expression NAIR lowering exhausted the u32 SSA register space"
+            ),
+            Self::PureExpressionNairInvalidPostfix { depth } => write!(
+                f,
+                "C0.8 pure-expression NAIR lowering received an invalid postfix register stack with depth {depth}"
+            ),
+            Self::PureExpressionNairLoweringValidationFailed { message } => write!(
+                f,
+                "C0.8 produced invalid NAIR: {message}"
             ),
         }
     }
