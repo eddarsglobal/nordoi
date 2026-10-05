@@ -23,7 +23,8 @@ pub use id::{
 };
 pub use instruction::{DomainRef, InputTargetRef, Instruction};
 pub use program::{
-    NairProgram, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
+    NairProgram, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR,
+    NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use reaction::{
     NairEffectSet, NairReactionAuthority, NairReactionCycleReport, NairReactionStep,

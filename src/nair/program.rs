@@ -22,6 +22,8 @@ use super::{
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 7;
+pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -56,6 +58,7 @@ impl NairProgram {
 
     pub fn validate(&self) -> NairResult<()> {
         let mut registers = BTreeSet::new();
+        let mut register_values = std::collections::BTreeMap::new();
         let mut domains = BTreeSet::new();
         let mut atoms = BTreeSet::new();
         let mut transaction_slots = BTreeSet::new();
@@ -80,6 +83,36 @@ impl NairProgram {
                     if matches!(value, Value::Float(value) if !value.is_finite()) {
                         return Err(NairError::NonFiniteFloat(*dst));
                     }
+                    register_values.insert(*dst, value.clone());
+                }
+                Instruction::IntAddChecked { dst, lhs, rhs } => {
+                    require_register(*lhs, &registers)?;
+                    require_register(*rhs, &registers)?;
+                    if !registers.insert(*dst) {
+                        return Err(NairError::DuplicateRegister(*dst));
+                    }
+                    let lhs_value = register_values
+                        .get(lhs)
+                        .ok_or(NairError::UnknownRegister(*lhs))?;
+                    let rhs_value = register_values
+                        .get(rhs)
+                        .ok_or(NairError::UnknownRegister(*rhs))?;
+                    let lhs_int = match lhs_value {
+                        Value::Int(value) => *value,
+                        _ => return Err(NairError::IntegerAddOperandNotInt(*lhs)),
+                    };
+                    let rhs_int = match rhs_value {
+                        Value::Int(value) => *value,
+                        _ => return Err(NairError::IntegerAddOperandNotInt(*rhs)),
+                    };
+                    let value =
+                        lhs_int
+                            .checked_add(rhs_int)
+                            .ok_or(NairError::IntegerAddOverflow {
+                                lhs: *lhs,
+                                rhs: *rhs,
+                            })?;
+                    register_values.insert(*dst, Value::Int(value));
                 }
                 Instruction::CreateDomain { dst, name } => {
                     if !domains.insert(*dst) {
@@ -261,13 +294,25 @@ impl NairProgram {
         Ok(())
     }
 
+    pub fn required_format_minor(&self) -> u16 {
+        if self
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::IntAddChecked { .. }))
+        {
+            NAIR_INTEGER_ARITHMETIC_MINOR
+        } else {
+            NAIR_FORMAT_MINOR
+        }
+    }
+
     pub fn canonical_bytes(&self) -> NairResult<Vec<u8>> {
         self.validate()?;
 
         let mut out = Vec::new();
         out.extend_from_slice(&NAIR_MAGIC);
         write_u16(&mut out, NAIR_FORMAT_MAJOR);
-        write_u16(&mut out, NAIR_FORMAT_MINOR);
+        write_u16(&mut out, self.required_format_minor());
         write_len(&mut out, self.instructions.len())?;
 
         for instruction in &self.instructions {
@@ -288,7 +333,7 @@ impl NairProgram {
         let major = input.read_u16()?;
         let minor = input.read_u16()?;
         if major != NAIR_FORMAT_MAJOR
-            || !(NAIR_MIN_SUPPORTED_MINOR..=NAIR_FORMAT_MINOR).contains(&minor)
+            || !(NAIR_MIN_SUPPORTED_MINOR..=NAIR_LATEST_FORMAT_MINOR).contains(&minor)
         {
             return Err(NairError::UnsupportedFormat { major, minor });
         }
@@ -705,6 +750,12 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             write_u32(out, dst.0);
             encode_value(out, value)?;
         }
+        Instruction::IntAddChecked { dst, lhs, rhs } => {
+            out.push(0x02);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
         Instruction::CreateDomain { dst, name } => {
             out.push(0x10);
             write_u32(out, dst.0);
@@ -881,6 +932,11 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
         0x01 => Ok(Instruction::Const {
             dst: RegisterId(input.read_u32()?),
             value: decode_value(input)?,
+        }),
+        0x02 if minor >= NAIR_INTEGER_ARITHMETIC_MINOR => Ok(Instruction::IntAddChecked {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
         }),
         0x10 => Ok(Instruction::CreateDomain {
             dst: DomainSlot(input.read_u32()?),

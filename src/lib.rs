@@ -138,7 +138,8 @@ pub use nair::{
     NairObservedInteractiveExecutionReport, NairProgram, NairReactionAuthority,
     NairReactionCycleReport, NairReactionStep, NairReactionTrigger, NairReactionValue,
     NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-    TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
+    TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR,
+    NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{

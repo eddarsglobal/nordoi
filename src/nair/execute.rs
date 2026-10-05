@@ -261,6 +261,25 @@ fn execute_internal(
             Instruction::Const { dst, value } => {
                 registers.insert(*dst, value.clone());
             }
+            Instruction::IntAddChecked { dst, lhs, rhs } => {
+                let lhs_value = registers.get(lhs).ok_or(NairError::UnknownRegister(*lhs))?;
+                let rhs_value = registers.get(rhs).ok_or(NairError::UnknownRegister(*rhs))?;
+                let lhs_int = match lhs_value {
+                    Value::Int(value) => *value,
+                    _ => return Err(NairError::IntegerAddOperandNotInt(*lhs)),
+                };
+                let rhs_int = match rhs_value {
+                    Value::Int(value) => *value,
+                    _ => return Err(NairError::IntegerAddOperandNotInt(*rhs)),
+                };
+                let value = lhs_int
+                    .checked_add(rhs_int)
+                    .ok_or(NairError::IntegerAddOverflow {
+                        lhs: *lhs,
+                        rhs: *rhs,
+                    })?;
+                registers.insert(*dst, Value::Int(value));
+            }
             Instruction::CreateDomain { dst, name } => {
                 let domain = kernel.create_domain(name.clone())?;
                 domains.insert(*dst, domain);

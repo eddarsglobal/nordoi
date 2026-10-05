@@ -1,3 +1,30 @@
+# NORDOI N0.7 — NAIR Pure Integer Arithmetic Foundation
+
+N0.7 is the compatibility-preserving bridge required before C0.8 can lower certified L0.7/C0.7 pure expressions faithfully.
+
+NAIR 0.6 has `Const` but no arithmetic opcode, so C0.8 cannot honestly lower `[INT, INT, ADD]` without either hidden constant folding or a versioned IR extension. N0.7 chooses the explicit IR extension.
+
+The only new instruction is:
+
+```text
+ADD_INT_CHECKED dst, lhs, rhs
+```
+
+Rust API:
+
+```rust
+Instruction::IntAddChecked { dst, lhs, rhs }
+```
+
+Compatibility is strict: programs using only the certified 0.1–0.6 instruction set still canonicalize with minor `0.6` and keep their exact bytes. Only programs using `ADD_INT_CHECKED` require minor `0.7`. The decoder accepts both.
+
+`ADD_INT_CHECKED` is pure, deterministic, SSA-like, and fail-closed on undefined registers, non-integer operands, duplicate destination registers, or `i64` overflow. It grants no authority and creates no persistent state.
+
+Normative candidate spec: `docs/NAIR_SPEC_0_7.md`.  
+Architecture record: `research/NAIR_PURE_INTEGER_ARITHMETIC_INTELLIGENCE_0_7.md`.
+
+---
+
 # NORDOI C0.7 — Pure Expression Execution Plan
 
 C0.7 builds on certified **L0.7 Pure Expression Foundation** and introduces a separate compiler-owned

@@ -62,6 +62,11 @@ pub enum NairError {
         index: usize,
     },
     NonFiniteFloat(RegisterId),
+    IntegerAddOperandNotInt(RegisterId),
+    IntegerAddOverflow {
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
     InvalidMagic,
     UnsupportedFormat {
         major: u16,
@@ -138,6 +143,8 @@ impl Display for NairError {
             Self::MissingHalt => write!(f, "NAIR program must end with HALT"),
             Self::InstructionAfterHalt { index } => write!(f, "NAIR instruction at index {index} appears after HALT"),
             Self::NonFiniteFloat(id) => write!(f, "NAIR register {id:?} contains a non-finite float"),
+            Self::IntegerAddOperandNotInt(id) => write!(f, "NAIR checked integer add requires integer register {id:?}"),
+            Self::IntegerAddOverflow { lhs, rhs } => write!(f, "NAIR checked integer add overflowed for registers {lhs:?} and {rhs:?}"),
             Self::InvalidMagic => write!(f, "invalid NAIR magic header"),
             Self::UnsupportedFormat { major, minor } => write!(f, "unsupported NAIR format {major}.{minor}"),
             Self::UnexpectedEof => write!(f, "unexpected end of NAIR binary"),

@@ -33,6 +33,11 @@ pub enum Instruction {
         dst: RegisterId,
         value: Value,
     },
+    IntAddChecked {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
     CreateDomain {
         dst: DomainSlot,
         name: String,
