@@ -1,4 +1,41 @@
-# NORDOI L0.5 — Minimal Body Semantics
+# NORDOI C0.3 — Executable Semantic Plan
+
+C0.3 builds on the certified **L0.5 Minimal Body Semantics** and introduces the first compiler-owned
+execution plan without changing NAIR or invoking the runtime.
+
+```text
+L0.5 NsirBodyUnit (EMPTY | pure ENTRY)
+  ↓ validate-before-publication
+C0.3 SemanticExecutionPlan
+  ├─ form: EMPTY | ENTRY(name)
+  ├─ work items: 0
+  ├─ required effects: 0
+  └─ host authority: NONE
+  ↓
+future explicit NSIR/plan → NAIR lowering
+```
+
+C0.3 adds `compile_execution_plan_boundary()`, `validate_execution_plan()`,
+`SemanticExecutionPlan`, `SemanticPlanForm`, `SemanticEntryPlan`, and the new canonical witness
+`canonical_c03_bytes()`. It also adds the inspection command:
+
+```text
+nordoi plan <path|->
+```
+
+The plan is **not runtime execution**. It performs no host calls, capability lookup, effect dispatch,
+NAIR generation, or work. `entry main;` remains a pure zero-work semantic entry.
+
+All earlier witnesses remain unchanged, including L0.5 `canonical_l05_bytes()`. The certified C0.2
+`--version` output also remains unchanged for compatibility.
+
+Normative candidate design: `docs/NOI_EXECUTABLE_SEMANTIC_PLAN_SPEC_0_3.md`.  
+Architecture/research record: `research/EXECUTABLE_SEMANTIC_PLAN_INTELLIGENCE_0_3.md`.
+
+The kernel, NAIR 0.6, runtime, runtime checkpoint, host authority model, CI, and Release Gate are
+unchanged.
+
+## Certified L0.5 foundation carried forward
 
 L0.5 builds on the **certified K1.18 kernel**, **certified L0.1/L0.2/L0.3/L0.4 frontend**,
 **certified T0.1 CLI**, and **certified C0.1/C0.2 semantic compiler boundaries**.
@@ -450,13 +487,10 @@ cargo fmt --all
 ./scripts/release_gate.sh
 ```
 
-T0.1 is a candidate until the local gate passes, GitHub CI is green for the exact T0.1 commit on all
-required platforms and an annotated `t0.1` tag is pushed.
+C0.3 is a candidate until the local gate passes, GitHub CI is green for the exact C0.3 commit on all
+required platforms and an annotated `c0.3` tag is pushed.
 
 ## Next architectural boundary
 
-After T0.1 certification, the intended next milestone is **C0.1 — Typed Semantic IR / HIR-NSIR**.
-
-C0.1 should introduce an explicit semantic representation between the experimental source surface
-and NAIR without changing certified K1.18 semantics or prematurely binding source syntax directly to
-NAIR instructions.
+After C0.3 certification, the intended next compiler boundary is an explicit, separately governed
+plan/NSIR → NAIR lowering milestone. C0.3 itself deliberately leaves that mapping undefined.

@@ -81,6 +81,9 @@ pub enum CompilerError {
         body: SourceSpan,
         entry: SourceSpan,
     },
+    ExecutablePlanEntryMustBePure {
+        name: String,
+    },
 }
 
 impl CompilerError {
@@ -109,7 +112,8 @@ impl CompilerError {
             | Self::TooManySemanticDeclarations { .. }
             | Self::TooManyEffectRequirements { .. }
             | Self::DuplicateEffectRequirement { .. }
-            | Self::UnknownEffectRequirement { .. } => None,
+            | Self::UnknownEffectRequirement { .. }
+            | Self::ExecutablePlanEntryMustBePure { .. } => None,
         }
     }
 }
@@ -216,6 +220,13 @@ impl Display for CompilerError {
                     "L0.5 entry span must be contained by the residual body span"
                 )
             }
+            Self::ExecutablePlanEntryMustBePure { name } => write!(
+                f,
+                "C0.3 executable plan entry '{}' must require zero semantic effects",
+                name.chars()
+                    .flat_map(char::escape_default)
+                    .collect::<String>()
+            ),
         }
     }
 }

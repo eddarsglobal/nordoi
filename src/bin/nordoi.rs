@@ -1,7 +1,8 @@
 use nordoi_kernel::{
-    analyze_module_unit, compile_minimal_body_boundary, compile_resolved_semantic_boundary, lex,
-    parse, AstElement, CompilerError, Delimiter, LexError, ModuleError, NsirBodyState,
-    NsirMinimalBody, ParseError, SourceId, SourceSpan, SourceText, Token, TokenKind,
+    analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
+    compile_resolved_semantic_boundary, lex, parse, AstElement, CompilerError, Delimiter, LexError,
+    ModuleError, NsirBodyState, NsirMinimalBody, ParseError, SemanticPlanForm, SourceId,
+    SourceSpan, SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -26,6 +27,7 @@ Usage:\n\
   nordoi module <path|->\n\
   nordoi semantic <path|->\n\
   nordoi body <path|->\n\
+  nordoi plan <path|->\n\
   nordoi --help\n\
   nordoi --version\n\
 \n\
@@ -35,9 +37,11 @@ Commands:\n\
   module   Print the L0.3 contextual module identity.\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
+  plan     Print the C0.3 zero-work executable semantic plan.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
-C0.2 resolves type/effect symbols. L0.5 body inspection does not lower or execute NAIR.\n";
+C0.2 resolves type/effect symbols. L0.5 understands the minimal body. C0.3 plans zero work.\n\
+C0.3 plan does not lower or execute NAIR. No command invokes the runtime.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -79,7 +83,7 @@ fn run() -> u8 {
     let command = arguments[0].to_string_lossy();
     if !matches!(
         command.as_ref(),
-        "lex" | "parse" | "module" | "semantic" | "body"
+        "lex" | "parse" | "module" | "semantic" | "body" | "plan"
     ) {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
@@ -111,6 +115,7 @@ fn run() -> u8 {
         "module" => run_module(&source, &mut output),
         "semantic" => run_semantic(&source, &mut output),
         "body" => run_body(&source, &mut output),
+        "plan" => run_plan(&source, &mut output),
         _ => unreachable!("validated command must be exhaustive"),
     };
 
@@ -146,6 +151,10 @@ fn run() -> u8 {
             report_frontend_error("body", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::PlanCompilerFailure(error) => {
+            report_frontend_error("plan", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
     }
 }
 
@@ -157,6 +166,7 @@ enum CommandResult {
     ModuleFailure(ModuleError),
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
+    PlanCompilerFailure(CompilerError),
 }
 
 fn run_lex(source: &SourceText, output: &mut impl Write) -> CommandResult {
@@ -348,6 +358,50 @@ fn run_body(source: &SourceText, output: &mut impl Write) -> CommandResult {
             origin.body_span().end().get()
         ),
     } {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let plan = match compile_execution_plan_boundary(source) {
+        Ok(plan) => plan,
+        Err(error) => return CommandResult::PlanCompilerFailure(error),
+    };
+
+    let body = plan.body_semantics();
+    let semantic = body.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let l05 = hex_bytes(&body.canonical_l05_bytes());
+    let c03 = hex_bytes(&plan.canonical_c03_bytes());
+
+    let result = match plan.form() {
+        SemanticPlanForm::Empty => writeln!(
+            output,
+            "plan module={module} form=EMPTY work={} effects={} authority=NONE l05={l05} c03={c03}",
+            plan.work_item_count(),
+            plan.required_effects().len()
+        ),
+        SemanticPlanForm::Entry(entry) => writeln!(
+            output,
+            "plan module={module} form=ENTRY entry=\"{}\" work={} effects={} authority=NONE l05={l05} c03={c03}",
+            escape_fragment(entry.name().as_str()),
+            plan.work_item_count(),
+            plan.required_effects().len()
+        ),
+    };
+    if let Err(error) = result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "lowering=UNDEFINED runtime=NOT_INVOKED nair=UNCHANGED"
+    ) {
         return CommandResult::OutputFailure(error);
     }
 

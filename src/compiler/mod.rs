@@ -1,10 +1,10 @@
 //! Experimental compiler semantic boundary.
 //!
-//! L0.5 layers one fully understood body form over the certified C0.2 semantic registry: an empty
-//! body or one pure zero-work `entry Name;` declaration. The existing C0.1, L0.4 and C0.2 boundaries
-//! and witnesses remain available unchanged. Entry identity grants no host authority and performs no
-//! runtime work. General functions, parameters, calls, expressions, handlers and NSIR → NAIR lowering
-//! remain deliberately undefined.
+//! C0.3 layers a canonical executable semantic plan over certified L0.5 body semantics. The plan
+//! contains zero work items, requires zero effects, grants zero host authority, and never invokes the
+//! runtime. The existing C0.1, L0.4, C0.2 and L0.5 boundaries and witnesses remain available
+//! unchanged. General functions, calls, expressions, handlers and NSIR → NAIR lowering remain
+//! deliberately undefined.
 
 mod body;
 mod effects;
@@ -12,6 +12,7 @@ mod error;
 mod hir;
 mod lower;
 mod nsir;
+mod plan;
 mod symbols;
 
 pub use body::{
@@ -30,6 +31,10 @@ pub use lower::{
     lower_module_unit_to_hir, lower_type_effect_unit_to_hir,
 };
 pub use nsir::{validate_hir, NsirBodyState, NsirDeclaration, NsirOrigin, NsirUnit};
+pub use plan::{
+    compile_execution_plan_boundary, validate_execution_plan, SemanticEntryPlan,
+    SemanticExecutionPlan, SemanticPlanForm,
+};
 pub use symbols::{
     resolve_effect_set, NsirEffectSymbol, NsirTypeSymbol, ResolvedEffectSet, SemanticEffectId,
     SemanticRegistry, SemanticTypeId,

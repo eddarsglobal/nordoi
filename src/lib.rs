@@ -34,15 +34,17 @@ pub use atom::{Atom, AtomId};
 pub use authority::{required_capability, EffectGuard};
 pub use capability::{Capability, CapabilitySet};
 pub use compiler::{
-    compile_minimal_body_boundary, compile_resolved_semantic_boundary, compile_semantic_boundary,
-    compile_type_effect_boundary, lower_minimal_body_unit_to_hir, lower_module_unit_to_hir,
-    lower_type_effect_unit_to_hir, resolve_effect_set, validate_body_hir, validate_hir,
-    CompilerError, CompilerResult, HirBodyState, HirBodyUnit, HirDeclaration, HirEntryPoint,
-    HirMinimalBody, HirUnit, NsirBodyState, NsirBodyUnit, NsirDeclaration, NsirEffectSymbol,
-    NsirEntryPoint, NsirMinimalBody, NsirOrigin, NsirTypeSymbol, NsirUnit, ResolvedEffectSet,
-    SemanticDeclarationKind, SemanticEffectId, SemanticEffectSet, SemanticModuleIdentity,
-    SemanticName, SemanticPath, SemanticRegistry, SemanticTypeId, MAX_SEMANTIC_DECLARATIONS,
-    MAX_SEMANTIC_EFFECT_REQUIREMENTS, MAX_SEMANTIC_NAME_BYTES, MAX_SEMANTIC_PATH_SEGMENTS,
+    compile_execution_plan_boundary, compile_minimal_body_boundary,
+    compile_resolved_semantic_boundary, compile_semantic_boundary, compile_type_effect_boundary,
+    lower_minimal_body_unit_to_hir, lower_module_unit_to_hir, lower_type_effect_unit_to_hir,
+    resolve_effect_set, validate_body_hir, validate_execution_plan, validate_hir, CompilerError,
+    CompilerResult, HirBodyState, HirBodyUnit, HirDeclaration, HirEntryPoint, HirMinimalBody,
+    HirUnit, NsirBodyState, NsirBodyUnit, NsirDeclaration, NsirEffectSymbol, NsirEntryPoint,
+    NsirMinimalBody, NsirOrigin, NsirTypeSymbol, NsirUnit, ResolvedEffectSet,
+    SemanticDeclarationKind, SemanticEffectId, SemanticEffectSet, SemanticEntryPlan,
+    SemanticExecutionPlan, SemanticModuleIdentity, SemanticName, SemanticPath, SemanticPlanForm,
+    SemanticRegistry, SemanticTypeId, MAX_SEMANTIC_DECLARATIONS, MAX_SEMANTIC_EFFECT_REQUIREMENTS,
+    MAX_SEMANTIC_NAME_BYTES, MAX_SEMANTIC_PATH_SEGMENTS,
 };
 pub use effect::{Effect, EffectSet};
 pub use effect_attestation::{
