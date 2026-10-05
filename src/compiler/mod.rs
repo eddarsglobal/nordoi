@@ -1,9 +1,8 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.4 adds the first explicit compiler-owned lowering from the certified C0.3 zero-work semantic
-//! plan to existing NAIR 0.6. Only the already-understood zero-work subset is accepted; the emitted
-//! program is exactly one terminal `Halt`. The runtime is never invoked and host authority remains
-//! outside program bytes. Earlier C0.1/L0.4/C0.2/L0.5/C0.3 witnesses remain available unchanged.
+//! C0.4 remains the certified execution-plan → NAIR lowering boundary. L0.6 adds a separate
+//! pure-result semantic boundary for `entry Name returns <int>;` without changing C0.3/C0.4, NAIR,
+//! runtime execution, or host authority. Earlier witnesses remain available unchanged.
 
 mod body;
 mod effects;
@@ -13,6 +12,7 @@ mod lower;
 mod nair_lowering;
 mod nsir;
 mod plan;
+mod pure_result;
 mod symbols;
 
 pub use body::{
@@ -37,6 +37,11 @@ pub use nsir::{validate_hir, NsirBodyState, NsirDeclaration, NsirOrigin, NsirUni
 pub use plan::{
     compile_execution_plan_boundary, validate_execution_plan, SemanticEntryPlan,
     SemanticExecutionPlan, SemanticPlanForm,
+};
+pub use pure_result::{
+    compile_pure_result_boundary, lower_pure_result_unit_to_hir, validate_pure_result_hir,
+    HirPureIntResult, HirPureResultEntry, HirPureResultForm, HirPureResultUnit, NsirPureIntResult,
+    NsirPureResultEntry, NsirPureResultForm, NsirPureResultUnit,
 };
 pub use symbols::{
     resolve_effect_set, NsirEffectSymbol, NsirTypeSymbol, ResolvedEffectSet, SemanticEffectId,

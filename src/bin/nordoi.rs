@@ -1,9 +1,10 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_nair_lowering_boundary, compile_resolved_semantic_boundary, execute_source_v01, lex,
-    parse, AstElement, CompilerError, Delimiter, LexError, ModuleError, NsirBodyState,
-    NsirMinimalBody, ParseError, SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan,
-    SourceText, Token, TokenKind,
+    compile_nair_lowering_boundary, compile_pure_result_boundary,
+    compile_resolved_semantic_boundary, execute_source_v01, lex, parse, AstElement, CompilerError,
+    Delimiter, LexError, ModuleError, NsirBodyState, NsirMinimalBody, NsirPureResultForm,
+    ParseError, SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan, SourceText, Token,
+    TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -29,6 +30,7 @@ Usage:\n\
   nordoi module <path|->\n\
   nordoi semantic <path|->\n\
   nordoi body <path|->\n\
+  nordoi result <path|->\n\
   nordoi plan <path|->\n\
   nordoi lower <path|->\n\
   nordoi run <path|->\n\
@@ -41,6 +43,7 @@ Commands:\n\
   module   Print the L0.3 contextual module identity.\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
+  result   Print the L0.6 pure-result boundary.\n\
   plan     Print the C0.3 zero-work executable semantic plan.\n\
   lower    Lower the C0.3 validated zero-work plan to NAIR 0.6.\n\
   run      Execute the certified C0.4 HALT-only NAIR through the closed runtime.\n\
@@ -49,7 +52,8 @@ Use '-' as the path to read UTF-8 source from standard input.\n\
 C0.2 resolves type/effect symbols. L0.5 understands the minimal body. C0.3 plans zero work.\n\
 C0.3 plan does not lower or execute NAIR. C0.4 lower performs the explicit NAIR 0.6 lowering.\n\
 C0.4 lowering does not execute the runtime.\n\
-V0.1 run is the explicit source-to-closed-runtime execution boundary.\n";
+V0.1 run is the explicit source-to-closed-runtime execution boundary.\n\
+L0.6 result is additive: it does not create a C0.3 plan, lower NAIR, or execute runtime work.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -91,7 +95,7 @@ fn run() -> u8 {
     let command = arguments[0].to_string_lossy();
     if !matches!(
         command.as_ref(),
-        "lex" | "parse" | "module" | "semantic" | "body" | "plan" | "lower" | "run"
+        "lex" | "parse" | "module" | "semantic" | "body" | "result" | "plan" | "lower" | "run"
     ) {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
@@ -123,6 +127,7 @@ fn run() -> u8 {
         "module" => run_module(&source, &mut output),
         "semantic" => run_semantic(&source, &mut output),
         "body" => run_body(&source, &mut output),
+        "result" => run_result(&source, &mut output),
         "plan" => run_plan(&source, &mut output),
         "lower" => run_lower(&source, &mut output),
         "run" => run_source(&source, &mut output),
@@ -161,6 +166,10 @@ fn run() -> u8 {
             report_frontend_error("body", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::PureResultCompilerFailure(error) => {
+            report_frontend_error("result", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
         CommandResult::PlanCompilerFailure(error) => {
             report_frontend_error("plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
@@ -190,6 +199,7 @@ enum CommandResult {
     ModuleFailure(ModuleError),
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
+    PureResultCompilerFailure(CompilerError),
     PlanCompilerFailure(CompilerError),
     LowerCompilerFailure(CompilerError),
     SourceExecutionFailure(SourceExecutionError),
@@ -384,6 +394,89 @@ fn run_body(source: &SourceText, output: &mut impl Write) -> CommandResult {
             origin.body_span().end().get()
         ),
     } {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_result(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match compile_pure_result_boundary(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::PureResultCompilerFailure(error),
+    };
+
+    let semantic = unit.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c02 = hex_bytes(&semantic.canonical_c02_bytes());
+    let l06 = hex_bytes(&unit.canonical_l06_bytes());
+
+    let write_result = match unit.form() {
+        NsirPureResultForm::Empty => writeln!(
+            output,
+            "result module={module} form=EMPTY pure=true value=NONE effects=0 c02={c02} l06={l06}"
+        ),
+        NsirPureResultForm::Entry(entry) => match entry.result_i64() {
+            Some(value) => writeln!(
+                output,
+                "result module={module} form=ENTRY name=\"{}\" pure={} value=INT({value}) effects={} c02={c02} l06={l06}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                entry.required_effects().effects().len()
+            ),
+            None => writeln!(
+                output,
+                "result module={module} form=ENTRY name=\"{}\" pure={} value=NONE effects={} c02={c02} l06={l06}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                entry.required_effects().effects().len()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let origin = semantic.origin();
+    let origin_result = match unit.entry() {
+        Some(entry) => match entry.result() {
+            Some(result) => writeln!(
+                output,
+                "origin body={}..{} entry={}..{} result={}..{}",
+                origin.body_span().start().get(),
+                origin.body_span().end().get(),
+                entry.origin_span().start().get(),
+                entry.origin_span().end().get(),
+                result.origin_span().start().get(),
+                result.origin_span().end().get()
+            ),
+            None => writeln!(
+                output,
+                "origin body={}..{} entry={}..{} result=<none>",
+                origin.body_span().start().get(),
+                origin.body_span().end().get(),
+                entry.origin_span().start().get(),
+                entry.origin_span().end().get()
+            ),
+        },
+        None => writeln!(
+            output,
+            "origin body={}..{} entry=<none> result=<none>",
+            origin.body_span().start().get(),
+            origin.body_span().end().get()
+        ),
+    };
+    if let Err(error) = origin_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "execution=NOT_PLANNED nair=UNCHANGED runtime=NOT_INVOKED authority=NONE"
+    ) {
         return CommandResult::OutputFailure(error);
     }
 

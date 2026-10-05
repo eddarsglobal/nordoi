@@ -1,4 +1,6 @@
-use crate::frontend::{BodyError, ModuleError, SourceError, SourceSpan, TypeEffectError};
+use crate::frontend::{
+    BodyError, ModuleError, PureResultError, SourceError, SourceSpan, TypeEffectError,
+};
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
@@ -7,6 +9,7 @@ pub enum CompilerError {
     Frontend(ModuleError),
     TypeEffectFrontend(TypeEffectError),
     BodyFrontend(BodyError),
+    PureResultFrontend(PureResultError),
     Source(SourceError),
     EmptySemanticName,
     SemanticNameTooLong {
@@ -81,6 +84,18 @@ pub enum CompilerError {
         body: SourceSpan,
         entry: SourceSpan,
     },
+    PureResultBodySpanMismatch {
+        semantic_body: SourceSpan,
+        body: SourceSpan,
+    },
+    PureResultEntrySpanOutsideBody {
+        body: SourceSpan,
+        entry: SourceSpan,
+    },
+    PureResultValueSpanOutsideEntry {
+        entry: SourceSpan,
+        result: SourceSpan,
+    },
     ExecutablePlanEntryMustBePure {
         name: String,
     },
@@ -102,6 +117,7 @@ impl CompilerError {
             Self::Frontend(error) => error.primary_span(),
             Self::TypeEffectFrontend(error) => error.primary_span(),
             Self::BodyFrontend(error) => error.primary_span(),
+            Self::PureResultFrontend(error) => error.primary_span(),
             Self::Source(_) => None,
             Self::SourceMismatch { other, .. } => Some(*other),
             Self::ModuleSpanOutsideFile { module, .. } => Some(*module),
@@ -113,6 +129,9 @@ impl CompilerError {
             | Self::BodyStartsBeforeModuleEnds { body, .. }
             | Self::BodyLayerSpanMismatch { body, .. } => Some(*body),
             Self::EntrySpanOutsideBody { entry, .. } => Some(*entry),
+            Self::PureResultBodySpanMismatch { body, .. } => Some(*body),
+            Self::PureResultEntrySpanOutsideBody { entry, .. } => Some(*entry),
+            Self::PureResultValueSpanOutsideEntry { result, .. } => Some(*result),
             Self::DuplicateSemanticDeclaration { duplicate, .. } => Some(*duplicate),
             Self::EmptySemanticName
             | Self::SemanticNameTooLong { .. }
@@ -138,6 +157,7 @@ impl Display for CompilerError {
             Self::Frontend(error) => Display::fmt(error, f),
             Self::TypeEffectFrontend(error) => Display::fmt(error, f),
             Self::BodyFrontend(error) => Display::fmt(error, f),
+            Self::PureResultFrontend(error) => Display::fmt(error, f),
             Self::Source(error) => Display::fmt(error, f),
             Self::EmptySemanticName => write!(f, "semantic name must not be empty"),
             Self::SemanticNameTooLong { bytes, maximum } => write!(
@@ -211,6 +231,18 @@ impl Display for CompilerError {
             Self::EntrySpanOutsideBody { .. } => {
                 write!(f, "L0.5 entry span must be contained by the residual body span")
             }
+            Self::PureResultBodySpanMismatch { .. } => write!(
+                f,
+                "L0.6 pure-result layer must cover exactly the residual body span published by L0.4"
+            ),
+            Self::PureResultEntrySpanOutsideBody { .. } => write!(
+                f,
+                "L0.6 entry span must be contained by the residual body span"
+            ),
+            Self::PureResultValueSpanOutsideEntry { .. } => write!(
+                f,
+                "L0.6 result literal span must be contained by its entry span"
+            ),
             Self::ExecutablePlanEntryMustBePure { name } => write!(
                 f,
                 "C0.3 executable plan entry '{}' must require zero semantic effects",
@@ -242,6 +274,7 @@ impl Error for CompilerError {
             Self::Frontend(error) => Some(error),
             Self::TypeEffectFrontend(error) => Some(error),
             Self::BodyFrontend(error) => Some(error),
+            Self::PureResultFrontend(error) => Some(error),
             Self::Source(error) => Some(error),
             _ => None,
         }
@@ -263,6 +296,12 @@ impl From<TypeEffectError> for CompilerError {
 impl From<BodyError> for CompilerError {
     fn from(value: BodyError) -> Self {
         Self::BodyFrontend(value)
+    }
+}
+
+impl From<PureResultError> for CompilerError {
+    fn from(value: PureResultError) -> Self {
+        Self::PureResultFrontend(value)
     }
 }
 

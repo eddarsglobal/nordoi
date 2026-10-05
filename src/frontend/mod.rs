@@ -1,9 +1,9 @@
 //! Experimental `.noi` language frontend foundation.
 //!
-//! L0.5 adds the first fully understood minimal body form on top of L0.4: an empty body or one
-//! contextual `entry Name;` declaration. `entry` remains a lexical identifier outside this exact body
-//! position. General functions, parameters, calls, expressions, handlers, packages and NAIR lowering
-//! remain deliberately undefined.
+//! L0.6 adds a separate pure-result surface on top of the certified L0.5 body boundary.
+//! The new contextual form is `entry Name returns <canonical-decimal-i64>;`. `entry` and `returns`
+//! remain lexical identifiers outside this exact L0.6 position. L0.5 remains unchanged and continues
+//! to accept only empty bodies or `entry Name;`. General expressions and operators remain undefined.
 
 mod ast;
 mod body;
@@ -15,6 +15,8 @@ mod module_error;
 mod name;
 mod parse_error;
 mod parser;
+mod pure_result;
+mod pure_result_error;
 mod source;
 mod type_effect;
 mod type_effect_error;
@@ -33,6 +35,11 @@ pub use module_error::{ModuleError, ModuleResult, NameError, NameResult};
 pub use name::{Name, MAX_NAME_BYTES};
 pub use parse_error::{ParseError, ParseResult};
 pub use parser::{parse, Parser, MAX_PARSE_NESTING};
+pub use pure_result::{
+    analyze_pure_result_unit, PureResultAnalyzer, PureResultBodyForm, PureResultUnit,
+    SurfaceIntResult, SurfaceResultEntry,
+};
+pub use pure_result_error::{PureResultError, PureResultResult};
 pub use source::{ByteOffset, SourceId, SourcePosition, SourceSpan, SourceText, MAX_SOURCE_BYTES};
 pub use type_effect::{
     analyze_type_effect_unit, SurfaceDeclaration, SurfaceDeclarationKind, TypeEffectAnalyzer,
