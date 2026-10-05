@@ -1,8 +1,8 @@
-# NORDOI L0.8 — Pure Named Bindings Foundation
+# NORDOI C0.9 — Pure Binding Execution Plan
 
-> Candidate milestone. `CONSTITUTION.md` remains the supreme project authority; this milestone is subordinate to it and to `laws/LAW_0001_NORDOI_MASTER_LAW.md`.
+> Candidate milestone. `CONSTITUTION.md` is the supreme project authority. C0.9 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to certified L0.8 semantics.
 
-L0.8 adds contextual immutable pure bindings without defining runtime storage:
+C0.9 plans immutable L0.8 bindings without turning source names into runtime storage:
 
 ```noi
 const x = 20;
@@ -10,15 +10,28 @@ const y = 22;
 entry main returns x + y;
 ```
 
-The compiler resolves names into canonical module-local binding IDs and preserves references as semantic postfix `BINDING(id)` operations. Binding declaration order is not semantic. Duplicate/unknown names fail closed. L0.8 introduces no plan, NAIR opcode, runtime execution, storage, I/O, effect or authority. Earlier L0.7/C0.7/C0.8/V0.3 boundaries remain frozen.
+The plan preserves:
+
+```text
+bindings=[#1:x=INT(20),#2:y=INT(22)]
+ops=[BINDING(1),BINDING(2),ADD]
+value=INT(42)
+work=0
+storage=0
+effects=0
+authority=NONE
+```
+
+Binding identities and postfix structure remain canonical. C0.9 introduces no NAIR change and does not invoke the runtime. Certified L0.8 `bindings` remains semantic-only and older expression plan/lower/run boundaries remain frozen for `const` source.
 
 Inspection:
 
 ```text
-nordoi bindings <path|->
+nordoi bindings-plan <path|->
 ```
 
-See `docs/NOI_PURE_BINDING_SPEC_0_8.md` and `research/PURE_BINDING_INTELLIGENCE_0_8.md`.
+See `docs/NOI_PURE_BINDING_EXECUTION_PLAN_SPEC_0_9.md` and
+`research/PURE_BINDING_EXECUTION_PLAN_INTELLIGENCE_0_9.md`.
 
 ---
 

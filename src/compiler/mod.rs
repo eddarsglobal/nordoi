@@ -1,9 +1,11 @@
 //! Experimental compiler semantic boundary.
 //!
-//! L0.8 adds immutable pure named bindings as a separate semantic boundary above certified V0.3.
-//! Bindings resolve to canonical semantic IDs and values, but define no storage, mutation, NAIR,
-//! runtime work, I/O, effect, capability or authority. Earlier compiler/runtime boundaries remain frozen.
+//! C0.9 adds a pure-binding execution-plan boundary above certified L0.8.
+//! It preserves canonical binding IDs and postfix reference structure while defining zero work,
+//! zero runtime storage, zero effects and no authority. It does not lower NAIR or invoke runtime.
+//! Earlier compiler/runtime boundaries remain frozen.
 
+mod binding_plan;
 mod body;
 mod effects;
 mod error;
@@ -21,6 +23,11 @@ mod result_nair;
 mod result_plan;
 mod symbols;
 
+pub use binding_plan::{
+    compile_pure_binding_execution_plan_boundary, validate_pure_binding_execution_plan,
+    PlannedPureBindingExpression, PureBindingEntryPlan, PureBindingExecutionPlan,
+    PureBindingPlanForm,
+};
 pub use body::{
     compile_minimal_body_boundary, lower_minimal_body_unit_to_hir, validate_body_hir, HirBodyUnit,
     HirEntryPoint, HirMinimalBody, NsirBodyUnit, NsirEntryPoint, NsirMinimalBody,
