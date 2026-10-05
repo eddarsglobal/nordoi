@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI C0.8 — Pure Expression to NAIR Lowering Foundation"
+description = "NORDOI V0.3 — First Executed Pure Expression"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

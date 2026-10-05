@@ -4,11 +4,12 @@ use nordoi_kernel::{
     compile_pure_expression_execution_plan_boundary, compile_pure_expression_nair_boundary,
     compile_pure_result_boundary, compile_pure_result_execution_plan_boundary,
     compile_pure_result_nair_boundary, compile_resolved_semantic_boundary,
-    execute_pure_result_source_v02, execute_source_v01, lex, parse, AstElement, CompilerError,
-    Delimiter, Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody,
-    NsirPureExpressionForm, NsirPureResultForm, ParseError, PureExpressionPlanForm,
-    PureResultExecutionError, PureResultPlanForm, SemanticPlanForm, SemanticPureExpressionOp,
-    SourceExecutionError, SourceId, SourceSpan, SourceText, Token, TokenKind, Value,
+    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01, lex,
+    parse, AstElement, CompilerError, Delimiter, Instruction, LexError, ModuleError, NsirBodyState,
+    NsirMinimalBody, NsirPureExpressionForm, NsirPureResultForm, ParseError,
+    PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
+    PureResultPlanForm, SemanticPlanForm, SemanticPureExpressionOp, SourceExecutionError, SourceId,
+    SourceSpan, SourceText, Token, TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -38,6 +39,7 @@ Usage:\n\
   nordoi expr <path|->\n\
   nordoi expr-plan <path|->\n\
   nordoi expr-lower <path|->\n\
+  nordoi expr-run <path|->\n\
   nordoi result-plan <path|->\n\
   nordoi result-lower <path|->\n\
   nordoi result-run <path|->\n\
@@ -57,6 +59,7 @@ Commands:\n\
   expr        Print the L0.7 pure-expression boundary.\n\
   expr-plan   Print the C0.7 pure-expression execution plan.\n\
   expr-lower  Lower the C0.7 postfix plan faithfully to NAIR 0.6/0.7.\n\
+  expr-run    Execute the C0.8 pure-expression NAIR and validate every SSA result.\n\
   result-plan  Print the C0.5 pure-result execution plan.\n\
   result-lower Lower the C0.5 pure-result plan to existing NAIR 0.6 primitives.\n\
   result-run   Execute the C0.6 pure-result NAIR and validate the observed result.\n\
@@ -75,7 +78,8 @@ C0.6 result-lower is additive: it lowers C0.5 values to existing NAIR 0.6 Const/
 V0.2 result-run executes C0.6 through the closed runtime and validates transient result registers without granting I/O or authority.\n\
 L0.7 expr is additive: it evaluates only pure checked integer addition and does not plan, lower, or execute runtime work.\n\
 C0.7 expr-plan is additive: it preserves L0.7 postfix calculation order without lowering NAIR or executing runtime work.\n\
-C0.8 expr-lower is additive: it maps each postfix INT/ADD to Const/ADD_INT_CHECKED SSA instructions and never executes runtime work.\n";
+C0.8 expr-lower is additive: it maps each postfix INT/ADD to Const/ADD_INT_CHECKED SSA instructions and never executes runtime work.\n\
+V0.3 expr-run executes C0.8 through the closed runtime and validates every transient SSA register without I/O, effects, or authority.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -126,6 +130,7 @@ fn run() -> u8 {
             | "expr"
             | "expr-plan"
             | "expr-lower"
+            | "expr-run"
             | "result-plan"
             | "result-lower"
             | "result-run"
@@ -167,6 +172,7 @@ fn run() -> u8 {
         "expr" => run_expression(&source, &mut output),
         "expr-plan" => run_expression_plan(&source, &mut output),
         "expr-lower" => run_expression_lower(&source, &mut output),
+        "expr-run" => run_pure_expression_source(&source, &mut output),
         "result-plan" => run_result_plan(&source, &mut output),
         "result-lower" => run_result_lower(&source, &mut output),
         "result-run" => run_pure_result_source(&source, &mut output),
@@ -220,6 +226,17 @@ fn run() -> u8 {
             report_frontend_error("expr-lower", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::PureExpressionExecutionFailure(error) => match &error {
+            PureExpressionExecutionError::Compiler(compiler) => {
+                report_frontend_error("expr-run", &source, compiler.primary_span(), compiler);
+                EXIT_FRONTEND
+            }
+            PureExpressionExecutionError::Runtime(_)
+            | PureExpressionExecutionError::InvariantViolation { .. } => {
+                report_plain_error("expr-run", source.name(), &error);
+                EXIT_RUNTIME
+            }
+        },
         CommandResult::PureResultCompilerFailure(error) => {
             report_frontend_error("result", &source, error.primary_span(), &error);
             EXIT_FRONTEND
@@ -275,6 +292,7 @@ enum CommandResult {
     PureExpressionCompilerFailure(CompilerError),
     PureExpressionPlanCompilerFailure(CompilerError),
     PureExpressionLowerCompilerFailure(CompilerError),
+    PureExpressionExecutionFailure(PureExpressionExecutionError),
     PureResultCompilerFailure(CompilerError),
     PureResultPlanCompilerFailure(CompilerError),
     PureResultLowerCompilerFailure(CompilerError),
@@ -803,6 +821,88 @@ fn format_expression_nair_instructions(instructions: &[Instruction]) -> String {
         })
         .collect();
     format!("[{}]", parts.join(","))
+}
+
+fn run_pure_expression_source(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let report = match execute_pure_expression_source_v03(source) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::PureExpressionExecutionFailure(error),
+    };
+
+    let lowering = report.lowering();
+    let plan = lowering.plan();
+    let expression_semantics = plan.expression_semantics();
+    let semantic = expression_semantics.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c08 = hex_bytes(&lowering.canonical_c08_bytes());
+    let receipt = hex_bytes(&report.canonical_v03_receipt_bytes());
+    let observed = report.runtime();
+    let runtime = observed.runtime();
+    let execution = &runtime.execution.execution;
+
+    let write_result = match plan.form() {
+        PureExpressionPlanForm::Empty => writeln!(
+            output,
+            "expr-run module={module} form=EMPTY ops=NONE result=NONE result-register=NONE work=0 effects=0 authority=NONE nair-instructions={} nair-minor=0.{} c08={c08} receipt={receipt}",
+            lowering.nair_instruction_count(),
+            lowering.nair_format_minor()
+        ),
+        PureExpressionPlanForm::Entry(entry) => match entry.expression() {
+            Some(expression) => {
+                let register = lowering
+                    .result_register()
+                    .expect("C0.8 expression plan with a value must publish its result register");
+                writeln!(
+                    output,
+                    "expr-run module={module} form=ENTRY entry=\"{}\" ops={} result=INT({}) result-register=r{} nodes={} work=0 effects=0 authority=NONE nair-instructions={} nair-minor=0.{} c08={c08} receipt={receipt}",
+                    escape_fragment(entry.name().as_str()),
+                    format_pure_expression_ops(expression.ops()),
+                    expression.value(),
+                    register.0,
+                    expression.node_count(),
+                    lowering.nair_instruction_count(),
+                    lowering.nair_format_minor()
+                )
+            }
+            None => writeln!(
+                output,
+                "expr-run module={module} form=ENTRY entry=\"{}\" ops=NONE result=NONE result-register=NONE nodes=0 work=0 effects=0 authority=NONE nair-instructions={} nair-minor=0.{} c08={c08} receipt={receipt}",
+                escape_fragment(entry.name().as_str()),
+                lowering.nair_instruction_count(),
+                lowering.nair_format_minor()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let result_text = match report.result_i64() {
+        Some(value) => format!("INT({value})"),
+        None => "NONE".to_owned(),
+    };
+    if let Err(error) = writeln!(
+        output,
+        "runtime replay={} executed={} input={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text}",
+        runtime.replay_key,
+        execution.executed_instructions,
+        runtime.input_events,
+        observed.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.execution.frames.len(),
+        runtime.execution.created_input_bridges,
+        execution.scheduled_work,
+        observed.is_quiescent()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
 }
 
 fn run_result_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {

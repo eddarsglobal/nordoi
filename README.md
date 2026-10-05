@@ -1,3 +1,50 @@
+# NORDOI V0.3 — First Executed Pure Expression
+
+V0.3 builds on certified C0.8 and executes the exact pure-expression NAIR through the existing closed runtime. It validates every transient SSA register against the certified postfix calculation before publishing the source-level result.
+
+For:
+
+```noi
+entry main returns 20 + 22;
+```
+
+C0.8 provides:
+
+```text
+CONST r0, INT(20)
+CONST r1, INT(22)
+ADD_INT_CHECKED r2, r0, r1
+HALT
+```
+
+V0.3 executes that program and requires:
+
+```text
+r0 = INT(20)
+r1 = INT(22)
+r2 = INT(42)
+```
+
+Only after the complete register map is validated is `INT(42)` published as the execution result. The execution remains closed: zero I/O, effects, authority, atoms, domains, transactions, frames, bridges, or scheduled work.
+
+V0.3 adds:
+
+```text
+PureExpressionExecutionReport
+PureExpressionExecutionError
+execute_pure_expression_source_v03(...)
+validate_v03_execution(...)
+canonical_v03_receipt_bytes()
+nordoi expr-run <path|->
+```
+
+The V0.3 receipt domain is `NORDOI-V0.3-PURE-EXPRESSION-EXECUTION-RECEIPT\0`. Literal-only expressions remain NAIR 0.6; expressions using `ADD_INT_CHECKED` remain NAIR 0.7 exactly as produced by C0.8. V0.3 changes no NAIR or runtime wire/state semantics.
+
+Normative candidate spec: `docs/NOI_FIRST_PURE_EXPRESSION_EXECUTION_SPEC_0_3.md`.  
+Architecture record: `research/FIRST_PURE_EXPRESSION_EXECUTION_INTELLIGENCE_0_3.md`.
+
+---
+
 # NORDOI C0.8 — Pure Expression → NAIR Lowering Foundation
 
 C0.8 builds on certified L0.7/C0.7 and N0.7 and lowers the exact pure-expression postfix plan to canonical NAIR without hidden constant folding.
