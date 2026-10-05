@@ -134,6 +134,9 @@ pub enum CompilerError {
     PureResultPlanEntryMustBePure {
         name: String,
     },
+    PureExpressionPlanEntryMustBePure {
+        name: String,
+    },
     NairLoweringRequiresZeroWork {
         count: u32,
     },
@@ -198,6 +201,7 @@ impl CompilerError {
             | Self::UnknownEffectRequirement { .. }
             | Self::ExecutablePlanEntryMustBePure { .. }
             | Self::PureResultPlanEntryMustBePure { .. }
+            | Self::PureExpressionPlanEntryMustBePure { .. }
             | Self::NairLoweringRequiresZeroWork { .. }
             | Self::NairLoweringRequiresPurePlan { .. }
             | Self::NairLoweringRequiresNoAuthority
@@ -343,6 +347,11 @@ impl Display for CompilerError {
             Self::PureResultPlanEntryMustBePure { name } => write!(
                 f,
                 "C0.5 pure-result execution plan entry '{}' must require zero semantic effects",
+                name.chars().flat_map(char::escape_default).collect::<String>()
+            ),
+            Self::PureExpressionPlanEntryMustBePure { name } => write!(
+                f,
+                "C0.7 pure-expression execution plan entry '{}' must require zero semantic effects",
                 name.chars().flat_map(char::escape_default).collect::<String>()
             ),
             Self::NairLoweringRequiresZeroWork { count } => write!(

@@ -1,4 +1,51 @@
-# NORDOI L0.7 — Pure Expression Foundation
+# NORDOI C0.7 — Pure Expression Execution Plan
+
+C0.7 builds on certified **L0.7 Pure Expression Foundation** and introduces a separate compiler-owned
+execution plan for the exact postfix expression semantics already validated by L0.7.
+
+```noi
+module demo.expr;
+
+entry main returns 20 + 22;
+```
+
+The C0.7 plan preserves:
+
+```text
+ops       = [INT(20), INT(22), ADD]
+value     = INT(42)
+work      = 0
+effects   = 0
+authority = NONE
+```
+
+C0.7 does not lower this plan to NAIR and does not execute it. The certified L0.6/C0.5/C0.6/V0.2
+boundaries remain frozen and continue to reject L0.7 addition syntax.
+
+C0.7 adds:
+
+```text
+compile_pure_expression_execution_plan_boundary(...)
+validate_pure_expression_execution_plan(...)
+PureExpressionExecutionPlan
+PureExpressionPlanForm
+PureExpressionEntryPlan
+PlannedPureExpression
+canonical_c07_bytes()
+
+nordoi expr-plan <path|->
+```
+
+The C0.7 witness preserves the L0.7 postfix evaluation order and is additive to
+`canonical_l07_bytes()`.
+
+Normative candidate design: `docs/NOI_PURE_EXPRESSION_EXECUTION_PLAN_SPEC_0_7.md`.  
+Architecture/research record: `research/PURE_EXPRESSION_EXECUTION_PLAN_INTELLIGENCE_0_7.md`.
+
+NAIR 0.6, runtime, runtime checkpoint, V0.2 execution, kernel semantics, CI, Release Gate,
+capabilities, effects and host authority are unchanged.
+
+## Certified L0.7 foundation carried forward
 
 L0.7 builds on certified **V0.2 First Executed Pure Result** and introduces the first source-level
 result that is calculated from a pure expression rather than copied from a single literal. The new

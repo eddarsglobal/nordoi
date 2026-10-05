@@ -1,12 +1,14 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_nair_lowering_boundary, compile_pure_expression_boundary, compile_pure_result_boundary,
+    compile_nair_lowering_boundary, compile_pure_expression_boundary,
+    compile_pure_expression_execution_plan_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
     compile_resolved_semantic_boundary, execute_pure_result_source_v02, execute_source_v01, lex,
     parse, AstElement, CompilerError, Delimiter, LexError, ModuleError, NsirBodyState,
     NsirMinimalBody, NsirPureExpressionForm, NsirPureResultForm, ParseError,
-    PureResultExecutionError, PureResultPlanForm, SemanticPlanForm, SemanticPureExpressionOp,
-    SourceExecutionError, SourceId, SourceSpan, SourceText, Token, TokenKind,
+    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
+    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText, Token,
+    TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -34,6 +36,7 @@ Usage:\n\
   nordoi body <path|->\n\
   nordoi result <path|->\n\
   nordoi expr <path|->\n\
+  nordoi expr-plan <path|->\n\
   nordoi result-plan <path|->\n\
   nordoi result-lower <path|->\n\
   nordoi result-run <path|->\n\
@@ -51,6 +54,7 @@ Commands:\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   result      Print the L0.6 pure-result boundary.\n\
   expr        Print the L0.7 pure-expression boundary.\n\
+  expr-plan   Print the C0.7 pure-expression execution plan.\n\
   result-plan  Print the C0.5 pure-result execution plan.\n\
   result-lower Lower the C0.5 pure-result plan to existing NAIR 0.6 primitives.\n\
   result-run   Execute the C0.6 pure-result NAIR and validate the observed result.\n\
@@ -67,7 +71,8 @@ L0.6 result is additive: it does not create a C0.3 plan, lower NAIR, or execute 
 C0.5 result-plan is additive: it plans L0.6 values but does not lower NAIR or execute runtime work.\n\
 C0.6 result-lower is additive: it lowers C0.5 values to existing NAIR 0.6 Const/Halt and does not execute runtime work.\n\
 V0.2 result-run executes C0.6 through the closed runtime and validates transient result registers without granting I/O or authority.\n\
-L0.7 expr is additive: it evaluates only pure checked integer addition and does not plan, lower, or execute runtime work.\n";
+L0.7 expr is additive: it evaluates only pure checked integer addition and does not plan, lower, or execute runtime work.\n\
+C0.7 expr-plan is additive: it preserves L0.7 postfix calculation order without lowering NAIR or executing runtime work.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -116,6 +121,7 @@ fn run() -> u8 {
             | "body"
             | "result"
             | "expr"
+            | "expr-plan"
             | "result-plan"
             | "result-lower"
             | "result-run"
@@ -155,6 +161,7 @@ fn run() -> u8 {
         "body" => run_body(&source, &mut output),
         "result" => run_result(&source, &mut output),
         "expr" => run_expression(&source, &mut output),
+        "expr-plan" => run_expression_plan(&source, &mut output),
         "result-plan" => run_result_plan(&source, &mut output),
         "result-lower" => run_result_lower(&source, &mut output),
         "result-run" => run_pure_result_source(&source, &mut output),
@@ -198,6 +205,10 @@ fn run() -> u8 {
         }
         CommandResult::PureExpressionCompilerFailure(error) => {
             report_frontend_error("expr", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
+        CommandResult::PureExpressionPlanCompilerFailure(error) => {
+            report_frontend_error("expr-plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
         CommandResult::PureResultCompilerFailure(error) => {
@@ -253,6 +264,7 @@ enum CommandResult {
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
     PureExpressionCompilerFailure(CompilerError),
+    PureExpressionPlanCompilerFailure(CompilerError),
     PureResultCompilerFailure(CompilerError),
     PureResultPlanCompilerFailure(CompilerError),
     PureResultLowerCompilerFailure(CompilerError),
@@ -635,6 +647,62 @@ fn format_pure_expression_ops(ops: &[SemanticPureExpressionOp]) -> String {
         })
         .collect();
     format!("[{}]", parts.join(","))
+}
+
+fn run_expression_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let plan = match compile_pure_expression_execution_plan_boundary(source) {
+        Ok(plan) => plan,
+        Err(error) => return CommandResult::PureExpressionPlanCompilerFailure(error),
+    };
+
+    let expression_semantics = plan.expression_semantics();
+    let semantic = expression_semantics.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let l07 = hex_bytes(&expression_semantics.canonical_l07_bytes());
+    let c07 = hex_bytes(&plan.canonical_c07_bytes());
+
+    let write_result = match plan.form() {
+        PureExpressionPlanForm::Empty => writeln!(
+            output,
+            "expr-plan module={module} form=EMPTY ops=NONE value=NONE nodes=0 work={} effects={} authority=NONE l07={l07} c07={c07}",
+            plan.work_item_count(),
+            plan.required_effects().len()
+        ),
+        PureExpressionPlanForm::Entry(entry) => match entry.expression() {
+            Some(expression) => writeln!(
+                output,
+                "expr-plan module={module} form=ENTRY entry=\"{}\" ops={} value=INT({}) nodes={} work={} effects={} authority=NONE l07={l07} c07={c07}",
+                escape_fragment(entry.name().as_str()),
+                format_pure_expression_ops(expression.ops()),
+                expression.value(),
+                expression.node_count(),
+                plan.work_item_count(),
+                plan.required_effects().len()
+            ),
+            None => writeln!(
+                output,
+                "expr-plan module={module} form=ENTRY entry=\"{}\" ops=NONE value=NONE nodes=0 work={} effects={} authority=NONE l07={l07} c07={c07}",
+                escape_fragment(entry.name().as_str()),
+                plan.work_item_count(),
+                plan.required_effects().len()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "lowering=UNDEFINED nair=UNCHANGED runtime=NOT_INVOKED"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
 }
 
 fn run_result_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {

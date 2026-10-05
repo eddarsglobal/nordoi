@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI L0.7 — Pure Expression Foundation"
+description = "NORDOI C0.7 — Pure Expression Execution Plan"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

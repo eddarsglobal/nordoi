@@ -1,12 +1,14 @@
 //! Experimental compiler semantic boundary.
 //!
-//! L0.7 adds a separate pure-expression semantic boundary on top of certified V0.2/C0.6.
-//! Earlier compiler/runtime boundaries and witnesses remain available unchanged. L0.7 evaluates
-//! only checked pure integer addition and does not plan, lower, execute, perform I/O, or grant authority.
+//! C0.7 adds a separate pure-expression execution-plan boundary on top of certified L0.7.
+//! Earlier compiler/runtime boundaries and witnesses remain available unchanged. C0.7 preserves
+//! the exact pure postfix expression structure without lowering, executing, performing I/O,
+//! consulting capabilities, or granting authority.
 
 mod body;
 mod effects;
 mod error;
+mod expression_plan;
 mod hir;
 mod lower;
 mod nair_lowering;
@@ -24,6 +26,11 @@ pub use body::{
 };
 pub use effects::{SemanticEffectSet, MAX_SEMANTIC_EFFECT_REQUIREMENTS};
 pub use error::{CompilerError, CompilerResult};
+pub use expression_plan::{
+    compile_pure_expression_execution_plan_boundary, validate_pure_expression_execution_plan,
+    PlannedPureExpression, PureExpressionEntryPlan, PureExpressionExecutionPlan,
+    PureExpressionPlanForm,
+};
 pub use hir::{
     HirBodyState, HirDeclaration, HirUnit, SemanticDeclarationKind, SemanticModuleIdentity,
     SemanticName, SemanticPath, MAX_SEMANTIC_DECLARATIONS, MAX_SEMANTIC_NAME_BYTES,
