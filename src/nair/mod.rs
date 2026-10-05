@@ -13,8 +13,9 @@ pub use completion::{
 pub use error::{NairError, NairResult};
 pub use execute::{
     execute_nair, execute_nair_with_input, execute_nair_with_render,
-    execute_nair_with_render_and_input, NairExecutionReport, NairInputExecutionReport,
-    NairInteractiveExecutionReport, NairRenderExecutionReport,
+    execute_nair_with_render_and_input, execute_nair_with_render_and_input_observed,
+    NairExecutionReport, NairInputExecutionReport, NairInteractiveExecutionReport,
+    NairObservedInteractiveExecutionReport, NairRenderExecutionReport,
 };
 pub use id::{
     AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,

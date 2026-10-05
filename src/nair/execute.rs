@@ -73,12 +73,30 @@ impl NairInteractiveExecutionReport {
     }
 }
 
+/// Additive execution observation used by V0.2 to validate source-level pure results.
+///
+/// Final registers are transient execution evidence only. They are not serialized into
+/// NAIR, persisted in runtime checkpoints, exposed as host authority, or included in
+/// source semantic identity.
+#[derive(Debug, Clone, PartialEq)]
+pub struct NairObservedInteractiveExecutionReport {
+    pub execution: NairInteractiveExecutionReport,
+    pub final_registers: BTreeMap<RegisterId, Value>,
+}
+
+impl NairObservedInteractiveExecutionReport {
+    pub fn register(&self, id: RegisterId) -> Option<&Value> {
+        self.final_registers.get(&id)
+    }
+}
+
 struct ExecutionOutcome {
     execution: NairExecutionReport,
     render_bindings: BTreeMap<RenderNodeSlot, RenderNodeId>,
     frames: Vec<NairRenderFrame>,
     created_input_bridges: usize,
     input_applications: Vec<InputBridgeReport>,
+    final_registers: BTreeMap<RegisterId, Value>,
 }
 
 pub fn execute_nair(
@@ -138,6 +156,30 @@ pub fn execute_nair_with_render_and_input(
         frames: outcome.frames,
         created_input_bridges: outcome.created_input_bridges,
         input_applications: outcome.input_applications,
+    })
+}
+
+/// Execute NAIR through the same interactive engine while retaining a transient
+/// snapshot of final register values for validation/inspection layers.
+pub fn execute_nair_with_render_and_input_observed(
+    kernel: &mut AtomicKernel,
+    render: &mut AtomicRenderCore,
+    input_batch: &InputBatch,
+    program: &NairProgram,
+) -> NairResult<NairObservedInteractiveExecutionReport> {
+    program.validate()?;
+    reject_missing_contexts(program, true, true, false)?;
+    let outcome = execute_internal(kernel, Some(render), Some(input_batch), program)?;
+
+    Ok(NairObservedInteractiveExecutionReport {
+        execution: NairInteractiveExecutionReport {
+            execution: outcome.execution,
+            render_bindings: outcome.render_bindings,
+            frames: outcome.frames,
+            created_input_bridges: outcome.created_input_bridges,
+            input_applications: outcome.input_applications,
+        },
+        final_registers: outcome.final_registers,
     })
 }
 
@@ -414,6 +456,7 @@ fn execute_internal(
         frames,
         created_input_bridges: input_bridges.len(),
         input_applications,
+        final_registers: registers,
     })
 }
 

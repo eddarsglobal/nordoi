@@ -1,4 +1,27 @@
-# NORDOI C0.6 — Pure Result → NAIR Representation
+# NORDOI V0.2 — First Executed Pure Result
+
+V0.2 builds on certified **C0.6 Pure Result → NAIR Representation** and executes the first
+source-level pure result through the existing closed runtime. For `entry main returns 42;`, the
+certified C0.6 NAIR remains exactly `CONST r0, INT(42); HALT`; V0.2 retains the final transient
+register snapshot and validates that the runtime actually ends with `r0 = INT(42)`.
+
+V0.2 adds:
+
+- additive NAIR transient-register observation,
+- additive `RuntimeObservedReport` / `run_closed_observed(...)`,
+- `PureResultExecutionReport`,
+- `execute_pure_result_source_v02(...)`,
+- `validate_v02_execution(...)`,
+- deterministic `canonical_v02_receipt_bytes()`,
+- CLI command `nordoi result-run <path|->`.
+
+Registers remain transient: no NAIR wire-format change, no checkpoint change, no atom/state
+materialization, no I/O, no effect and no authority are introduced. The certified V0.1 `run`
+command remains frozen.
+
+See `docs/NOI_FIRST_PURE_RESULT_EXECUTION_SPEC_0_2.md`.
+
+## Certified C0.6 foundation carried forward
 
 C0.6 builds on certified **C0.5 Pure Result Execution Plan** and defines the first operational
 representation of a source-level pure result using **existing NAIR 0.6 primitives**. NAIR itself,

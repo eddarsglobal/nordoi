@@ -11,7 +11,8 @@ use crate::{
     input::InputBatch,
     kernel::AtomicKernel,
     nair::{
-        execute_nair_with_render_and_input, AtomSlot, NairInteractiveExecutionReport, NairProgram,
+        execute_nair_with_render_and_input, execute_nair_with_render_and_input_observed, AtomSlot,
+        NairInteractiveExecutionReport, NairProgram, RegisterId,
     },
     render::{AtomicRenderCore, NairRenderFrame},
     value::Value,
@@ -52,6 +53,34 @@ pub struct RuntimeReport {
     pub input_events: usize,
     pub final_atoms: BTreeMap<AtomSlot, RuntimeAtomSnapshot>,
     pub execution: NairInteractiveExecutionReport,
+}
+
+/// Additive closed-runtime observation carrying transient final NAIR registers.
+///
+/// Register observations are never persisted, checkpointed, or interpreted as
+/// host authority. They exist only to validate pure result execution.
+#[derive(Debug, Clone, PartialEq)]
+pub struct RuntimeObservedReport {
+    pub runtime: RuntimeReport,
+    pub final_registers: BTreeMap<RegisterId, Value>,
+}
+
+impl RuntimeObservedReport {
+    pub fn runtime(&self) -> &RuntimeReport {
+        &self.runtime
+    }
+
+    pub fn final_registers(&self) -> &BTreeMap<RegisterId, Value> {
+        &self.final_registers
+    }
+
+    pub fn register(&self, id: RegisterId) -> Option<&Value> {
+        self.final_registers.get(&id)
+    }
+
+    pub fn is_quiescent(&self) -> bool {
+        self.runtime.is_quiescent()
+    }
 }
 
 impl RuntimeReport {
@@ -114,10 +143,61 @@ impl AtomicRuntime {
             execution,
         })
     }
+
+    /// Execute a closed activation while retaining transient final register values.
+    /// Existing `execute` semantics and reports remain unchanged.
+    pub fn execute_observed(
+        &self,
+        program: &NairProgram,
+        input: &InputBatch,
+    ) -> RuntimeResult<RuntimeObservedReport> {
+        let program_bytes = program.canonical_bytes()?;
+        let input_bytes = input.canonical_bytes()?;
+        let canonical_input = input.canonicalized()?;
+        let replay_key = replay_key(&program_bytes, &input_bytes);
+
+        let mut kernel = AtomicKernel::new();
+        let mut render = AtomicRenderCore::new();
+        let observed = execute_nair_with_render_and_input_observed(
+            &mut kernel,
+            &mut render,
+            &canonical_input,
+            program,
+        )?;
+
+        let residual_nam = kernel.pending_work();
+        let residual_render = render.pending_nodes();
+        if residual_nam != 0 || residual_render != 0 {
+            return Err(RuntimeError::ResidualWork {
+                nam: residual_nam,
+                render: residual_render,
+            });
+        }
+
+        let final_atoms = snapshot_atoms(&kernel, &observed.execution.execution.atom_bindings)?;
+        let runtime = RuntimeReport {
+            replay_key,
+            input_events: canonical_input.len(),
+            final_atoms,
+            execution: observed.execution,
+        };
+
+        Ok(RuntimeObservedReport {
+            runtime,
+            final_registers: observed.final_registers,
+        })
+    }
 }
 
 pub fn run_closed(program: &NairProgram, input: &InputBatch) -> RuntimeResult<RuntimeReport> {
     AtomicRuntime::new().execute(program, input)
+}
+
+pub fn run_closed_observed(
+    program: &NairProgram,
+    input: &InputBatch,
+) -> RuntimeResult<RuntimeObservedReport> {
+    AtomicRuntime::new().execute_observed(program, input)
 }
 
 pub(super) fn snapshot_atoms(

@@ -19,6 +19,7 @@ pub mod kernel;
 pub mod nair;
 pub mod ownership;
 pub mod program_upgrade;
+pub mod pure_result_execution;
 pub mod reaction;
 pub mod render;
 pub mod runtime;
@@ -120,14 +121,15 @@ pub use input::{
 pub use kernel::AtomicKernel;
 pub use nair::{
     execute_nair, execute_nair_with_input, execute_nair_with_render,
-    execute_nair_with_render_and_input, AtomSlot, CompletionSlot, DomainRef, DomainSlot,
-    InputBridgeSlot, InputTargetRef, Instruction, NairCompletionAuthority, NairCompletionBinding,
-    NairCompletionProjection, NairCompletionProjectionValue, NairEffectSet, NairError,
-    NairExecutionReport, NairInputExecutionReport, NairInteractiveExecutionReport, NairProgram,
-    NairReactionAuthority, NairReactionCycleReport, NairReactionStep, NairReactionTrigger,
-    NairReactionValue, NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId,
-    RenderNodeSlot, TimerSlot, TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC,
-    NAIR_MIN_SUPPORTED_MINOR,
+    execute_nair_with_render_and_input, execute_nair_with_render_and_input_observed, AtomSlot,
+    CompletionSlot, DomainRef, DomainSlot, InputBridgeSlot, InputTargetRef, Instruction,
+    NairCompletionAuthority, NairCompletionBinding, NairCompletionProjection,
+    NairCompletionProjectionValue, NairEffectSet, NairError, NairExecutionReport,
+    NairInputExecutionReport, NairInteractiveExecutionReport,
+    NairObservedInteractiveExecutionReport, NairProgram, NairReactionAuthority,
+    NairReactionCycleReport, NairReactionStep, NairReactionTrigger, NairReactionValue,
+    NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
+    TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{
@@ -160,6 +162,11 @@ pub use source_execution::{
     SourceExecutionResult,
 };
 
+pub use pure_result_execution::{
+    execute_pure_result_source_v02, validate_v02_execution, PureResultExecutionError,
+    PureResultExecutionReport, PureResultExecutionResult,
+};
+
 pub use time::{
     AtomicEventLoop, AtomicTimeCore, EventLoopCycleReport, EventLoopError, EventLoopReplayKey,
     EventLoopResult, LogicalDuration, LogicalTime, TimeAdvanceReport, TimeError, TimeResult,
@@ -169,8 +176,9 @@ pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;
 
 pub use runtime::{
-    run_closed, AtomicRuntime, PersistentAtomicRuntime, PersistentRuntimeTickReport,
-    RuntimeAtomSnapshot, RuntimeError, RuntimeReplayKey, RuntimeReport, RuntimeResult,
+    run_closed, run_closed_observed, AtomicRuntime, PersistentAtomicRuntime,
+    PersistentRuntimeTickReport, RuntimeAtomSnapshot, RuntimeError, RuntimeObservedReport,
+    RuntimeReplayKey, RuntimeReport, RuntimeResult,
 };
 
 pub use runtime_checkpoint::{
