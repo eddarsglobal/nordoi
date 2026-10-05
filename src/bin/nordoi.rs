@@ -1,10 +1,10 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
     compile_nair_lowering_boundary, compile_pure_result_boundary,
-    compile_resolved_semantic_boundary, execute_source_v01, lex, parse, AstElement, CompilerError,
-    Delimiter, LexError, ModuleError, NsirBodyState, NsirMinimalBody, NsirPureResultForm,
-    ParseError, SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan, SourceText, Token,
-    TokenKind,
+    compile_pure_result_execution_plan_boundary, compile_resolved_semantic_boundary,
+    execute_source_v01, lex, parse, AstElement, CompilerError, Delimiter, LexError, ModuleError,
+    NsirBodyState, NsirMinimalBody, NsirPureResultForm, ParseError, PureResultPlanForm,
+    SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan, SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -31,6 +31,7 @@ Usage:\n\
   nordoi semantic <path|->\n\
   nordoi body <path|->\n\
   nordoi result <path|->\n\
+  nordoi result-plan <path|->\n\
   nordoi plan <path|->\n\
   nordoi lower <path|->\n\
   nordoi run <path|->\n\
@@ -43,8 +44,9 @@ Commands:\n\
   module   Print the L0.3 contextual module identity.\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
-  result   Print the L0.6 pure-result boundary.\n\
-  plan     Print the C0.3 zero-work executable semantic plan.\n\
+  result      Print the L0.6 pure-result boundary.\n\
+  result-plan Print the C0.5 pure-result execution plan.\n\
+  plan        Print the C0.3 zero-work executable semantic plan.\n\
   lower    Lower the C0.3 validated zero-work plan to NAIR 0.6.\n\
   run      Execute the certified C0.4 HALT-only NAIR through the closed runtime.\n\
 \n\
@@ -53,7 +55,8 @@ C0.2 resolves type/effect symbols. L0.5 understands the minimal body. C0.3 plans
 C0.3 plan does not lower or execute NAIR. C0.4 lower performs the explicit NAIR 0.6 lowering.\n\
 C0.4 lowering does not execute the runtime.\n\
 V0.1 run is the explicit source-to-closed-runtime execution boundary.\n\
-L0.6 result is additive: it does not create a C0.3 plan, lower NAIR, or execute runtime work.\n";
+L0.6 result is additive: it does not create a C0.3 plan, lower NAIR, or execute runtime work.\n\
+C0.5 result-plan is additive: it plans L0.6 values but does not lower NAIR or execute runtime work.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -95,7 +98,16 @@ fn run() -> u8 {
     let command = arguments[0].to_string_lossy();
     if !matches!(
         command.as_ref(),
-        "lex" | "parse" | "module" | "semantic" | "body" | "result" | "plan" | "lower" | "run"
+        "lex"
+            | "parse"
+            | "module"
+            | "semantic"
+            | "body"
+            | "result"
+            | "result-plan"
+            | "plan"
+            | "lower"
+            | "run"
     ) {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
@@ -128,6 +140,7 @@ fn run() -> u8 {
         "semantic" => run_semantic(&source, &mut output),
         "body" => run_body(&source, &mut output),
         "result" => run_result(&source, &mut output),
+        "result-plan" => run_result_plan(&source, &mut output),
         "plan" => run_plan(&source, &mut output),
         "lower" => run_lower(&source, &mut output),
         "run" => run_source(&source, &mut output),
@@ -170,6 +183,10 @@ fn run() -> u8 {
             report_frontend_error("result", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::PureResultPlanCompilerFailure(error) => {
+            report_frontend_error("result-plan", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
         CommandResult::PlanCompilerFailure(error) => {
             report_frontend_error("plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
@@ -200,6 +217,7 @@ enum CommandResult {
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
     PureResultCompilerFailure(CompilerError),
+    PureResultPlanCompilerFailure(CompilerError),
     PlanCompilerFailure(CompilerError),
     LowerCompilerFailure(CompilerError),
     SourceExecutionFailure(SourceExecutionError),
@@ -476,6 +494,59 @@ fn run_result(source: &SourceText, output: &mut impl Write) -> CommandResult {
     if let Err(error) = writeln!(
         output,
         "execution=NOT_PLANNED nair=UNCHANGED runtime=NOT_INVOKED authority=NONE"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_result_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let plan = match compile_pure_result_execution_plan_boundary(source) {
+        Ok(plan) => plan,
+        Err(error) => return CommandResult::PureResultPlanCompilerFailure(error),
+    };
+
+    let result_semantics = plan.result_semantics();
+    let semantic = result_semantics.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let l06 = hex_bytes(&result_semantics.canonical_l06_bytes());
+    let c05 = hex_bytes(&plan.canonical_c05_bytes());
+
+    let write_result = match plan.form() {
+        PureResultPlanForm::Empty => writeln!(
+            output,
+            "result-plan module={module} form=EMPTY result=NONE work={} effects={} authority=NONE l06={l06} c05={c05}",
+            plan.work_item_count(),
+            plan.required_effects().len()
+        ),
+        PureResultPlanForm::Entry(entry) => match entry.result_i64() {
+            Some(value) => writeln!(
+                output,
+                "result-plan module={module} form=ENTRY entry=\"{}\" result=INT({value}) work={} effects={} authority=NONE l06={l06} c05={c05}",
+                escape_fragment(entry.name().as_str()),
+                plan.work_item_count(),
+                plan.required_effects().len()
+            ),
+            None => writeln!(
+                output,
+                "result-plan module={module} form=ENTRY entry=\"{}\" result=NONE work={} effects={} authority=NONE l06={l06} c05={c05}",
+                escape_fragment(entry.name().as_str()),
+                plan.work_item_count(),
+                plan.required_effects().len()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "lowering=UNDEFINED nair=UNCHANGED runtime=NOT_INVOKED"
     ) {
         return CommandResult::OutputFailure(error);
     }

@@ -1,4 +1,47 @@
-# NORDOI L0.6 — Pure Result Foundation
+# NORDOI C0.5 — Pure Result Execution Plan
+
+C0.5 builds on certified **L0.6 Pure Result Foundation** and introduces a separate compiler-owned
+execution plan for pure result semantics without changing C0.3, C0.4, NAIR 0.6 or V0.1 runtime
+execution.
+
+```noi
+module demo.result;
+
+type User;
+effect Network;
+
+entry main returns 42;
+```
+
+The new C0.5 boundary publishes `PureResultExecutionPlan`: the entry name and optional integer result
+are preserved, while work remains zero, required effects remain empty and host authority remains
+absent. The literal result is semantic payload only; no NAIR result representation is defined yet.
+
+C0.5 adds:
+
+```text
+compile_pure_result_execution_plan_boundary(...)
+validate_pure_result_execution_plan(...)
+PureResultExecutionPlan
+PureResultPlanForm
+PureResultEntryPlan
+PureResultPlanValue
+canonical_c05_bytes()
+
+nordoi result-plan <path|->
+```
+
+The certified `nordoi plan`, `nordoi lower` and `nordoi run` boundaries remain unchanged and continue
+to reject `entry main returns 42;`. This prevents C0.5 from silently rewriting C0.3/C0.4/V0.1.
+
+Normative candidate design: `docs/NOI_PURE_RESULT_EXECUTION_PLAN_SPEC_0_5.md`.  
+Architecture/research record: `research/PURE_RESULT_EXECUTION_PLAN_INTELLIGENCE_0_5.md`.
+
+NAIR 0.6, runtime, source execution V0.1, runtime checkpoint, kernel semantics, CI and Release Gate are
+unchanged.
+
+## Certified L0.6 foundation carried forward
+
 
 L0.6 builds on certified **V0.1 First Executable `.noi` Program** and adds the first pure source-level
 result without modifying the certified L0.5/C0.3/C0.4/V0.1 execution chain.

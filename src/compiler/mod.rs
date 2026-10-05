@@ -1,8 +1,8 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.4 remains the certified execution-plan → NAIR lowering boundary. L0.6 adds a separate
-//! pure-result semantic boundary for `entry Name returns <int>;` without changing C0.3/C0.4, NAIR,
-//! runtime execution, or host authority. Earlier witnesses remain available unchanged.
+//! C0.5 adds a separate pure-result execution-plan boundary on top of certified L0.6 without
+//! changing C0.3/C0.4, NAIR 0.6, V0.1 runtime execution, or host authority. Earlier witnesses
+//! remain available unchanged.
 
 mod body;
 mod effects;
@@ -13,6 +13,7 @@ mod nair_lowering;
 mod nsir;
 mod plan;
 mod pure_result;
+mod result_plan;
 mod symbols;
 
 pub use body::{
@@ -42,6 +43,10 @@ pub use pure_result::{
     compile_pure_result_boundary, lower_pure_result_unit_to_hir, validate_pure_result_hir,
     HirPureIntResult, HirPureResultEntry, HirPureResultForm, HirPureResultUnit, NsirPureIntResult,
     NsirPureResultEntry, NsirPureResultForm, NsirPureResultUnit,
+};
+pub use result_plan::{
+    compile_pure_result_execution_plan_boundary, validate_pure_result_execution_plan,
+    PureResultEntryPlan, PureResultExecutionPlan, PureResultPlanForm, PureResultPlanValue,
 };
 pub use symbols::{
     resolve_effect_set, NsirEffectSymbol, NsirTypeSymbol, ResolvedEffectSet, SemanticEffectId,
