@@ -112,6 +112,16 @@ pub enum CompilerError {
     NairLoweringValidationFailed {
         message: String,
     },
+    PureResultNairLoweringRequiresZeroWork {
+        count: u32,
+    },
+    PureResultNairLoweringRequiresPurePlan {
+        count: u32,
+    },
+    PureResultNairLoweringRequiresNoAuthority,
+    PureResultNairLoweringValidationFailed {
+        message: String,
+    },
 }
 
 impl CompilerError {
@@ -150,7 +160,11 @@ impl CompilerError {
             | Self::NairLoweringRequiresZeroWork { .. }
             | Self::NairLoweringRequiresPurePlan { .. }
             | Self::NairLoweringRequiresNoAuthority
-            | Self::NairLoweringValidationFailed { .. } => None,
+            | Self::NairLoweringValidationFailed { .. }
+            | Self::PureResultNairLoweringRequiresZeroWork { .. }
+            | Self::PureResultNairLoweringRequiresPurePlan { .. }
+            | Self::PureResultNairLoweringRequiresNoAuthority
+            | Self::PureResultNairLoweringValidationFailed { .. } => None,
         }
     }
 }
@@ -272,6 +286,22 @@ impl Display for CompilerError {
             Self::NairLoweringValidationFailed { message } => write!(
                 f,
                 "C0.4 produced invalid NAIR: {message}"
+            ),
+            Self::PureResultNairLoweringRequiresZeroWork { count } => write!(
+                f,
+                "C0.6 pure-result NAIR lowering accepts only zero-work plans; found {count} work items"
+            ),
+            Self::PureResultNairLoweringRequiresPurePlan { count } => write!(
+                f,
+                "C0.6 pure-result NAIR lowering accepts only pure plans; found {count} required effects"
+            ),
+            Self::PureResultNairLoweringRequiresNoAuthority => write!(
+                f,
+                "C0.6 pure-result NAIR lowering accepts only plans requiring no host authority"
+            ),
+            Self::PureResultNairLoweringValidationFailed { message } => write!(
+                f,
+                "C0.6 produced invalid NAIR: {message}"
             ),
         }
     }

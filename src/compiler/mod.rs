@@ -1,6 +1,6 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.5 adds a separate pure-result execution-plan boundary on top of certified L0.6 without
+//! C0.6 adds a separate pure-result-to-NAIR boundary on top of certified C0.5 without
 //! changing C0.3/C0.4, NAIR 0.6, V0.1 runtime execution, or host authority. Earlier witnesses
 //! remain available unchanged.
 
@@ -13,6 +13,7 @@ mod nair_lowering;
 mod nsir;
 mod plan;
 mod pure_result;
+mod result_nair;
 mod result_plan;
 mod symbols;
 
@@ -43,6 +44,9 @@ pub use pure_result::{
     compile_pure_result_boundary, lower_pure_result_unit_to_hir, validate_pure_result_hir,
     HirPureIntResult, HirPureResultEntry, HirPureResultForm, HirPureResultUnit, NsirPureIntResult,
     NsirPureResultEntry, NsirPureResultForm, NsirPureResultUnit,
+};
+pub use result_nair::{
+    compile_pure_result_nair_boundary, lower_pure_result_plan_to_nair, PureResultNairArtifact,
 };
 pub use result_plan::{
     compile_pure_result_execution_plan_boundary, validate_pure_result_execution_plan,

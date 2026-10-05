@@ -1,4 +1,41 @@
-# NORDOI C0.5 — Pure Result Execution Plan
+# NORDOI C0.6 — Pure Result → NAIR Representation
+
+C0.6 builds on certified **C0.5 Pure Result Execution Plan** and defines the first operational
+representation of a source-level pure result using **existing NAIR 0.6 primitives**. NAIR itself,
+the runtime, V0.1 execution, authority, capabilities and effects remain unchanged.
+
+For:
+
+```noi
+entry main returns 42;
+```
+
+C0.6 emits exactly:
+
+```text
+CONST r0, INT(42)
+HALT
+```
+
+For `entry main;` or an empty body it emits only `HALT`. The compiler artifact separately binds
+`r0` as the semantic result register; this binding is committed by `canonical_c06_bytes()` and is
+not inserted into the NAIR wire format.
+
+C0.6 adds:
+
+- `PureResultNairArtifact`,
+- `lower_pure_result_plan_to_nair(...)`,
+- `compile_pure_result_nair_boundary(...)`,
+- `canonical_c06_bytes()`,
+- CLI inspection command `nordoi result-lower <path|->`.
+
+The certified commands `nordoi lower` and `nordoi run` stay frozen and continue to reject result
+syntax. C0.6 never invokes the runtime.
+
+See `docs/NOI_PURE_RESULT_NAIR_SPEC_0_6.md`.
+
+## Certified C0.5 foundation carried forward
+
 
 C0.5 builds on certified **L0.6 Pure Result Foundation** and introduces a separate compiler-owned
 execution plan for pure result semantics without changing C0.3, C0.4, NAIR 0.6 or V0.1 runtime

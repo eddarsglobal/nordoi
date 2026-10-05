@@ -1,10 +1,11 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
     compile_nair_lowering_boundary, compile_pure_result_boundary,
-    compile_pure_result_execution_plan_boundary, compile_resolved_semantic_boundary,
-    execute_source_v01, lex, parse, AstElement, CompilerError, Delimiter, LexError, ModuleError,
-    NsirBodyState, NsirMinimalBody, NsirPureResultForm, ParseError, PureResultPlanForm,
-    SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan, SourceText, Token, TokenKind,
+    compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
+    compile_resolved_semantic_boundary, execute_source_v01, lex, parse, AstElement, CompilerError,
+    Delimiter, LexError, ModuleError, NsirBodyState, NsirMinimalBody, NsirPureResultForm,
+    ParseError, PureResultPlanForm, SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan,
+    SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -32,6 +33,7 @@ Usage:\n\
   nordoi body <path|->\n\
   nordoi result <path|->\n\
   nordoi result-plan <path|->\n\
+  nordoi result-lower <path|->\n\
   nordoi plan <path|->\n\
   nordoi lower <path|->\n\
   nordoi run <path|->\n\
@@ -45,8 +47,9 @@ Commands:\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   result      Print the L0.6 pure-result boundary.\n\
-  result-plan Print the C0.5 pure-result execution plan.\n\
-  plan        Print the C0.3 zero-work executable semantic plan.\n\
+  result-plan  Print the C0.5 pure-result execution plan.\n\
+  result-lower Lower the C0.5 pure-result plan to existing NAIR 0.6 primitives.\n\
+  plan         Print the C0.3 zero-work executable semantic plan.\n\
   lower    Lower the C0.3 validated zero-work plan to NAIR 0.6.\n\
   run      Execute the certified C0.4 HALT-only NAIR through the closed runtime.\n\
 \n\
@@ -56,7 +59,8 @@ C0.3 plan does not lower or execute NAIR. C0.4 lower performs the explicit NAIR 
 C0.4 lowering does not execute the runtime.\n\
 V0.1 run is the explicit source-to-closed-runtime execution boundary.\n\
 L0.6 result is additive: it does not create a C0.3 plan, lower NAIR, or execute runtime work.\n\
-C0.5 result-plan is additive: it plans L0.6 values but does not lower NAIR or execute runtime work.\n";
+C0.5 result-plan is additive: it plans L0.6 values but does not lower NAIR or execute runtime work.\n\
+C0.6 result-lower is additive: it lowers C0.5 values to existing NAIR 0.6 Const/Halt and does not execute runtime work.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -105,6 +109,7 @@ fn run() -> u8 {
             | "body"
             | "result"
             | "result-plan"
+            | "result-lower"
             | "plan"
             | "lower"
             | "run"
@@ -141,6 +146,7 @@ fn run() -> u8 {
         "body" => run_body(&source, &mut output),
         "result" => run_result(&source, &mut output),
         "result-plan" => run_result_plan(&source, &mut output),
+        "result-lower" => run_result_lower(&source, &mut output),
         "plan" => run_plan(&source, &mut output),
         "lower" => run_lower(&source, &mut output),
         "run" => run_source(&source, &mut output),
@@ -187,6 +193,10 @@ fn run() -> u8 {
             report_frontend_error("result-plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::PureResultLowerCompilerFailure(error) => {
+            report_frontend_error("result-lower", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
         CommandResult::PlanCompilerFailure(error) => {
             report_frontend_error("plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
@@ -218,6 +228,7 @@ enum CommandResult {
     BodyCompilerFailure(CompilerError),
     PureResultCompilerFailure(CompilerError),
     PureResultPlanCompilerFailure(CompilerError),
+    PureResultLowerCompilerFailure(CompilerError),
     PlanCompilerFailure(CompilerError),
     LowerCompilerFailure(CompilerError),
     SourceExecutionFailure(SourceExecutionError),
@@ -547,6 +558,74 @@ fn run_result_plan(source: &SourceText, output: &mut impl Write) -> CommandResul
     if let Err(error) = writeln!(
         output,
         "lowering=UNDEFINED nair=UNCHANGED runtime=NOT_INVOKED"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_result_lower(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let artifact = match compile_pure_result_nair_boundary(source) {
+        Ok(artifact) => artifact,
+        Err(error) => return CommandResult::PureResultLowerCompilerFailure(error),
+    };
+
+    let plan = artifact.plan();
+    let result_semantics = plan.result_semantics();
+    let semantic = result_semantics.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c05 = hex_bytes(&plan.canonical_c05_bytes());
+    let c06 = hex_bytes(&artifact.canonical_c06_bytes());
+    let nair = hex_bytes(artifact.canonical_nair_bytes());
+
+    let write_result = match plan.form() {
+        PureResultPlanForm::Empty => writeln!(
+            output,
+            "result-lower module={module} form=EMPTY result=NONE work={} effects={} authority=NONE nair-instructions={} result-register=NONE c05={c05} c06={c06}",
+            plan.work_item_count(),
+            plan.required_effects().len(),
+            artifact.nair_instruction_count()
+        ),
+        PureResultPlanForm::Entry(entry) => match entry.result_i64() {
+            Some(value) => {
+                let register = artifact
+                    .result_register()
+                    .expect("C0.6 result plan with a value must publish its result register");
+                writeln!(
+                    output,
+                    "result-lower module={module} form=ENTRY entry=\"{}\" result=INT({value}) work={} effects={} authority=NONE nair-instructions={} result-register=r{} c05={c05} c06={c06}",
+                    escape_fragment(entry.name().as_str()),
+                    plan.work_item_count(),
+                    plan.required_effects().len(),
+                    artifact.nair_instruction_count(),
+                    register.0
+                )
+            }
+            None => writeln!(
+                output,
+                "result-lower module={module} form=ENTRY entry=\"{}\" result=NONE work={} effects={} authority=NONE nair-instructions={} result-register=NONE c05={c05} c06={c06}",
+                escape_fragment(entry.name().as_str()),
+                plan.work_item_count(),
+                plan.required_effects().len(),
+                artifact.nair_instruction_count()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let instructions = match artifact.result_i64() {
+        Some(value) => format!("[CONST r0 INT({value}),HALT]"),
+        None => "[HALT]".to_owned(),
+    };
+    if let Err(error) = writeln!(
+        output,
+        "nair version=0.6 instructions={instructions} bytes={nair} runtime=NOT_INVOKED"
     ) {
         return CommandResult::OutputFailure(error);
     }
