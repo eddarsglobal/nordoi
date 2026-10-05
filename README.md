@@ -1,3 +1,27 @@
+# NORDOI L0.8 — Pure Named Bindings Foundation
+
+> Candidate milestone. `CONSTITUTION.md` remains the supreme project authority; this milestone is subordinate to it and to `laws/LAW_0001_NORDOI_MASTER_LAW.md`.
+
+L0.8 adds contextual immutable pure bindings without defining runtime storage:
+
+```noi
+const x = 20;
+const y = 22;
+entry main returns x + y;
+```
+
+The compiler resolves names into canonical module-local binding IDs and preserves references as semantic postfix `BINDING(id)` operations. Binding declaration order is not semantic. Duplicate/unknown names fail closed. L0.8 introduces no plan, NAIR opcode, runtime execution, storage, I/O, effect or authority. Earlier L0.7/C0.7/C0.8/V0.3 boundaries remain frozen.
+
+Inspection:
+
+```text
+nordoi bindings <path|->
+```
+
+See `docs/NOI_PURE_BINDING_SPEC_0_8.md` and `research/PURE_BINDING_INTELLIGENCE_0_8.md`.
+
+---
+
 # NORDOI V0.3 — First Executed Pure Expression
 
 V0.3 builds on certified C0.8 and executes the exact pure-expression NAIR through the existing closed runtime. It validates every transient SSA register against the certified postfix calculation before publishing the source-level result.

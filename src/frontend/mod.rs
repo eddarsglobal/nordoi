@@ -1,9 +1,8 @@
 //! Experimental `.noi` language frontend foundation.
 //!
-//! L0.7 adds a separate pure-expression surface on top of certified L0.6.
-//! The new contextual form is `entry Name returns <pure-expression>;`, where the L0.7 expression
-//! subset is canonical non-negative decimal integers, parenthesis grouping, and binary `+` only.
-//! Earlier L0.5/L0.6 boundaries remain unchanged and do not silently accept L0.7 expressions.
+//! L0.8 adds a separate pure named-binding surface on top of certified L0.7.
+//! Contextual `const Name = <canonical-int>;` declarations may precede the existing entry form,
+//! and L0.8 expressions may reference those immutable bindings. Earlier boundaries remain frozen.
 
 mod ast;
 mod body;
@@ -15,6 +14,8 @@ mod module_error;
 mod name;
 mod parse_error;
 mod parser;
+mod pure_binding;
+mod pure_binding_error;
 mod pure_expression;
 mod pure_expression_error;
 mod pure_result;
@@ -37,6 +38,12 @@ pub use module_error::{ModuleError, ModuleResult, NameError, NameResult};
 pub use name::{Name, MAX_NAME_BYTES};
 pub use parse_error::{ParseError, ParseResult};
 pub use parser::{parse, Parser, MAX_PARSE_NESTING};
+pub use pure_binding::{
+    analyze_pure_binding_unit, PureBindingAnalyzer, PureBindingBodyForm, PureBindingUnit,
+    SurfacePureBinding, SurfacePureBindingEntry, SurfacePureBindingExpression,
+    SurfacePureBindingExpressionOp, MAX_PURE_BINDINGS,
+};
+pub use pure_binding_error::{PureBindingError, PureBindingResult};
 pub use pure_expression::{
     analyze_pure_expression_unit, PureExpressionAnalyzer, PureExpressionBodyForm,
     PureExpressionUnit, SurfaceExpressionEntry, SurfacePureExpression, SurfacePureExpressionOp,

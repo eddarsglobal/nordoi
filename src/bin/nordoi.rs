@@ -1,15 +1,17 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_nair_lowering_boundary, compile_pure_expression_boundary,
-    compile_pure_expression_execution_plan_boundary, compile_pure_expression_nair_boundary,
-    compile_pure_result_boundary, compile_pure_result_execution_plan_boundary,
-    compile_pure_result_nair_boundary, compile_resolved_semantic_boundary,
-    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01, lex,
-    parse, AstElement, CompilerError, Delimiter, Instruction, LexError, ModuleError, NsirBodyState,
-    NsirMinimalBody, NsirPureExpressionForm, NsirPureResultForm, ParseError,
+    compile_nair_lowering_boundary, compile_pure_binding_boundary,
+    compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
+    compile_pure_expression_nair_boundary, compile_pure_result_boundary,
+    compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
+    compile_resolved_semantic_boundary, execute_pure_expression_source_v03,
+    execute_pure_result_source_v02, execute_source_v01, lex, parse, AstElement, CompilerError,
+    Delimiter, Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody,
+    NsirPureBindingForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
     PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
-    PureResultPlanForm, SemanticPlanForm, SemanticPureExpressionOp, SourceExecutionError, SourceId,
-    SourceSpan, SourceText, Token, TokenKind, Value,
+    PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp,
+    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText, Token,
+    TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -37,6 +39,7 @@ Usage:\n\
   nordoi body <path|->\n\
   nordoi result <path|->\n\
   nordoi expr <path|->\n\
+  nordoi bindings <path|->\n\
   nordoi expr-plan <path|->\n\
   nordoi expr-lower <path|->\n\
   nordoi expr-run <path|->\n\
@@ -57,6 +60,7 @@ Commands:\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   result      Print the L0.6 pure-result boundary.\n\
   expr        Print the L0.7 pure-expression boundary.\n\
+  bindings    Print the L0.8 pure named-binding semantic boundary.\n\
   expr-plan   Print the C0.7 pure-expression execution plan.\n\
   expr-lower  Lower the C0.7 postfix plan faithfully to NAIR 0.6/0.7.\n\
   expr-run    Execute the C0.8 pure-expression NAIR and validate every SSA result.\n\
@@ -79,7 +83,8 @@ V0.2 result-run executes C0.6 through the closed runtime and validates transient
 L0.7 expr is additive: it evaluates only pure checked integer addition and does not plan, lower, or execute runtime work.\n\
 C0.7 expr-plan is additive: it preserves L0.7 postfix calculation order without lowering NAIR or executing runtime work.\n\
 C0.8 expr-lower is additive: it maps each postfix INT/ADD to Const/ADD_INT_CHECKED SSA instructions and never executes runtime work.\n\
-V0.3 expr-run executes C0.8 through the closed runtime and validates every transient SSA register without I/O, effects, or authority.\n";
+V0.3 expr-run executes C0.8 through the closed runtime and validates every transient SSA register without I/O, effects, or authority.\n\
+L0.8 bindings adds immutable named compile-time bindings and reference resolution without planning, NAIR, runtime work, storage, effects, or authority.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -128,6 +133,7 @@ fn run() -> u8 {
             | "body"
             | "result"
             | "expr"
+            | "bindings"
             | "expr-plan"
             | "expr-lower"
             | "expr-run"
@@ -170,6 +176,7 @@ fn run() -> u8 {
         "body" => run_body(&source, &mut output),
         "result" => run_result(&source, &mut output),
         "expr" => run_expression(&source, &mut output),
+        "bindings" => run_bindings(&source, &mut output),
         "expr-plan" => run_expression_plan(&source, &mut output),
         "expr-lower" => run_expression_lower(&source, &mut output),
         "expr-run" => run_pure_expression_source(&source, &mut output),
@@ -216,6 +223,10 @@ fn run() -> u8 {
         }
         CommandResult::PureExpressionCompilerFailure(error) => {
             report_frontend_error("expr", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
+        CommandResult::PureBindingCompilerFailure(error) => {
+            report_frontend_error("bindings", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
         CommandResult::PureExpressionPlanCompilerFailure(error) => {
@@ -290,6 +301,7 @@ enum CommandResult {
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
     PureExpressionCompilerFailure(CompilerError),
+    PureBindingCompilerFailure(CompilerError),
     PureExpressionPlanCompilerFailure(CompilerError),
     PureExpressionLowerCompilerFailure(CompilerError),
     PureExpressionExecutionFailure(PureExpressionExecutionError),
@@ -578,6 +590,89 @@ fn run_result(source: &SourceText, output: &mut impl Write) -> CommandResult {
     }
 
     CommandResult::Success
+}
+
+fn run_bindings(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match compile_pure_binding_boundary(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::PureBindingCompilerFailure(error),
+    };
+
+    let semantic = unit.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let l08 = hex_bytes(&unit.canonical_l08_bytes());
+    let binding_text = format_pure_bindings(unit.bindings().bindings());
+
+    let write_result = match unit.form() {
+        NsirPureBindingForm::Empty => writeln!(
+            output,
+            "bindings module={module} form=EMPTY bindings={binding_text} count={} pure=true ops=NONE value=NONE nodes=0 effects=0 authority=NONE l08={l08}",
+            unit.bindings().bindings().len()
+        ),
+        NsirPureBindingForm::Entry(entry) => match entry.expression() {
+            Some(expression) => writeln!(
+                output,
+                "bindings module={module} form=ENTRY entry=\"{}\" bindings={binding_text} count={} pure={} ops={} value=INT({}) nodes={} effects={} authority=NONE l08={l08}",
+                escape_fragment(entry.name().as_str()),
+                unit.bindings().bindings().len(),
+                entry.required_effects().is_pure(),
+                format_pure_binding_ops(expression.ops()),
+                expression.value(),
+                expression.node_count(),
+                entry.required_effects().effects().len()
+            ),
+            None => writeln!(
+                output,
+                "bindings module={module} form=ENTRY entry=\"{}\" bindings={binding_text} count={} pure={} ops=NONE value=NONE nodes=0 effects={} authority=NONE l08={l08}",
+                escape_fragment(entry.name().as_str()),
+                unit.bindings().bindings().len(),
+                entry.required_effects().is_pure(),
+                entry.required_effects().effects().len()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "planning=UNDEFINED nair=UNCHANGED runtime=NOT_INVOKED storage=NONE authority=NONE"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn format_pure_bindings(bindings: &[nordoi_kernel::NsirPureBindingSymbol]) -> String {
+    let parts: Vec<String> = bindings
+        .iter()
+        .map(|binding| {
+            format!(
+                "#{}:{}=INT({})",
+                binding.id().get(),
+                escape_fragment(binding.name().as_str()),
+                binding.value()
+            )
+        })
+        .collect();
+    format!("[{}]", parts.join(","))
+}
+
+fn format_pure_binding_ops(ops: &[SemanticPureBindingExpressionOp]) -> String {
+    let parts: Vec<String> = ops
+        .iter()
+        .map(|op| match op {
+            SemanticPureBindingExpressionOp::Int(value) => format!("INT({value})"),
+            SemanticPureBindingExpressionOp::Binding(id) => format!("BINDING({})", id.get()),
+            SemanticPureBindingExpressionOp::Add => "ADD".to_owned(),
+        })
+        .collect();
+    format!("[{}]", parts.join(","))
 }
 
 fn run_expression(source: &SourceText, output: &mut impl Write) -> CommandResult {

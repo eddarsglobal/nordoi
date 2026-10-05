@@ -1,9 +1,8 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.8 adds faithful pure-expression-to-NAIR lowering on top of certified L0.7/C0.7 and N0.7.
-//! Earlier compiler/runtime boundaries and witnesses remain available unchanged. C0.8 preserves
-//! exact postfix calculation order as Const/IntAddChecked SSA instructions and never executes the
-//! runtime, performs I/O, consults capabilities, or grants authority.
+//! L0.8 adds immutable pure named bindings as a separate semantic boundary above certified V0.3.
+//! Bindings resolve to canonical semantic IDs and values, but define no storage, mutation, NAIR,
+//! runtime work, I/O, effect, capability or authority. Earlier compiler/runtime boundaries remain frozen.
 
 mod body;
 mod effects;
@@ -15,6 +14,7 @@ mod lower;
 mod nair_lowering;
 mod nsir;
 mod plan;
+mod pure_binding;
 mod pure_expression;
 mod pure_result;
 mod result_nair;
@@ -52,6 +52,13 @@ pub use nsir::{validate_hir, NsirBodyState, NsirDeclaration, NsirOrigin, NsirUni
 pub use plan::{
     compile_execution_plan_boundary, validate_execution_plan, SemanticEntryPlan,
     SemanticExecutionPlan, SemanticPlanForm,
+};
+pub use pure_binding::{
+    compile_pure_binding_boundary, lower_pure_binding_unit_to_hir, validate_pure_binding_hir,
+    HirPureBinding, HirPureBindingEntry, HirPureBindingExpression, HirPureBindingExpressionOp,
+    HirPureBindingForm, HirPureBindingUnit, NsirPureBindingEntry, NsirPureBindingExpression,
+    NsirPureBindingForm, NsirPureBindingSymbol, NsirPureBindingUnit, PureBindingRegistry,
+    SemanticPureBindingExpressionOp, SemanticPureBindingId,
 };
 pub use pure_expression::{
     compile_pure_expression_boundary, lower_pure_expression_unit_to_hir,

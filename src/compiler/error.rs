@@ -1,6 +1,6 @@
 use crate::frontend::{
-    BodyError, ModuleError, PureExpressionError, PureResultError, SourceError, SourceSpan,
-    TypeEffectError,
+    BodyError, ModuleError, PureBindingError, PureExpressionError, PureResultError, SourceError,
+    SourceSpan, TypeEffectError,
 };
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -11,6 +11,7 @@ pub enum CompilerError {
     TypeEffectFrontend(TypeEffectError),
     BodyFrontend(BodyError),
     PureExpressionFrontend(PureExpressionError),
+    PureBindingFrontend(PureBindingError),
     PureResultFrontend(PureResultError),
     Source(SourceError),
     EmptySemanticName,
@@ -128,6 +129,58 @@ pub enum CompilerError {
     PureExpressionIntegerOverflow {
         span: SourceSpan,
     },
+    PureBindingBodySpanMismatch {
+        semantic_body: SourceSpan,
+        body: SourceSpan,
+    },
+    PureBindingDeclarationSpanOutsideBody {
+        body: SourceSpan,
+        binding: SourceSpan,
+    },
+    PureBindingValueSpanOutsideDeclaration {
+        binding: SourceSpan,
+        value: SourceSpan,
+    },
+    TooManyPureBindings {
+        count: u32,
+        maximum: u32,
+        span: SourceSpan,
+    },
+    DuplicatePureBinding {
+        name: String,
+        first: SourceSpan,
+        duplicate: SourceSpan,
+    },
+    PureBindingEntrySpanOutsideBody {
+        body: SourceSpan,
+        entry: SourceSpan,
+    },
+    PureBindingExpressionSpanOutsideEntry {
+        entry: SourceSpan,
+        expression: SourceSpan,
+    },
+    PureBindingExpressionNodeSpanOutsideExpression {
+        expression: SourceSpan,
+        node: SourceSpan,
+    },
+    TooManyPureBindingExpressionNodes {
+        count: u32,
+        maximum: u32,
+        span: SourceSpan,
+    },
+    InvalidPureBindingExpressionPostfix {
+        span: SourceSpan,
+    },
+    NegativePureBindingLiteral {
+        span: SourceSpan,
+    },
+    UnknownPureBinding {
+        name: String,
+        span: SourceSpan,
+    },
+    PureBindingIntegerOverflow {
+        span: SourceSpan,
+    },
     ExecutablePlanEntryMustBePure {
         name: String,
     },
@@ -180,6 +233,7 @@ impl CompilerError {
             Self::TypeEffectFrontend(error) => error.primary_span(),
             Self::BodyFrontend(error) => error.primary_span(),
             Self::PureExpressionFrontend(error) => error.primary_span(),
+            Self::PureBindingFrontend(error) => error.primary_span(),
             Self::PureResultFrontend(error) => error.primary_span(),
             Self::Source(_) => None,
             Self::SourceMismatch { other, .. } => Some(*other),
@@ -203,6 +257,19 @@ impl CompilerError {
             | Self::InvalidPureExpressionPostfix { span }
             | Self::NegativePureExpressionLiteral { span }
             | Self::PureExpressionIntegerOverflow { span } => Some(*span),
+            Self::PureBindingBodySpanMismatch { body, .. } => Some(*body),
+            Self::PureBindingDeclarationSpanOutsideBody { binding, .. } => Some(*binding),
+            Self::PureBindingValueSpanOutsideDeclaration { value, .. } => Some(*value),
+            Self::TooManyPureBindings { span, .. } => Some(*span),
+            Self::DuplicatePureBinding { duplicate, .. } => Some(*duplicate),
+            Self::PureBindingEntrySpanOutsideBody { entry, .. } => Some(*entry),
+            Self::PureBindingExpressionSpanOutsideEntry { expression, .. } => Some(*expression),
+            Self::PureBindingExpressionNodeSpanOutsideExpression { node, .. } => Some(*node),
+            Self::TooManyPureBindingExpressionNodes { span, .. }
+            | Self::InvalidPureBindingExpressionPostfix { span }
+            | Self::NegativePureBindingLiteral { span }
+            | Self::UnknownPureBinding { span, .. }
+            | Self::PureBindingIntegerOverflow { span } => Some(*span),
             Self::DuplicateSemanticDeclaration { duplicate, .. } => Some(*duplicate),
             Self::EmptySemanticName
             | Self::SemanticNameTooLong { .. }
@@ -241,6 +308,7 @@ impl Display for CompilerError {
             Self::TypeEffectFrontend(error) => Display::fmt(error, f),
             Self::BodyFrontend(error) => Display::fmt(error, f),
             Self::PureExpressionFrontend(error) => Display::fmt(error, f),
+            Self::PureBindingFrontend(error) => Display::fmt(error, f),
             Self::PureResultFrontend(error) => Display::fmt(error, f),
             Self::Source(error) => Display::fmt(error, f),
             Self::EmptySemanticName => write!(f, "semantic name must not be empty"),
@@ -359,6 +427,60 @@ impl Display for CompilerError {
                 f,
                 "L0.7 pure integer addition overflowed the supported i64 range"
             ),
+            Self::PureBindingBodySpanMismatch { .. } => write!(
+                f,
+                "L0.8 pure-binding layer must cover exactly the residual body span published by L0.4"
+            ),
+            Self::PureBindingDeclarationSpanOutsideBody { .. } => write!(
+                f,
+                "L0.8 pure binding declaration must be contained by the residual body span"
+            ),
+            Self::PureBindingValueSpanOutsideDeclaration { .. } => write!(
+                f,
+                "L0.8 pure binding value span must be contained by its declaration"
+            ),
+            Self::TooManyPureBindings { count, maximum, .. } => write!(
+                f,
+                "L0.8 pure binding registry has {count} bindings; the maximum is {maximum}"
+            ),
+            Self::DuplicatePureBinding { name, .. } => write!(
+                f,
+                "duplicate L0.8 pure binding '{}' in the same module",
+                name.chars().flat_map(char::escape_default).collect::<String>()
+            ),
+            Self::PureBindingEntrySpanOutsideBody { .. } => write!(
+                f,
+                "L0.8 entry span must be contained by the residual body span"
+            ),
+            Self::PureBindingExpressionSpanOutsideEntry { .. } => write!(
+                f,
+                "L0.8 pure-binding expression span must be contained by its entry span"
+            ),
+            Self::PureBindingExpressionNodeSpanOutsideExpression { .. } => write!(
+                f,
+                "L0.8 expression node span must be contained by the expression span"
+            ),
+            Self::TooManyPureBindingExpressionNodes { count, maximum, .. } => write!(
+                f,
+                "L0.8 pure-binding expression has {count} semantic nodes; the maximum is {maximum}"
+            ),
+            Self::InvalidPureBindingExpressionPostfix { .. } => write!(
+                f,
+                "L0.8 pure-binding expression postfix form is not a valid single-result expression"
+            ),
+            Self::NegativePureBindingLiteral { .. } => write!(
+                f,
+                "L0.8 pure binding literals must remain non-negative"
+            ),
+            Self::UnknownPureBinding { name, .. } => write!(
+                f,
+                "L0.8 expression references undeclared pure binding '{}'",
+                name.chars().flat_map(char::escape_default).collect::<String>()
+            ),
+            Self::PureBindingIntegerOverflow { .. } => write!(
+                f,
+                "L0.8 pure-binding integer addition overflowed the supported i64 range"
+            ),
             Self::ExecutablePlanEntryMustBePure { name } => write!(
                 f,
                 "C0.3 executable plan entry '{}' must require zero semantic effects",
@@ -441,6 +563,7 @@ impl Error for CompilerError {
             Self::TypeEffectFrontend(error) => Some(error),
             Self::BodyFrontend(error) => Some(error),
             Self::PureExpressionFrontend(error) => Some(error),
+            Self::PureBindingFrontend(error) => Some(error),
             Self::PureResultFrontend(error) => Some(error),
             Self::Source(error) => Some(error),
             _ => None,
@@ -469,6 +592,12 @@ impl From<BodyError> for CompilerError {
 impl From<PureExpressionError> for CompilerError {
     fn from(value: PureExpressionError) -> Self {
         Self::PureExpressionFrontend(value)
+    }
+}
+
+impl From<PureBindingError> for CompilerError {
+    fn from(value: PureBindingError) -> Self {
+        Self::PureBindingFrontend(value)
     }
 }
 
