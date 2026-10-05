@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI C0.3 — Executable Semantic Plan"
+description = "NORDOI C0.4 — Semantic Plan to NAIR Lowering Foundation"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

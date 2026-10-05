@@ -1,16 +1,16 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.3 layers a canonical executable semantic plan over certified L0.5 body semantics. The plan
-//! contains zero work items, requires zero effects, grants zero host authority, and never invokes the
-//! runtime. The existing C0.1, L0.4, C0.2 and L0.5 boundaries and witnesses remain available
-//! unchanged. General functions, calls, expressions, handlers and NSIR → NAIR lowering remain
-//! deliberately undefined.
+//! C0.4 adds the first explicit compiler-owned lowering from the certified C0.3 zero-work semantic
+//! plan to existing NAIR 0.6. Only the already-understood zero-work subset is accepted; the emitted
+//! program is exactly one terminal `Halt`. The runtime is never invoked and host authority remains
+//! outside program bytes. Earlier C0.1/L0.4/C0.2/L0.5/C0.3 witnesses remain available unchanged.
 
 mod body;
 mod effects;
 mod error;
 mod hir;
 mod lower;
+mod nair_lowering;
 mod nsir;
 mod plan;
 mod symbols;
@@ -29,6 +29,9 @@ pub use hir::{
 pub use lower::{
     compile_resolved_semantic_boundary, compile_semantic_boundary, compile_type_effect_boundary,
     lower_module_unit_to_hir, lower_type_effect_unit_to_hir,
+};
+pub use nair_lowering::{
+    compile_nair_lowering_boundary, lower_execution_plan_to_nair, NairLoweringArtifact,
 };
 pub use nsir::{validate_hir, NsirBodyState, NsirDeclaration, NsirOrigin, NsirUnit};
 pub use plan::{

@@ -84,6 +84,16 @@ pub enum CompilerError {
     ExecutablePlanEntryMustBePure {
         name: String,
     },
+    NairLoweringRequiresZeroWork {
+        count: u32,
+    },
+    NairLoweringRequiresPurePlan {
+        count: u32,
+    },
+    NairLoweringRequiresNoAuthority,
+    NairLoweringValidationFailed {
+        message: String,
+    },
 }
 
 impl CompilerError {
@@ -113,7 +123,11 @@ impl CompilerError {
             | Self::TooManyEffectRequirements { .. }
             | Self::DuplicateEffectRequirement { .. }
             | Self::UnknownEffectRequirement { .. }
-            | Self::ExecutablePlanEntryMustBePure { .. } => None,
+            | Self::ExecutablePlanEntryMustBePure { .. }
+            | Self::NairLoweringRequiresZeroWork { .. }
+            | Self::NairLoweringRequiresPurePlan { .. }
+            | Self::NairLoweringRequiresNoAuthority
+            | Self::NairLoweringValidationFailed { .. } => None,
         }
     }
 }
@@ -133,15 +147,10 @@ impl Display for CompilerError {
             Self::InvalidSemanticName { name } => write!(
                 f,
                 "semantic name '{}' does not satisfy the current ASCII identifier profile",
-                name.chars()
-                    .flat_map(char::escape_default)
-                    .collect::<String>()
+                name.chars().flat_map(char::escape_default).collect::<String>()
             ),
             Self::EmptySemanticPath => {
-                write!(
-                    f,
-                    "named semantic module path must contain at least one segment"
-                )
+                write!(f, "named semantic module path must contain at least one segment")
             }
             Self::TooManySemanticSegments { count, maximum } => write!(
                 f,
@@ -154,9 +163,7 @@ impl Display for CompilerError {
             Self::DuplicateSemanticDeclaration { kind, name, .. } => write!(
                 f,
                 "duplicate {kind} declaration '{}' in the same module",
-                name.chars()
-                    .flat_map(char::escape_default)
-                    .collect::<String>()
+                name.chars().flat_map(char::escape_default).collect::<String>()
             ),
             Self::TooManyEffectRequirements { count, maximum } => write!(
                 f,
@@ -165,22 +172,15 @@ impl Display for CompilerError {
             Self::DuplicateEffectRequirement { name } => write!(
                 f,
                 "semantic effect set contains duplicate requirement '{}'",
-                name.chars()
-                    .flat_map(char::escape_default)
-                    .collect::<String>()
+                name.chars().flat_map(char::escape_default).collect::<String>()
             ),
             Self::UnknownEffectRequirement { name } => write!(
                 f,
                 "semantic effect requirement '{}' is not declared in this module",
-                name.chars()
-                    .flat_map(char::escape_default)
-                    .collect::<String>()
+                name.chars().flat_map(char::escape_default).collect::<String>()
             ),
             Self::SourceMismatch { .. } => {
-                write!(
-                    f,
-                    "HIR spans from different source units cannot be combined"
-                )
+                write!(f, "HIR spans from different source units cannot be combined")
             }
             Self::ModuleSpanOutsideFile { .. } => {
                 write!(f, "HIR module span must be contained by the file span")
@@ -196,36 +196,41 @@ impl Display for CompilerError {
                 write!(f, "HIR declarations must be ordered and non-overlapping")
             }
             Self::DeclarationOverlapsBody { .. } => {
-                write!(
-                    f,
-                    "HIR declaration cannot overlap the residual unlowered body"
-                )
+                write!(f, "HIR declaration cannot overlap the residual unlowered body")
             }
             Self::BodySpanOutsideFile { .. } => {
                 write!(f, "HIR body span must be contained by the file span")
             }
             Self::BodyStartsBeforeModuleEnds { .. } => {
-                write!(
-                    f,
-                    "HIR body cannot begin before the module declaration ends"
-                )
+                write!(f, "HIR body cannot begin before the module declaration ends")
             }
             Self::BodyLayerSpanMismatch { .. } => write!(
                 f,
                 "L0.5 body layer must cover exactly the residual body span published by L0.4"
             ),
             Self::EntrySpanOutsideBody { .. } => {
-                write!(
-                    f,
-                    "L0.5 entry span must be contained by the residual body span"
-                )
+                write!(f, "L0.5 entry span must be contained by the residual body span")
             }
             Self::ExecutablePlanEntryMustBePure { name } => write!(
                 f,
                 "C0.3 executable plan entry '{}' must require zero semantic effects",
-                name.chars()
-                    .flat_map(char::escape_default)
-                    .collect::<String>()
+                name.chars().flat_map(char::escape_default).collect::<String>()
+            ),
+            Self::NairLoweringRequiresZeroWork { count } => write!(
+                f,
+                "C0.4 NAIR lowering accepts only zero-work semantic plans; found {count} work items"
+            ),
+            Self::NairLoweringRequiresPurePlan { count } => write!(
+                f,
+                "C0.4 NAIR lowering accepts only pure semantic plans; found {count} required effects"
+            ),
+            Self::NairLoweringRequiresNoAuthority => write!(
+                f,
+                "C0.4 NAIR lowering accepts only plans requiring no host authority"
+            ),
+            Self::NairLoweringValidationFailed { message } => write!(
+                f,
+                "C0.4 produced invalid NAIR: {message}"
             ),
         }
     }

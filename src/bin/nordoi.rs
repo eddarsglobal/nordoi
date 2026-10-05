@@ -1,8 +1,8 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_resolved_semantic_boundary, lex, parse, AstElement, CompilerError, Delimiter, LexError,
-    ModuleError, NsirBodyState, NsirMinimalBody, ParseError, SemanticPlanForm, SourceId,
-    SourceSpan, SourceText, Token, TokenKind,
+    compile_nair_lowering_boundary, compile_resolved_semantic_boundary, lex, parse, AstElement,
+    CompilerError, Delimiter, LexError, ModuleError, NsirBodyState, NsirMinimalBody, ParseError,
+    SemanticPlanForm, SourceId, SourceSpan, SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -28,6 +28,7 @@ Usage:\n\
   nordoi semantic <path|->\n\
   nordoi body <path|->\n\
   nordoi plan <path|->\n\
+  nordoi lower <path|->\n\
   nordoi --help\n\
   nordoi --version\n\
 \n\
@@ -38,10 +39,12 @@ Commands:\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   plan     Print the C0.3 zero-work executable semantic plan.\n\
+  lower    Lower the C0.3 validated zero-work plan to NAIR 0.6.\n\
 \n\
 Use '-' as the path to read UTF-8 source from standard input.\n\
 C0.2 resolves type/effect symbols. L0.5 understands the minimal body. C0.3 plans zero work.\n\
-C0.3 plan does not lower or execute NAIR. No command invokes the runtime.\n";
+C0.3 plan does not lower or execute NAIR. C0.4 lower performs the explicit NAIR 0.6 lowering.\n\
+C0.4 lowering does not execute the runtime.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -83,7 +86,7 @@ fn run() -> u8 {
     let command = arguments[0].to_string_lossy();
     if !matches!(
         command.as_ref(),
-        "lex" | "parse" | "module" | "semantic" | "body" | "plan"
+        "lex" | "parse" | "module" | "semantic" | "body" | "plan" | "lower"
     ) {
         report_usage_error(&format!("unknown command '{}'", escape_fragment(&command)));
         return EXIT_USAGE;
@@ -116,6 +119,7 @@ fn run() -> u8 {
         "semantic" => run_semantic(&source, &mut output),
         "body" => run_body(&source, &mut output),
         "plan" => run_plan(&source, &mut output),
+        "lower" => run_lower(&source, &mut output),
         _ => unreachable!("validated command must be exhaustive"),
     };
 
@@ -155,6 +159,10 @@ fn run() -> u8 {
             report_frontend_error("plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::LowerCompilerFailure(error) => {
+            report_frontend_error("lower", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
     }
 }
 
@@ -167,6 +175,7 @@ enum CommandResult {
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
     PlanCompilerFailure(CompilerError),
+    LowerCompilerFailure(CompilerError),
 }
 
 fn run_lex(source: &SourceText, output: &mut impl Write) -> CommandResult {
@@ -401,6 +410,54 @@ fn run_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {
     if let Err(error) = writeln!(
         output,
         "lowering=UNDEFINED runtime=NOT_INVOKED nair=UNCHANGED"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_lower(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let artifact = match compile_nair_lowering_boundary(source) {
+        Ok(artifact) => artifact,
+        Err(error) => return CommandResult::LowerCompilerFailure(error),
+    };
+
+    let plan = artifact.plan();
+    let body = plan.body_semantics();
+    let semantic = body.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c03 = hex_bytes(&plan.canonical_c03_bytes());
+    let c04 = hex_bytes(&artifact.canonical_c04_bytes());
+    let nair = hex_bytes(artifact.canonical_nair_bytes());
+
+    let result = match plan.form() {
+        SemanticPlanForm::Empty => writeln!(
+            output,
+            "lower module={module} form=EMPTY work={} effects={} authority=NONE nair-instructions={} c03={c03} c04={c04}",
+            artifact.semantic_work_item_count(),
+            plan.required_effects().len(),
+            artifact.nair_instruction_count()
+        ),
+        SemanticPlanForm::Entry(entry) => writeln!(
+            output,
+            "lower module={module} form=ENTRY entry=\"{}\" work={} effects={} authority=NONE nair-instructions={} c03={c03} c04={c04}",
+            escape_fragment(entry.name().as_str()),
+            artifact.semantic_work_item_count(),
+            plan.required_effects().len(),
+            artifact.nair_instruction_count()
+        ),
+    };
+    if let Err(error) = result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "nair version=0.6 instructions=[HALT] bytes={nair} runtime=NOT_INVOKED"
     ) {
         return CommandResult::OutputFailure(error);
     }

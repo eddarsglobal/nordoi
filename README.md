@@ -1,4 +1,46 @@
-# NORDOI C0.3 — Executable Semantic Plan
+# NORDOI C0.4 — Semantic Plan → NAIR Lowering Foundation
+
+C0.4 builds on certified **C0.3 Executable Semantic Plan** and introduces the first explicit
+compiler-owned lowering into existing **NAIR 0.6**, without changing NAIR and without invoking the
+runtime.
+
+```text
+C0.3 SemanticExecutionPlan (zero work / zero effects / no authority)
+  ↓ validate-before-lowering
+C0.4 NairLoweringArtifact
+  ├─ preserves C0.3 plan witness
+  ├─ emits exact canonical NAIR 0.6 bytes
+  └─ host authority: NONE
+  ↓
+NairProgram [Halt]
+```
+
+NAIR 0.6 requires a terminal `Halt`, so both current fully understood plans — `EMPTY` and pure
+`ENTRY(name)` — lower to exactly one `Instruction::Halt`. Their raw NAIR bytes are intentionally
+identical because they perform identical runtime work: none. C0.4 `canonical_c04_bytes()` preserves
+the compiler provenance by binding the exact C0.3 witness to those exact NAIR bytes.
+
+C0.4 adds:
+
+```text
+NairLoweringArtifact
+lower_execution_plan_to_nair(...)
+compile_nair_lowering_boundary(...)
+canonical_c04_bytes()
+
+nordoi lower <path|->
+```
+
+The lowering command validates and prints NAIR; it does **not** execute NAIR. Declared or resolved
+effects remain non-authoritative, and no host authority is serialized into program bytes.
+
+Normative candidate design: `docs/NOI_NAIR_LOWERING_SPEC_0_4.md`.  
+Architecture/research record: `research/NAIR_LOWERING_INTELLIGENCE_0_4.md`.
+
+The existing NAIR 0.6 implementation, runtime, runtime checkpoint, K1.18 kernel semantics, CI and
+Release Gate are unchanged.
+
+## Certified C0.3 foundation carried forward
 
 C0.3 builds on the certified **L0.5 Minimal Body Semantics** and introduces the first compiler-owned
 execution plan without changing NAIR or invoking the runtime.
@@ -12,7 +54,7 @@ C0.3 SemanticExecutionPlan
   ├─ required effects: 0
   └─ host authority: NONE
   ↓
-future explicit NSIR/plan → NAIR lowering
+C0.4 explicit semantic-plan → NAIR lowering
 ```
 
 C0.3 adds `compile_execution_plan_boundary()`, `validate_execution_plan()`,
@@ -34,6 +76,7 @@ Architecture/research record: `research/EXECUTABLE_SEMANTIC_PLAN_INTELLIGENCE_0_
 
 The kernel, NAIR 0.6, runtime, runtime checkpoint, host authority model, CI, and Release Gate are
 unchanged.
+
 
 ## Certified L0.5 foundation carried forward
 
