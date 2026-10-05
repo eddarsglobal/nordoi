@@ -1,8 +1,8 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.6 adds a separate pure-result-to-NAIR boundary on top of certified C0.5 without
-//! changing C0.3/C0.4, NAIR 0.6, V0.1 runtime execution, or host authority. Earlier witnesses
-//! remain available unchanged.
+//! L0.7 adds a separate pure-expression semantic boundary on top of certified V0.2/C0.6.
+//! Earlier compiler/runtime boundaries and witnesses remain available unchanged. L0.7 evaluates
+//! only checked pure integer addition and does not plan, lower, execute, perform I/O, or grant authority.
 
 mod body;
 mod effects;
@@ -12,6 +12,7 @@ mod lower;
 mod nair_lowering;
 mod nsir;
 mod plan;
+mod pure_expression;
 mod pure_result;
 mod result_nair;
 mod result_plan;
@@ -39,6 +40,12 @@ pub use nsir::{validate_hir, NsirBodyState, NsirDeclaration, NsirOrigin, NsirUni
 pub use plan::{
     compile_execution_plan_boundary, validate_execution_plan, SemanticEntryPlan,
     SemanticExecutionPlan, SemanticPlanForm,
+};
+pub use pure_expression::{
+    compile_pure_expression_boundary, lower_pure_expression_unit_to_hir,
+    validate_pure_expression_hir, HirPureExpression, HirPureExpressionEntry, HirPureExpressionForm,
+    HirPureExpressionOp, HirPureExpressionUnit, NsirPureExpression, NsirPureExpressionEntry,
+    NsirPureExpressionForm, NsirPureExpressionUnit, SemanticPureExpressionOp,
 };
 pub use pure_result::{
     compile_pure_result_boundary, lower_pure_result_unit_to_hir, validate_pure_result_hir,

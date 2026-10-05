@@ -1,9 +1,9 @@
 //! Experimental `.noi` language frontend foundation.
 //!
-//! L0.6 adds a separate pure-result surface on top of the certified L0.5 body boundary.
-//! The new contextual form is `entry Name returns <canonical-decimal-i64>;`. `entry` and `returns`
-//! remain lexical identifiers outside this exact L0.6 position. L0.5 remains unchanged and continues
-//! to accept only empty bodies or `entry Name;`. General expressions and operators remain undefined.
+//! L0.7 adds a separate pure-expression surface on top of certified L0.6.
+//! The new contextual form is `entry Name returns <pure-expression>;`, where the L0.7 expression
+//! subset is canonical non-negative decimal integers, parenthesis grouping, and binary `+` only.
+//! Earlier L0.5/L0.6 boundaries remain unchanged and do not silently accept L0.7 expressions.
 
 mod ast;
 mod body;
@@ -15,6 +15,8 @@ mod module_error;
 mod name;
 mod parse_error;
 mod parser;
+mod pure_expression;
+mod pure_expression_error;
 mod pure_result;
 mod pure_result_error;
 mod source;
@@ -35,6 +37,12 @@ pub use module_error::{ModuleError, ModuleResult, NameError, NameResult};
 pub use name::{Name, MAX_NAME_BYTES};
 pub use parse_error::{ParseError, ParseResult};
 pub use parser::{parse, Parser, MAX_PARSE_NESTING};
+pub use pure_expression::{
+    analyze_pure_expression_unit, PureExpressionAnalyzer, PureExpressionBodyForm,
+    PureExpressionUnit, SurfaceExpressionEntry, SurfacePureExpression, SurfacePureExpressionOp,
+    MAX_PURE_EXPRESSION_NODES,
+};
+pub use pure_expression_error::{PureExpressionError, PureExpressionResult};
 pub use pure_result::{
     analyze_pure_result_unit, PureResultAnalyzer, PureResultBodyForm, PureResultUnit,
     SurfaceIntResult, SurfaceResultEntry,

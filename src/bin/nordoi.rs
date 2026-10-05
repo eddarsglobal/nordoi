@@ -1,11 +1,12 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_nair_lowering_boundary, compile_pure_result_boundary,
+    compile_nair_lowering_boundary, compile_pure_expression_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
     compile_resolved_semantic_boundary, execute_pure_result_source_v02, execute_source_v01, lex,
     parse, AstElement, CompilerError, Delimiter, LexError, ModuleError, NsirBodyState,
-    NsirMinimalBody, NsirPureResultForm, ParseError, PureResultExecutionError, PureResultPlanForm,
-    SemanticPlanForm, SourceExecutionError, SourceId, SourceSpan, SourceText, Token, TokenKind,
+    NsirMinimalBody, NsirPureExpressionForm, NsirPureResultForm, ParseError,
+    PureResultExecutionError, PureResultPlanForm, SemanticPlanForm, SemanticPureExpressionOp,
+    SourceExecutionError, SourceId, SourceSpan, SourceText, Token, TokenKind,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -32,6 +33,7 @@ Usage:\n\
   nordoi semantic <path|->\n\
   nordoi body <path|->\n\
   nordoi result <path|->\n\
+  nordoi expr <path|->\n\
   nordoi result-plan <path|->\n\
   nordoi result-lower <path|->\n\
   nordoi result-run <path|->\n\
@@ -48,6 +50,7 @@ Commands:\n\
   semantic Print the validated C0.2 HIR-NSIR registry boundary.\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   result      Print the L0.6 pure-result boundary.\n\
+  expr        Print the L0.7 pure-expression boundary.\n\
   result-plan  Print the C0.5 pure-result execution plan.\n\
   result-lower Lower the C0.5 pure-result plan to existing NAIR 0.6 primitives.\n\
   result-run   Execute the C0.6 pure-result NAIR and validate the observed result.\n\
@@ -63,7 +66,8 @@ V0.1 run is the explicit source-to-closed-runtime execution boundary.\n\
 L0.6 result is additive: it does not create a C0.3 plan, lower NAIR, or execute runtime work.\n\
 C0.5 result-plan is additive: it plans L0.6 values but does not lower NAIR or execute runtime work.\n\
 C0.6 result-lower is additive: it lowers C0.5 values to existing NAIR 0.6 Const/Halt and does not execute runtime work.\n\
-V0.2 result-run executes C0.6 through the closed runtime and validates transient result registers without granting I/O or authority.\n";
+V0.2 result-run executes C0.6 through the closed runtime and validates transient result registers without granting I/O or authority.\n\
+L0.7 expr is additive: it evaluates only pure checked integer addition and does not plan, lower, or execute runtime work.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -111,6 +115,7 @@ fn run() -> u8 {
             | "semantic"
             | "body"
             | "result"
+            | "expr"
             | "result-plan"
             | "result-lower"
             | "result-run"
@@ -149,6 +154,7 @@ fn run() -> u8 {
         "semantic" => run_semantic(&source, &mut output),
         "body" => run_body(&source, &mut output),
         "result" => run_result(&source, &mut output),
+        "expr" => run_expression(&source, &mut output),
         "result-plan" => run_result_plan(&source, &mut output),
         "result-lower" => run_result_lower(&source, &mut output),
         "result-run" => run_pure_result_source(&source, &mut output),
@@ -188,6 +194,10 @@ fn run() -> u8 {
         }
         CommandResult::BodyCompilerFailure(error) => {
             report_frontend_error("body", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
+        CommandResult::PureExpressionCompilerFailure(error) => {
+            report_frontend_error("expr", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
         CommandResult::PureResultCompilerFailure(error) => {
@@ -242,6 +252,7 @@ enum CommandResult {
     ModuleFailure(ModuleError),
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
+    PureExpressionCompilerFailure(CompilerError),
     PureResultCompilerFailure(CompilerError),
     PureResultPlanCompilerFailure(CompilerError),
     PureResultLowerCompilerFailure(CompilerError),
@@ -527,6 +538,103 @@ fn run_result(source: &SourceText, output: &mut impl Write) -> CommandResult {
     }
 
     CommandResult::Success
+}
+
+fn run_expression(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match compile_pure_expression_boundary(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::PureExpressionCompilerFailure(error),
+    };
+
+    let semantic = unit.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let c02 = hex_bytes(&semantic.canonical_c02_bytes());
+    let l07 = hex_bytes(&unit.canonical_l07_bytes());
+
+    let write_result = match unit.form() {
+        NsirPureExpressionForm::Empty => writeln!(
+            output,
+            "expr module={module} form=EMPTY pure=true ops=NONE value=NONE nodes=0 effects=0 c02={c02} l07={l07}"
+        ),
+        NsirPureExpressionForm::Entry(entry) => match entry.expression() {
+            Some(expression) => writeln!(
+                output,
+                "expr module={module} form=ENTRY name=\"{}\" pure={} ops={} value=INT({}) nodes={} effects={} c02={c02} l07={l07}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                format_pure_expression_ops(expression.ops()),
+                expression.value(),
+                expression.node_count(),
+                entry.required_effects().effects().len()
+            ),
+            None => writeln!(
+                output,
+                "expr module={module} form=ENTRY name=\"{}\" pure={} ops=NONE value=NONE nodes=0 effects={} c02={c02} l07={l07}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                entry.required_effects().effects().len()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let origin = semantic.origin();
+    let origin_result = match unit.entry() {
+        Some(entry) => match entry.expression() {
+            Some(expression) => writeln!(
+                output,
+                "origin body={}..{} entry={}..{} expression={}..{}",
+                origin.body_span().start().get(),
+                origin.body_span().end().get(),
+                entry.origin_span().start().get(),
+                entry.origin_span().end().get(),
+                expression.origin_span().start().get(),
+                expression.origin_span().end().get()
+            ),
+            None => writeln!(
+                output,
+                "origin body={}..{} entry={}..{} expression=<none>",
+                origin.body_span().start().get(),
+                origin.body_span().end().get(),
+                entry.origin_span().start().get(),
+                entry.origin_span().end().get()
+            ),
+        },
+        None => writeln!(
+            output,
+            "origin body={}..{} entry=<none> expression=<none>",
+            origin.body_span().start().get(),
+            origin.body_span().end().get()
+        ),
+    };
+    if let Err(error) = origin_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "planning=NOT_DEFINED nair=UNCHANGED runtime=NOT_INVOKED authority=NONE"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn format_pure_expression_ops(ops: &[SemanticPureExpressionOp]) -> String {
+    let parts: Vec<String> = ops
+        .iter()
+        .map(|op| match op {
+            SemanticPureExpressionOp::Int(value) => format!("INT({value})"),
+            SemanticPureExpressionOp::Add => "ADD".to_owned(),
+        })
+        .collect();
+    format!("[{}]", parts.join(","))
 }
 
 fn run_result_plan(source: &SourceText, output: &mut impl Write) -> CommandResult {

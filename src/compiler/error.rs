@@ -1,5 +1,6 @@
 use crate::frontend::{
-    BodyError, ModuleError, PureResultError, SourceError, SourceSpan, TypeEffectError,
+    BodyError, ModuleError, PureExpressionError, PureResultError, SourceError, SourceSpan,
+    TypeEffectError,
 };
 use std::error::Error;
 use std::fmt::{Display, Formatter};
@@ -9,6 +10,7 @@ pub enum CompilerError {
     Frontend(ModuleError),
     TypeEffectFrontend(TypeEffectError),
     BodyFrontend(BodyError),
+    PureExpressionFrontend(PureExpressionError),
     PureResultFrontend(PureResultError),
     Source(SourceError),
     EmptySemanticName,
@@ -96,6 +98,36 @@ pub enum CompilerError {
         entry: SourceSpan,
         result: SourceSpan,
     },
+    PureExpressionBodySpanMismatch {
+        semantic_body: SourceSpan,
+        body: SourceSpan,
+    },
+    PureExpressionEntrySpanOutsideBody {
+        body: SourceSpan,
+        entry: SourceSpan,
+    },
+    PureExpressionSpanOutsideEntry {
+        entry: SourceSpan,
+        expression: SourceSpan,
+    },
+    PureExpressionNodeSpanOutsideExpression {
+        expression: SourceSpan,
+        node: SourceSpan,
+    },
+    TooManyPureExpressionNodes {
+        count: u32,
+        maximum: u32,
+        span: SourceSpan,
+    },
+    InvalidPureExpressionPostfix {
+        span: SourceSpan,
+    },
+    NegativePureExpressionLiteral {
+        span: SourceSpan,
+    },
+    PureExpressionIntegerOverflow {
+        span: SourceSpan,
+    },
     ExecutablePlanEntryMustBePure {
         name: String,
     },
@@ -130,6 +162,7 @@ impl CompilerError {
             Self::Frontend(error) => error.primary_span(),
             Self::TypeEffectFrontend(error) => error.primary_span(),
             Self::BodyFrontend(error) => error.primary_span(),
+            Self::PureExpressionFrontend(error) => error.primary_span(),
             Self::PureResultFrontend(error) => error.primary_span(),
             Self::Source(_) => None,
             Self::SourceMismatch { other, .. } => Some(*other),
@@ -145,6 +178,14 @@ impl CompilerError {
             Self::PureResultBodySpanMismatch { body, .. } => Some(*body),
             Self::PureResultEntrySpanOutsideBody { entry, .. } => Some(*entry),
             Self::PureResultValueSpanOutsideEntry { result, .. } => Some(*result),
+            Self::PureExpressionBodySpanMismatch { body, .. } => Some(*body),
+            Self::PureExpressionEntrySpanOutsideBody { entry, .. } => Some(*entry),
+            Self::PureExpressionSpanOutsideEntry { expression, .. } => Some(*expression),
+            Self::PureExpressionNodeSpanOutsideExpression { node, .. } => Some(*node),
+            Self::TooManyPureExpressionNodes { span, .. }
+            | Self::InvalidPureExpressionPostfix { span }
+            | Self::NegativePureExpressionLiteral { span }
+            | Self::PureExpressionIntegerOverflow { span } => Some(*span),
             Self::DuplicateSemanticDeclaration { duplicate, .. } => Some(*duplicate),
             Self::EmptySemanticName
             | Self::SemanticNameTooLong { .. }
@@ -175,6 +216,7 @@ impl Display for CompilerError {
             Self::Frontend(error) => Display::fmt(error, f),
             Self::TypeEffectFrontend(error) => Display::fmt(error, f),
             Self::BodyFrontend(error) => Display::fmt(error, f),
+            Self::PureExpressionFrontend(error) => Display::fmt(error, f),
             Self::PureResultFrontend(error) => Display::fmt(error, f),
             Self::Source(error) => Display::fmt(error, f),
             Self::EmptySemanticName => write!(f, "semantic name must not be empty"),
@@ -261,6 +303,38 @@ impl Display for CompilerError {
                 f,
                 "L0.6 result literal span must be contained by its entry span"
             ),
+            Self::PureExpressionBodySpanMismatch { .. } => write!(
+                f,
+                "L0.7 pure-expression layer must cover exactly the residual body span published by L0.4"
+            ),
+            Self::PureExpressionEntrySpanOutsideBody { .. } => write!(
+                f,
+                "L0.7 entry span must be contained by the residual body span"
+            ),
+            Self::PureExpressionSpanOutsideEntry { .. } => write!(
+                f,
+                "L0.7 pure-expression span must be contained by its entry span"
+            ),
+            Self::PureExpressionNodeSpanOutsideExpression { .. } => write!(
+                f,
+                "L0.7 expression node span must be contained by the expression span"
+            ),
+            Self::TooManyPureExpressionNodes { count, maximum, .. } => write!(
+                f,
+                "L0.7 pure expression has {count} semantic nodes; the maximum is {maximum}"
+            ),
+            Self::InvalidPureExpressionPostfix { .. } => write!(
+                f,
+                "L0.7 pure expression postfix form is not a valid single-result expression"
+            ),
+            Self::NegativePureExpressionLiteral { .. } => write!(
+                f,
+                "L0.7 pure expression literals must remain non-negative"
+            ),
+            Self::PureExpressionIntegerOverflow { .. } => write!(
+                f,
+                "L0.7 pure integer addition overflowed the supported i64 range"
+            ),
             Self::ExecutablePlanEntryMustBePure { name } => write!(
                 f,
                 "C0.3 executable plan entry '{}' must require zero semantic effects",
@@ -313,6 +387,7 @@ impl Error for CompilerError {
             Self::Frontend(error) => Some(error),
             Self::TypeEffectFrontend(error) => Some(error),
             Self::BodyFrontend(error) => Some(error),
+            Self::PureExpressionFrontend(error) => Some(error),
             Self::PureResultFrontend(error) => Some(error),
             Self::Source(error) => Some(error),
             _ => None,
@@ -335,6 +410,12 @@ impl From<TypeEffectError> for CompilerError {
 impl From<BodyError> for CompilerError {
     fn from(value: BodyError) -> Self {
         Self::BodyFrontend(value)
+    }
+}
+
+impl From<PureExpressionError> for CompilerError {
+    fn from(value: PureExpressionError) -> Self {
+        Self::PureExpressionFrontend(value)
     }
 }
 

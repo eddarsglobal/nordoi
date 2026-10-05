@@ -1,4 +1,34 @@
-# NORDOI V0.2 — First Executed Pure Result
+# NORDOI L0.7 — Pure Expression Foundation
+
+L0.7 builds on certified **V0.2 First Executed Pure Result** and introduces the first source-level
+result that is calculated from a pure expression rather than copied from a single literal. The new
+additive boundary accepts canonical non-negative `i64` literals, binary `+`, and parenthesis
+grouping only.
+
+```noi
+module demo.expr;
+
+entry main returns 20 + 22;
+```
+
+L0.7 normalizes this expression to compact postfix semantics:
+
+```text
+[INT(20), INT(22), ADD] => INT(42)
+```
+
+It adds `analyze_pure_expression_unit(...)`, `compile_pure_expression_boundary(...)`,
+`NsirPureExpressionUnit`, `canonical_l07_bytes()`, and the CLI command `nordoi expr <path|->`.
+Arithmetic is checked, expression nodes are bounded, and the evaluator is iterative. L0.7 performs
+no planning, NAIR lowering, runtime execution, I/O, effect dispatch, capability lookup, or authority
+grant.
+
+The certified L0.6/C0.5/C0.6/V0.2 boundaries remain frozen and continue to reject `returns 20 + 22`.
+
+Normative candidate design: `docs/NOI_PURE_EXPRESSION_SPEC_0_7.md`.  
+Architecture/research record: `research/PURE_EXPRESSION_INTELLIGENCE_0_7.md`.
+
+## Certified V0.2 foundation carried forward
 
 V0.2 builds on certified **C0.6 Pure Result → NAIR Representation** and executes the first
 source-level pure result through the existing closed runtime. For `entry main returns 42;`, the
