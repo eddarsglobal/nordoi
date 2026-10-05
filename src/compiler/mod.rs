@@ -1,10 +1,11 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.9 adds a pure-binding execution-plan boundary above certified L0.8.
-//! It preserves canonical binding IDs and postfix reference structure while defining zero work,
-//! zero runtime storage, zero effects and no authority. It does not lower NAIR or invoke runtime.
-//! Earlier compiler/runtime boundaries remain frozen.
+//! C0.10 adds pure-binding to NAIR lowering above certified C0.9.
+//! Immutable binding references are erased at compile time to their certified values, so names add
+//! zero runtime lookup/storage cost. Existing NAIR 0.6/0.7 instructions are reused; runtime is not
+//! invoked and earlier compiler/runtime boundaries remain frozen.
 
+mod binding_nair;
 mod binding_plan;
 mod body;
 mod effects;
@@ -23,6 +24,9 @@ mod result_nair;
 mod result_plan;
 mod symbols;
 
+pub use binding_nair::{
+    compile_pure_binding_nair_boundary, lower_pure_binding_plan_to_nair, PureBindingNairArtifact,
+};
 pub use binding_plan::{
     compile_pure_binding_execution_plan_boundary, validate_pure_binding_execution_plan,
     PlannedPureBindingExpression, PureBindingEntryPlan, PureBindingExecutionPlan,

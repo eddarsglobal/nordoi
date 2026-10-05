@@ -227,6 +227,26 @@ pub enum CompilerError {
     PureExpressionNairLoweringValidationFailed {
         message: String,
     },
+    PureBindingNairLoweringRequiresZeroWork {
+        count: u32,
+    },
+    PureBindingNairLoweringRequiresZeroStorage {
+        count: u32,
+    },
+    PureBindingNairLoweringRequiresPurePlan {
+        count: u32,
+    },
+    PureBindingNairLoweringRequiresNoAuthority,
+    PureBindingNairRegisterSpaceExhausted,
+    PureBindingNairInvalidPostfix {
+        depth: u32,
+    },
+    PureBindingNairUnknownBindingId {
+        id: u32,
+    },
+    PureBindingNairLoweringValidationFailed {
+        message: String,
+    },
 }
 
 impl CompilerError {
@@ -300,7 +320,15 @@ impl CompilerError {
             | Self::PureExpressionNairLoweringRequiresNoAuthority
             | Self::PureExpressionNairRegisterSpaceExhausted
             | Self::PureExpressionNairInvalidPostfix { .. }
-            | Self::PureExpressionNairLoweringValidationFailed { .. } => None,
+            | Self::PureExpressionNairLoweringValidationFailed { .. }
+            | Self::PureBindingNairLoweringRequiresZeroWork { .. }
+            | Self::PureBindingNairLoweringRequiresZeroStorage { .. }
+            | Self::PureBindingNairLoweringRequiresPurePlan { .. }
+            | Self::PureBindingNairLoweringRequiresNoAuthority
+            | Self::PureBindingNairRegisterSpaceExhausted
+            | Self::PureBindingNairInvalidPostfix { .. }
+            | Self::PureBindingNairUnknownBindingId { .. }
+            | Self::PureBindingNairLoweringValidationFailed { .. } => None,
         }
     }
 }
@@ -560,6 +588,38 @@ impl Display for CompilerError {
             Self::PureExpressionNairLoweringValidationFailed { message } => write!(
                 f,
                 "C0.8 produced invalid NAIR: {message}"
+            ),
+            Self::PureBindingNairLoweringRequiresZeroWork { count } => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering accepts only zero-work plans; found {count} work items"
+            ),
+            Self::PureBindingNairLoweringRequiresZeroStorage { count } => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering accepts only zero-storage plans; found {count} runtime storage items"
+            ),
+            Self::PureBindingNairLoweringRequiresPurePlan { count } => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering accepts only pure plans; found {count} required effects"
+            ),
+            Self::PureBindingNairLoweringRequiresNoAuthority => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering accepts only plans requiring no host authority"
+            ),
+            Self::PureBindingNairRegisterSpaceExhausted => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering exhausted the u32 SSA register space"
+            ),
+            Self::PureBindingNairInvalidPostfix { depth } => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering received an invalid postfix register stack with depth {depth}"
+            ),
+            Self::PureBindingNairUnknownBindingId { id } => write!(
+                f,
+                "C0.10 pure-binding NAIR lowering cannot resolve certified binding id {id}"
+            ),
+            Self::PureBindingNairLoweringValidationFailed { message } => write!(
+                f,
+                "C0.10 produced invalid NAIR: {message}"
             ),
         }
     }

@@ -1,8 +1,8 @@
-# NORDOI C0.9 — Pure Binding Execution Plan
+# NORDOI C0.10 — Pure Binding → NAIR Lowering Foundation
 
-> Candidate milestone. `CONSTITUTION.md` is the supreme project authority. C0.9 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to certified L0.8 semantics.
+> Candidate milestone. `CONSTITUTION.md` is the supreme project authority. C0.10 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to all certified earlier boundaries through C0.9.
 
-C0.9 plans immutable L0.8 bindings without turning source names into runtime storage:
+C0.10 lowers immutable L0.8/C0.9 bindings to existing NAIR with **zero binding-specific runtime storage or lookup**:
 
 ```noi
 const x = 20;
@@ -10,30 +10,28 @@ const y = 22;
 entry main returns x + y;
 ```
 
-The plan preserves:
+becomes operationally:
 
 ```text
-bindings=[#1:x=INT(20),#2:y=INT(22)]
-ops=[BINDING(1),BINDING(2),ADD]
-value=INT(42)
-work=0
-storage=0
-effects=0
-authority=NONE
+CONST r0 INT(20)
+CONST r1 INT(22)
+ADD_INT_CHECKED r2 r0 r1
+HALT
 ```
 
-Binding identities and postfix structure remain canonical. C0.9 introduces no NAIR change and does not invoke the runtime. Certified L0.8 `bindings` remains semantic-only and older expression plan/lower/run boundaries remain frozen for `const` source.
+A binding reference is erased at compile time to its certified immutable value. Unused bindings emit zero NAIR instructions. No `LOAD_BINDING`, runtime binding table, atom, allocation, new opcode, effect or authority is introduced. The C0.10 witness still commits to the exact C0.9 semantic plan, so semantic identity is not lost when operational NAIR matches an equivalent literal program.
 
 Inspection:
 
 ```text
-nordoi bindings-plan <path|->
+nordoi bindings-lower <path|->
 ```
 
-See `docs/NOI_PURE_BINDING_EXECUTION_PLAN_SPEC_0_9.md` and
-`research/PURE_BINDING_EXECUTION_PLAN_INTELLIGENCE_0_9.md`.
+See `docs/NOI_PURE_BINDING_NAIR_LOWERING_SPEC_0_10.md` and
+`research/PURE_BINDING_NAIR_LOWERING_INTELLIGENCE_0_10.md`.
 
 ---
+
 
 # NORDOI V0.3 — First Executed Pure Expression
 
