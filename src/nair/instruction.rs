@@ -38,6 +38,36 @@ pub enum Instruction {
         lhs: RegisterId,
         rhs: RegisterId,
     },
+    IntEq {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+    IntNe {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+    IntLt {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+    IntLe {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+    IntGt {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+    IntGe {
+        dst: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
     CreateDomain {
         dst: DomainSlot,
         name: String,

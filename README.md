@@ -1055,3 +1055,33 @@ Research record:
 ```text
 research/PURE_CONDITION_EXECUTION_PLAN_INTELLIGENCE_0_11.md
 ```
+
+
+---
+
+# N0.8 candidate — NAIR Pure Boolean & Integer Comparison Foundation
+
+N0.8 is governed by `CONSTITUTION.md` and the Master Law. It adds six pure SSA integer comparison instructions to NAIR while preserving the certified 0.6 base and 0.7 checked-add encoding.
+
+```text
+INT_EQ  dst lhs rhs
+INT_NE  dst lhs rhs
+INT_LT  dst lhs rhs
+INT_LE  dst lhs rhs
+INT_GT  dst lhs rhs
+INT_GE  dst lhs rhs
+```
+
+Each produces `Value::Bool`, has no effects or authority, and requires NAIR minor 0.8. `CONST BOOL` remains a 0.6 program, and old arithmetic remains 0.7. N0.8 introduces no source lowering, branch, jump, `if`, loop, state or new host authority.
+
+Normative candidate spec:
+
+```text
+docs/NAIR_SPEC_0_8.md
+```
+
+Research record:
+
+```text
+research/NAIR_PURE_INTEGER_COMPARISON_INTELLIGENCE_0_8.md
+```

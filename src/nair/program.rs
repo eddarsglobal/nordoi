@@ -22,8 +22,9 @@ use super::{
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 7;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 8;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
+pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -113,6 +114,42 @@ impl NairProgram {
                                 rhs: *rhs,
                             })?;
                     register_values.insert(*dst, Value::Int(value));
+                }
+                Instruction::IntEq { dst, lhs, rhs }
+                | Instruction::IntNe { dst, lhs, rhs }
+                | Instruction::IntLt { dst, lhs, rhs }
+                | Instruction::IntLe { dst, lhs, rhs }
+                | Instruction::IntGt { dst, lhs, rhs }
+                | Instruction::IntGe { dst, lhs, rhs } => {
+                    require_register(*lhs, &registers)?;
+                    require_register(*rhs, &registers)?;
+                    if !registers.insert(*dst) {
+                        return Err(NairError::DuplicateRegister(*dst));
+                    }
+                    let lhs_value = register_values
+                        .get(lhs)
+                        .ok_or(NairError::UnknownRegister(*lhs))?;
+                    let rhs_value = register_values
+                        .get(rhs)
+                        .ok_or(NairError::UnknownRegister(*rhs))?;
+                    let lhs_int = match lhs_value {
+                        Value::Int(value) => *value,
+                        _ => return Err(NairError::IntegerCompareOperandNotInt(*lhs)),
+                    };
+                    let rhs_int = match rhs_value {
+                        Value::Int(value) => *value,
+                        _ => return Err(NairError::IntegerCompareOperandNotInt(*rhs)),
+                    };
+                    let value = match instruction {
+                        Instruction::IntEq { .. } => lhs_int == rhs_int,
+                        Instruction::IntNe { .. } => lhs_int != rhs_int,
+                        Instruction::IntLt { .. } => lhs_int < rhs_int,
+                        Instruction::IntLe { .. } => lhs_int <= rhs_int,
+                        Instruction::IntGt { .. } => lhs_int > rhs_int,
+                        Instruction::IntGe { .. } => lhs_int >= rhs_int,
+                        _ => unreachable!("comparison arm only"),
+                    };
+                    register_values.insert(*dst, Value::Bool(value));
                 }
                 Instruction::CreateDomain { dst, name } => {
                     if !domains.insert(*dst) {
@@ -295,7 +332,19 @@ impl NairProgram {
     }
 
     pub fn required_format_minor(&self) -> u16 {
-        if self
+        if self.instructions.iter().any(|instruction| {
+            matches!(
+                instruction,
+                Instruction::IntEq { .. }
+                    | Instruction::IntNe { .. }
+                    | Instruction::IntLt { .. }
+                    | Instruction::IntLe { .. }
+                    | Instruction::IntGt { .. }
+                    | Instruction::IntGe { .. }
+            )
+        }) {
+            NAIR_INTEGER_COMPARISON_MINOR
+        } else if self
             .instructions
             .iter()
             .any(|instruction| matches!(instruction, Instruction::IntAddChecked { .. }))
@@ -756,6 +805,42 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             write_u32(out, lhs.0);
             write_u32(out, rhs.0);
         }
+        Instruction::IntEq { dst, lhs, rhs } => {
+            out.push(0x03);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
+        Instruction::IntNe { dst, lhs, rhs } => {
+            out.push(0x04);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
+        Instruction::IntLt { dst, lhs, rhs } => {
+            out.push(0x05);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
+        Instruction::IntLe { dst, lhs, rhs } => {
+            out.push(0x06);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
+        Instruction::IntGt { dst, lhs, rhs } => {
+            out.push(0x07);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
+        Instruction::IntGe { dst, lhs, rhs } => {
+            out.push(0x08);
+            write_u32(out, dst.0);
+            write_u32(out, lhs.0);
+            write_u32(out, rhs.0);
+        }
         Instruction::CreateDomain { dst, name } => {
             out.push(0x10);
             write_u32(out, dst.0);
@@ -934,6 +1019,36 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
             value: decode_value(input)?,
         }),
         0x02 if minor >= NAIR_INTEGER_ARITHMETIC_MINOR => Ok(Instruction::IntAddChecked {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
+        }),
+        0x03 if minor >= NAIR_INTEGER_COMPARISON_MINOR => Ok(Instruction::IntEq {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
+        }),
+        0x04 if minor >= NAIR_INTEGER_COMPARISON_MINOR => Ok(Instruction::IntNe {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
+        }),
+        0x05 if minor >= NAIR_INTEGER_COMPARISON_MINOR => Ok(Instruction::IntLt {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
+        }),
+        0x06 if minor >= NAIR_INTEGER_COMPARISON_MINOR => Ok(Instruction::IntLe {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
+        }),
+        0x07 if minor >= NAIR_INTEGER_COMPARISON_MINOR => Ok(Instruction::IntGt {
+            dst: RegisterId(input.read_u32()?),
+            lhs: RegisterId(input.read_u32()?),
+            rhs: RegisterId(input.read_u32()?),
+        }),
+        0x08 if minor >= NAIR_INTEGER_COMPARISON_MINOR => Ok(Instruction::IntGe {
             dst: RegisterId(input.read_u32()?),
             lhs: RegisterId(input.read_u32()?),
             rhs: RegisterId(input.read_u32()?),

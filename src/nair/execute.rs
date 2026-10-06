@@ -280,6 +280,33 @@ fn execute_internal(
                     })?;
                 registers.insert(*dst, Value::Int(value));
             }
+            Instruction::IntEq { dst, lhs, rhs }
+            | Instruction::IntNe { dst, lhs, rhs }
+            | Instruction::IntLt { dst, lhs, rhs }
+            | Instruction::IntLe { dst, lhs, rhs }
+            | Instruction::IntGt { dst, lhs, rhs }
+            | Instruction::IntGe { dst, lhs, rhs } => {
+                let lhs_value = registers.get(lhs).ok_or(NairError::UnknownRegister(*lhs))?;
+                let rhs_value = registers.get(rhs).ok_or(NairError::UnknownRegister(*rhs))?;
+                let lhs_int = match lhs_value {
+                    Value::Int(value) => *value,
+                    _ => return Err(NairError::IntegerCompareOperandNotInt(*lhs)),
+                };
+                let rhs_int = match rhs_value {
+                    Value::Int(value) => *value,
+                    _ => return Err(NairError::IntegerCompareOperandNotInt(*rhs)),
+                };
+                let value = match instruction {
+                    Instruction::IntEq { .. } => lhs_int == rhs_int,
+                    Instruction::IntNe { .. } => lhs_int != rhs_int,
+                    Instruction::IntLt { .. } => lhs_int < rhs_int,
+                    Instruction::IntLe { .. } => lhs_int <= rhs_int,
+                    Instruction::IntGt { .. } => lhs_int > rhs_int,
+                    Instruction::IntGe { .. } => lhs_int >= rhs_int,
+                    _ => unreachable!("comparison arm only"),
+                };
+                registers.insert(*dst, Value::Bool(value));
+            }
             Instruction::CreateDomain { dst, name } => {
                 let domain = kernel.create_domain(name.clone())?;
                 domains.insert(*dst, domain);

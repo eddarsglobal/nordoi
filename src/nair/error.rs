@@ -67,6 +67,7 @@ pub enum NairError {
         lhs: RegisterId,
         rhs: RegisterId,
     },
+    IntegerCompareOperandNotInt(RegisterId),
     InvalidMagic,
     UnsupportedFormat {
         major: u16,
@@ -145,6 +146,7 @@ impl Display for NairError {
             Self::NonFiniteFloat(id) => write!(f, "NAIR register {id:?} contains a non-finite float"),
             Self::IntegerAddOperandNotInt(id) => write!(f, "NAIR checked integer add requires integer register {id:?}"),
             Self::IntegerAddOverflow { lhs, rhs } => write!(f, "NAIR checked integer add overflowed for registers {lhs:?} and {rhs:?}"),
+            Self::IntegerCompareOperandNotInt(id) => write!(f, "NAIR integer comparison requires integer register {id:?}"),
             Self::InvalidMagic => write!(f, "invalid NAIR magic header"),
             Self::UnsupportedFormat { major, minor } => write!(f, "unsupported NAIR format {major}.{minor}"),
             Self::UnexpectedEof => write!(f, "unexpected end of NAIR binary"),
