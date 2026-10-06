@@ -1,3 +1,42 @@
+# NORDOI V0.4 — First Executed Pure Binding Program
+
+> Candidate milestone. `CONSTITUTION.md` is the supreme project authority. V0.4 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to all certified earlier boundaries through C0.10.
+
+V0.4 executes the exact C0.10 NAIR for immutable named bindings through the existing closed observed runtime while proving that source-level binding names have **zero binding-specific runtime storage and zero runtime lookup cost**.
+
+```noi
+const x = 20;
+const y = 22;
+entry main returns x + y;
+```
+
+executes only:
+
+```text
+CONST r0 INT(20)
+CONST r1 INT(22)
+ADD_INT_CHECKED r2 r0 r1
+HALT
+```
+
+and validates `r0=20`, `r1=22`, `r2=42`, closed quiescence, zero atoms/domains/transactions/frames/bridges/effects/authority, and zero binding runtime state. Unused bindings add no instructions.
+
+V0.4 adds:
+
+```text
+PureBindingExecutionReport
+PureBindingExecutionError
+execute_pure_binding_source_v04(...)
+validate_v04_execution(...)
+canonical_v04_receipt_bytes()
+nordoi bindings-run <path|->
+```
+
+Normative candidate spec: `docs/NOI_FIRST_PURE_BINDING_EXECUTION_SPEC_0_4.md`.  
+Architecture record: `research/FIRST_PURE_BINDING_EXECUTION_INTELLIGENCE_0_4.md`.
+
+---
+
 # NORDOI C0.10 — Pure Binding → NAIR Lowering Foundation
 
 > Candidate milestone. `CONSTITUTION.md` is the supreme project authority. C0.10 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to all certified earlier boundaries through C0.9.

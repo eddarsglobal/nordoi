@@ -19,6 +19,7 @@ pub mod kernel;
 pub mod nair;
 pub mod ownership;
 pub mod program_upgrade;
+pub mod pure_binding_execution;
 pub mod pure_expression_execution;
 pub mod pure_result_execution;
 pub mod reaction;
@@ -184,6 +185,11 @@ pub use semantic_stability::{
 pub use source_execution::{
     execute_source_v01, validate_v01_execution, SourceExecutionError, SourceExecutionReport,
     SourceExecutionResult,
+};
+
+pub use pure_binding_execution::{
+    execute_pure_binding_source_v04, validate_v04_execution, PureBindingExecutionError,
+    PureBindingExecutionReport, PureBindingExecutionResult,
 };
 
 pub use pure_expression_execution::{

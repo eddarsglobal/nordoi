@@ -5,12 +5,12 @@ use nordoi_kernel::{
     compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
     compile_pure_expression_nair_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
-    compile_resolved_semantic_boundary, execute_pure_expression_source_v03,
-    execute_pure_result_source_v02, execute_source_v01, lex, parse, AstElement, CompilerError,
-    Delimiter, Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody,
-    NsirPureBindingForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
-    PureBindingPlanForm, PureExpressionExecutionError, PureExpressionPlanForm,
-    PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
+    compile_resolved_semantic_boundary, execute_pure_binding_source_v04,
+    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01, lex,
+    parse, AstElement, CompilerError, Delimiter, Instruction, LexError, ModuleError, NsirBodyState,
+    NsirMinimalBody, NsirPureBindingForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
+    PureBindingExecutionError, PureBindingPlanForm, PureExpressionExecutionError,
+    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
     SemanticPureBindingExpressionOp, SemanticPureExpressionOp, SourceExecutionError, SourceId,
     SourceSpan, SourceText, Token, TokenKind, Value,
 };
@@ -43,6 +43,7 @@ Usage:\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
+  nordoi bindings-run <path|->\n\
   nordoi expr-plan <path|->\n\
   nordoi expr-lower <path|->\n\
   nordoi expr-run <path|->\n\
@@ -66,6 +67,7 @@ Commands:\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
+  bindings-run   Execute C0.10 pure-binding NAIR with zero runtime binding state.\n\
   expr-plan   Print the C0.7 pure-expression execution plan.\n\
   expr-lower  Lower the C0.7 postfix plan faithfully to NAIR 0.6/0.7.\n\
   expr-run    Execute the C0.8 pure-expression NAIR and validate every SSA result.\n\
@@ -91,7 +93,8 @@ C0.8 expr-lower is additive: it maps each postfix INT/ADD to Const/ADD_INT_CHECK
 V0.3 expr-run executes C0.8 through the closed runtime and validates every transient SSA register without I/O, effects, or authority.\n\
 L0.8 bindings adds immutable named compile-time bindings and reference resolution without planning, NAIR, runtime work, storage, effects, or authority.\n\
 C0.9 bindings-plan preserves canonical binding identities and postfix references with zero runtime storage, without NAIR lowering or runtime execution.\n\
-C0.10 bindings-lower erases immutable binding references at compile time and reuses existing NAIR 0.6/0.7 instructions with no runtime binding lookup or storage.\n";
+C0.10 bindings-lower erases immutable binding references at compile time and reuses existing NAIR 0.6/0.7 instructions with no runtime binding lookup or storage.\n\
+V0.4 bindings-run executes C0.10 through the closed runtime while proving zero binding-specific runtime storage or lookup.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -143,6 +146,7 @@ fn run() -> u8 {
             | "bindings"
             | "bindings-plan"
             | "bindings-lower"
+            | "bindings-run"
             | "expr-plan"
             | "expr-lower"
             | "expr-run"
@@ -188,6 +192,7 @@ fn run() -> u8 {
         "bindings" => run_bindings(&source, &mut output),
         "bindings-plan" => run_bindings_plan(&source, &mut output),
         "bindings-lower" => run_bindings_lower(&source, &mut output),
+        "bindings-run" => run_pure_binding_source(&source, &mut output),
         "expr-plan" => run_expression_plan(&source, &mut output),
         "expr-lower" => run_expression_lower(&source, &mut output),
         "expr-run" => run_pure_expression_source(&source, &mut output),
@@ -248,6 +253,17 @@ fn run() -> u8 {
             report_frontend_error("bindings-lower", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
+        CommandResult::PureBindingExecutionFailure(error) => match &error {
+            PureBindingExecutionError::Compiler(compiler) => {
+                report_frontend_error("bindings-run", &source, compiler.primary_span(), compiler);
+                EXIT_FRONTEND
+            }
+            PureBindingExecutionError::Runtime(_)
+            | PureBindingExecutionError::InvariantViolation { .. } => {
+                report_plain_error("bindings-run", source.name(), &error);
+                EXIT_RUNTIME
+            }
+        },
         CommandResult::PureExpressionPlanCompilerFailure(error) => {
             report_frontend_error("expr-plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
@@ -323,6 +339,7 @@ enum CommandResult {
     PureBindingCompilerFailure(CompilerError),
     PureBindingPlanCompilerFailure(CompilerError),
     PureBindingLowerCompilerFailure(CompilerError),
+    PureBindingExecutionFailure(PureBindingExecutionError),
     PureExpressionPlanCompilerFailure(CompilerError),
     PureExpressionLowerCompilerFailure(CompilerError),
     PureExpressionExecutionFailure(PureExpressionExecutionError),
@@ -832,6 +849,103 @@ fn run_bindings_lower(source: &SourceText, output: &mut impl Write) -> CommandRe
         "nair version=0.{} instructions={} bytes={nair} binding-runtime-storage=0 binding-runtime-lookups=0 runtime=NOT_INVOKED",
         artifact.nair_format_minor(),
         format_expression_nair_instructions(artifact.program().instructions())
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_pure_binding_source(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let report = match execute_pure_binding_source_v04(source) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::PureBindingExecutionFailure(error),
+    };
+
+    let lowering = report.lowering();
+    let plan = lowering.plan();
+    let binding_semantics = plan.binding_semantics();
+    let semantic = binding_semantics.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let binding_text = format_pure_bindings(binding_semantics.bindings().bindings());
+    let c010 = hex_bytes(&lowering.canonical_c010_bytes());
+    let receipt = hex_bytes(&report.canonical_v04_receipt_bytes());
+    let observed = report.runtime();
+    let runtime = observed.runtime();
+    let execution = &runtime.execution.execution;
+
+    let write_result = match plan.form() {
+        PureBindingPlanForm::Empty => writeln!(
+            output,
+            "bindings-run module={module} form=EMPTY bindings={binding_text} count={} ops=NONE result=NONE result-register=NONE nodes=0 work={} storage={} effects={} authority=NONE nair-instructions={} nair-minor=0.{} c010={c010} receipt={receipt}",
+            plan.binding_count(),
+            plan.work_item_count(),
+            plan.runtime_storage_item_count(),
+            plan.required_effects().len(),
+            lowering.nair_instruction_count(),
+            lowering.nair_format_minor()
+        ),
+        PureBindingPlanForm::Entry(entry) => match entry.expression() {
+            Some(expression) => {
+                let register = lowering
+                    .result_register()
+                    .expect("C0.10 binding plan with a value must publish its result register");
+                writeln!(
+                    output,
+                    "bindings-run module={module} form=ENTRY entry=\"{}\" bindings={binding_text} count={} ops={} result=INT({}) result-register=r{} nodes={} work={} storage={} effects={} authority=NONE nair-instructions={} nair-minor=0.{} c010={c010} receipt={receipt}",
+                    escape_fragment(entry.name().as_str()),
+                    plan.binding_count(),
+                    format_pure_binding_ops(expression.ops()),
+                    expression.value(),
+                    register.0,
+                    expression.node_count(),
+                    plan.work_item_count(),
+                    plan.runtime_storage_item_count(),
+                    plan.required_effects().len(),
+                    lowering.nair_instruction_count(),
+                    lowering.nair_format_minor()
+                )
+            }
+            None => writeln!(
+                output,
+                "bindings-run module={module} form=ENTRY entry=\"{}\" bindings={binding_text} count={} ops=NONE result=NONE result-register=NONE nodes=0 work={} storage={} effects={} authority=NONE nair-instructions={} nair-minor=0.{} c010={c010} receipt={receipt}",
+                escape_fragment(entry.name().as_str()),
+                plan.binding_count(),
+                plan.work_item_count(),
+                plan.runtime_storage_item_count(),
+                plan.required_effects().len(),
+                lowering.nair_instruction_count(),
+                lowering.nair_format_minor()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let result_text = match report.result_i64() {
+        Some(value) => format!("INT({value})"),
+        None => "NONE".to_owned(),
+    };
+    if let Err(error) = writeln!(
+        output,
+        "runtime replay={} executed={} input={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text} binding-runtime-storage={} binding-runtime-lookups={}",
+        runtime.replay_key,
+        execution.executed_instructions,
+        runtime.input_events,
+        observed.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.execution.frames.len(),
+        runtime.execution.created_input_bridges,
+        execution.scheduled_work,
+        observed.is_quiescent(),
+        report.binding_runtime_storage_item_count(),
+        report.binding_runtime_lookup_count()
     ) {
         return CommandResult::OutputFailure(error);
     }
