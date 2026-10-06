@@ -1,9 +1,8 @@
 //! Experimental compiler semantic boundary.
 //!
-//! C0.10 adds pure-binding to NAIR lowering above certified C0.9.
-//! Immutable binding references are erased at compile time to their certified values, so names add
-//! zero runtime lookup/storage cost. Existing NAIR 0.6/0.7 instructions are reused; runtime is not
-//! invoked and earlier compiler/runtime boundaries remain frozen.
+//! L0.9 adds an additive pure-condition semantic boundary above the certified V0.4 stack.
+//! It computes boolean truth from literals/comparisons only; no execution plan, NAIR lowering,
+//! runtime work, storage, effects, capabilities, or authority are introduced.
 
 mod binding_nair;
 mod binding_plan;
@@ -18,6 +17,7 @@ mod nair_lowering;
 mod nsir;
 mod plan;
 mod pure_binding;
+mod pure_condition;
 mod pure_expression;
 mod pure_result;
 mod result_nair;
@@ -70,6 +70,13 @@ pub use pure_binding::{
     HirPureBindingForm, HirPureBindingUnit, NsirPureBindingEntry, NsirPureBindingExpression,
     NsirPureBindingForm, NsirPureBindingSymbol, NsirPureBindingUnit, PureBindingRegistry,
     SemanticPureBindingExpressionOp, SemanticPureBindingId,
+};
+pub use pure_condition::{
+    compile_pure_condition_boundary, lower_pure_condition_unit_to_hir, validate_pure_condition_hir,
+    HirPureConditionEntry, HirPureConditionForm, HirPureConditionKind, HirPureConditionUnit,
+    NsirPureConditionEntry, NsirPureConditionForm, NsirPureConditionUnit,
+    PureConditionCompilerError, PureConditionCompilerResult, SemanticPureComparator,
+    SemanticPureCondition,
 };
 pub use pure_expression::{
     compile_pure_expression_boundary, lower_pure_expression_unit_to_hir,

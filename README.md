@@ -1,3 +1,31 @@
+# NORDOI L0.9 — Pure Boolean & Comparison Foundation
+
+> Candidate milestone. `CONSTITUTION.md` is the supreme project authority. L0.9 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to every certified boundary through V0.4.
+
+L0.9 introduces the first pure boolean semantic result without introducing control flow or runtime work.
+
+```noi
+entry main returns true;
+entry main returns 20 <= 22;
+```
+
+Supported comparators: `==`, `!=`, `<`, `<=`, `>`, `>=`. Operands are canonical non-negative `i64` literals. L0.9 evaluates truth at the semantic boundary only.
+
+Constitutional boundary:
+
+- no `if`, branch or loop;
+- no condition execution plan;
+- no new NAIR instruction;
+- no runtime invocation;
+- no storage, effect, capability or authority;
+- earlier L0.7/L0.8/C0.9/C0.10/V0.4 surfaces remain frozen.
+
+Witness domain: `NORDOI-L0.9-PURE-CONDITION\0`.
+
+CLI inspection command: `nordoi condition <path|->`.
+
+---
+
 # NORDOI V0.4 — First Executed Pure Binding Program
 
 > Candidate milestone. `CONSTITUTION.md` is the supreme project authority. V0.4 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to all certified earlier boundaries through C0.10.

@@ -1,8 +1,8 @@
 //! Experimental `.noi` language frontend foundation.
 //!
-//! L0.8 adds a separate pure named-binding surface on top of certified L0.7.
-//! Contextual `const Name = <canonical-int>;` declarations may precede the existing entry form,
-//! and L0.8 expressions may reference those immutable bindings. Earlier boundaries remain frozen.
+//! L0.9 adds a separate pure-condition surface above the certified L0.8 binding foundation.
+//! It recognizes `true`, `false`, and one pure comparison between canonical non-negative i64 literals.
+//! It does not add control flow, planning, NAIR lowering, runtime work, storage, effects, or authority.
 
 mod ast;
 mod body;
@@ -16,6 +16,8 @@ mod parse_error;
 mod parser;
 mod pure_binding;
 mod pure_binding_error;
+mod pure_condition;
+mod pure_condition_error;
 mod pure_expression;
 mod pure_expression_error;
 mod pure_result;
@@ -44,6 +46,11 @@ pub use pure_binding::{
     SurfacePureBindingExpressionOp, MAX_PURE_BINDINGS,
 };
 pub use pure_binding_error::{PureBindingError, PureBindingResult};
+pub use pure_condition::{
+    analyze_pure_condition_unit, PureConditionAnalyzer, PureConditionBodyForm, PureConditionUnit,
+    SurfaceConditionEntry, SurfacePureComparator, SurfacePureCondition, SurfacePureConditionKind,
+};
+pub use pure_condition_error::{PureConditionError, PureConditionResult};
 pub use pure_expression::{
     analyze_pure_expression_unit, PureExpressionAnalyzer, PureExpressionBodyForm,
     PureExpressionUnit, SurfaceExpressionEntry, SurfacePureExpression, SurfacePureExpressionOp,

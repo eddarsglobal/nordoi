@@ -2,17 +2,19 @@ use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
     compile_nair_lowering_boundary, compile_pure_binding_boundary,
     compile_pure_binding_execution_plan_boundary, compile_pure_binding_nair_boundary,
-    compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
-    compile_pure_expression_nair_boundary, compile_pure_result_boundary,
-    compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
-    compile_resolved_semantic_boundary, execute_pure_binding_source_v04,
-    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01, lex,
-    parse, AstElement, CompilerError, Delimiter, Instruction, LexError, ModuleError, NsirBodyState,
-    NsirMinimalBody, NsirPureBindingForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
-    PureBindingExecutionError, PureBindingPlanForm, PureExpressionExecutionError,
-    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
-    SemanticPureBindingExpressionOp, SemanticPureExpressionOp, SourceExecutionError, SourceId,
-    SourceSpan, SourceText, Token, TokenKind, Value,
+    compile_pure_condition_boundary, compile_pure_expression_boundary,
+    compile_pure_expression_execution_plan_boundary, compile_pure_expression_nair_boundary,
+    compile_pure_result_boundary, compile_pure_result_execution_plan_boundary,
+    compile_pure_result_nair_boundary, compile_resolved_semantic_boundary,
+    execute_pure_binding_source_v04, execute_pure_expression_source_v03,
+    execute_pure_result_source_v02, execute_source_v01, lex, parse, AstElement, CompilerError,
+    Delimiter, Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody,
+    NsirPureBindingForm, NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm,
+    ParseError, PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
+    PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
+    PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp, SemanticPureCondition,
+    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText, Token,
+    TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -40,6 +42,7 @@ Usage:\n\
   nordoi body <path|->\n\
   nordoi result <path|->\n\
   nordoi expr <path|->\n\
+  nordoi condition <path|->\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -64,6 +67,7 @@ Commands:\n\
   body     Print the fully understood L0.5 minimal body boundary.\n\
   result      Print the L0.6 pure-result boundary.\n\
   expr        Print the L0.7 pure-expression boundary.\n\
+  condition   Print the L0.9 pure boolean/comparison semantic boundary.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -94,7 +98,8 @@ V0.3 expr-run executes C0.8 through the closed runtime and validates every trans
 L0.8 bindings adds immutable named compile-time bindings and reference resolution without planning, NAIR, runtime work, storage, effects, or authority.\n\
 C0.9 bindings-plan preserves canonical binding identities and postfix references with zero runtime storage, without NAIR lowering or runtime execution.\n\
 C0.10 bindings-lower erases immutable binding references at compile time and reuses existing NAIR 0.6/0.7 instructions with no runtime binding lookup or storage.\n\
-V0.4 bindings-run executes C0.10 through the closed runtime while proving zero binding-specific runtime storage or lookup.\n";
+V0.4 bindings-run executes C0.10 through the closed runtime while proving zero binding-specific runtime storage or lookup.\n\
+L0.9 condition adds pure boolean literals and integer comparisons without planning, NAIR, runtime work, storage, effects, or authority.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -143,6 +148,7 @@ fn run() -> u8 {
             | "body"
             | "result"
             | "expr"
+            | "condition"
             | "bindings"
             | "bindings-plan"
             | "bindings-lower"
@@ -189,6 +195,7 @@ fn run() -> u8 {
         "body" => run_body(&source, &mut output),
         "result" => run_result(&source, &mut output),
         "expr" => run_expression(&source, &mut output),
+        "condition" => run_condition(&source, &mut output),
         "bindings" => run_bindings(&source, &mut output),
         "bindings-plan" => run_bindings_plan(&source, &mut output),
         "bindings-lower" => run_bindings_lower(&source, &mut output),
@@ -239,6 +246,10 @@ fn run() -> u8 {
         }
         CommandResult::PureExpressionCompilerFailure(error) => {
             report_frontend_error("expr", &source, error.primary_span(), &error);
+            EXIT_FRONTEND
+        }
+        CommandResult::PureConditionCompilerFailure(error) => {
+            report_frontend_error("condition", &source, error.primary_span(), &error);
             EXIT_FRONTEND
         }
         CommandResult::PureBindingCompilerFailure(error) => {
@@ -336,6 +347,7 @@ enum CommandResult {
     CompilerFailure(CompilerError),
     BodyCompilerFailure(CompilerError),
     PureExpressionCompilerFailure(CompilerError),
+    PureConditionCompilerFailure(PureConditionCompilerError),
     PureBindingCompilerFailure(CompilerError),
     PureBindingPlanCompilerFailure(CompilerError),
     PureBindingLowerCompilerFailure(CompilerError),
@@ -623,6 +635,64 @@ fn run_result(source: &SourceText, output: &mut impl Write) -> CommandResult {
     if let Err(error) = writeln!(
         output,
         "execution=NOT_PLANNED nair=UNCHANGED runtime=NOT_INVOKED authority=NONE"
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_condition(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let unit = match compile_pure_condition_boundary(source) {
+        Ok(unit) => unit,
+        Err(error) => return CommandResult::PureConditionCompilerFailure(error),
+    };
+
+    let semantic = unit.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let l09 = hex_bytes(&unit.canonical_l09_bytes());
+
+    let write_result = match unit.form() {
+        NsirPureConditionForm::Empty => writeln!(
+            output,
+            "condition module={module} form=EMPTY pure=true kind=NONE value=NONE effects=0 authority=NONE l09={l09}"
+        ),
+        NsirPureConditionForm::Entry(entry) => match entry.condition() {
+            None => writeln!(
+                output,
+                "condition module={module} form=ENTRY entry=\"{}\" pure={} kind=NONE value=NONE effects={} authority=NONE l09={l09}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                entry.required_effects().effects().len()
+            ),
+            Some(SemanticPureCondition::Bool(value)) => writeln!(
+                output,
+                "condition module={module} form=ENTRY entry=\"{}\" pure={} kind=BOOL({value}) value=BOOL({value}) effects={} authority=NONE l09={l09}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                entry.required_effects().effects().len()
+            ),
+            Some(SemanticPureCondition::IntCompare { lhs, comparator, rhs }) => writeln!(
+                output,
+                "condition module={module} form=ENTRY entry=\"{}\" pure={} kind=INT_COMPARE({lhs}{}{rhs}) value=BOOL({}) effects={} authority=NONE l09={l09}",
+                escape_fragment(entry.name().as_str()),
+                entry.is_pure(),
+                comparator.symbol(),
+                entry.result_bool().expect("condition exists"),
+                entry.required_effects().effects().len()
+            ),
+        },
+    };
+    if let Err(error) = write_result {
+        return CommandResult::OutputFailure(error);
+    }
+
+    if let Err(error) = writeln!(
+        output,
+        "planning=UNDEFINED nair=UNCHANGED runtime=NOT_INVOKED storage=NONE authority=NONE"
     ) {
         return CommandResult::OutputFailure(error);
     }
