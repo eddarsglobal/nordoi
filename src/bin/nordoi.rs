@@ -7,15 +7,16 @@ use nordoi_kernel::{
     compile_pure_expression_nair_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
     compile_resolved_semantic_boundary, execute_pure_binding_source_v04,
-    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01, lex,
-    parse, AstElement, CompilerError, Delimiter, Instruction, LexError, ModuleError, NsirBodyState,
-    NsirMinimalBody, NsirPureBindingForm, NsirPureConditionForm, NsirPureExpressionForm,
-    NsirPureResultForm, ParseError, PureBindingExecutionError, PureBindingPlanForm,
-    PureConditionCompilerError, PureConditionPlanError, PureConditionPlanForm,
+    execute_pure_condition_source_v05, execute_pure_expression_source_v03,
+    execute_pure_result_source_v02, execute_source_v01, execute_static_if_source_v05, lex, parse,
+    AstElement, CompilerError, ConditionalCoreError, Delimiter, Instruction, LexError, ModuleError,
+    NsirBodyState, NsirMinimalBody, NsirPureBindingForm, NsirPureConditionForm,
+    NsirPureExpressionForm, NsirPureResultForm, ParseError, PureBindingExecutionError,
+    PureBindingPlanForm, PureConditionCompilerError, PureConditionPlanError, PureConditionPlanForm,
     PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
     PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp, SemanticPureCondition,
-    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText, Token,
-    TokenKind, Value,
+    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText,
+    StaticIfCondition, StaticIfOperand, Token, TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -45,6 +46,8 @@ Usage:\n\
   nordoi expr <path|->\n\
   nordoi condition <path|->\n\
   nordoi condition-plan <path|->\n\
+  nordoi condition-run <path|->\n\
+  nordoi if-run <path|->\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -71,6 +74,8 @@ Commands:\n\
   expr        Print the L0.7 pure-expression boundary.\n\
   condition      Print the L0.9 pure boolean/comparison semantic boundary.\n\
   condition-plan Print the C0.11 pure-condition execution plan.\n\
+  condition-run  V0.5 execute pure booleans/comparisons through NAIR 0.6/0.8.\n\
+  if-run         V0.5 compile-time-select and execute pure if/else with zero runtime branch cost.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -103,7 +108,9 @@ C0.9 bindings-plan preserves canonical binding identities and postfix references
 C0.10 bindings-lower erases immutable binding references at compile time and reuses existing NAIR 0.6/0.7 instructions with no runtime binding lookup or storage.\n\
 V0.4 bindings-run executes C0.10 through the closed runtime while proving zero binding-specific runtime storage or lookup.\n\
 L0.9 condition adds pure boolean literals and integer comparisons without planning, NAIR, runtime work, storage, effects, or authority.\n\
-C0.11 condition-plan preserves exact L0.9 condition identity and truth with zero work/storage, without branches, NAIR lowering, or runtime execution.\n";
+C0.11 condition-plan preserves exact L0.9 condition identity and truth with zero work/storage, without branches, NAIR lowering, or runtime execution.\n\
+V0.5 condition-run lowers pure boolean/comparison plans to NAIR and executes them through the closed runtime.\n\
+V0.5 if-run validates both pure integer branches, proves the static condition, erases the dead branch before NAIR, and executes only the selected branch.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -154,6 +161,8 @@ fn run() -> u8 {
             | "expr"
             | "condition"
             | "condition-plan"
+            | "condition-run"
+            | "if-run"
             | "bindings"
             | "bindings-plan"
             | "bindings-lower"
@@ -202,6 +211,8 @@ fn run() -> u8 {
         "expr" => run_expression(&source, &mut output),
         "condition" => run_condition(&source, &mut output),
         "condition-plan" => run_condition_plan(&source, &mut output),
+        "condition-run" => run_condition_source_v05(&source, &mut output),
+        "if-run" => run_static_if_source_v05(&source, &mut output),
         "bindings" => run_bindings(&source, &mut output),
         "bindings-plan" => run_bindings_plan(&source, &mut output),
         "bindings-lower" => run_bindings_lower(&source, &mut output),
@@ -261,6 +272,15 @@ fn run() -> u8 {
         CommandResult::PureConditionPlanFailure(error) => {
             report_frontend_error("condition-plan", &source, error.primary_span(), &error);
             EXIT_FRONTEND
+        }
+        CommandResult::ConditionalCoreFailure(command, error) => {
+            if error.is_frontend_failure() {
+                report_frontend_error(command, &source, error.primary_span(), &error);
+                EXIT_FRONTEND
+            } else {
+                report_plain_error(command, source.name(), &error);
+                EXIT_RUNTIME
+            }
         }
         CommandResult::PureBindingCompilerFailure(error) => {
             report_frontend_error("bindings", &source, error.primary_span(), &error);
@@ -359,6 +379,7 @@ enum CommandResult {
     PureExpressionCompilerFailure(CompilerError),
     PureConditionCompilerFailure(PureConditionCompilerError),
     PureConditionPlanFailure(PureConditionPlanError),
+    ConditionalCoreFailure(&'static str, ConditionalCoreError),
     PureBindingCompilerFailure(CompilerError),
     PureBindingPlanCompilerFailure(CompilerError),
     PureBindingLowerCompilerFailure(CompilerError),
@@ -777,6 +798,207 @@ fn run_condition_plan(source: &SourceText, output: &mut impl Write) -> CommandRe
     }
 
     CommandResult::Success
+}
+
+fn run_condition_source_v05(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let report = match execute_pure_condition_source_v05(source) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::ConditionalCoreFailure("condition-run", error),
+    };
+
+    let lowering = report.lowering();
+    let plan = lowering.plan();
+    let semantic = plan.condition_semantics().semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let receipt = hex_bytes(&report.canonical_v05_receipt_bytes());
+    let witness = hex_bytes(&lowering.canonical_v05_condition_nair_bytes());
+    let result_text = match report.result_bool() {
+        Some(value) => format!("BOOL({value})"),
+        None => "NONE".to_owned(),
+    };
+    let kind = match plan.condition() {
+        None => "NONE".to_owned(),
+        Some(planned) => match planned.condition() {
+            SemanticPureCondition::Bool(value) => format!("BOOL({value})"),
+            SemanticPureCondition::IntCompare {
+                lhs,
+                comparator,
+                rhs,
+            } => {
+                format!("INT_COMPARE({lhs}{}{rhs})", comparator.symbol())
+            }
+        },
+    };
+    let entry = plan
+        .entry()
+        .map(|entry| format!("\"{}\"", escape_fragment(entry.name().as_str())))
+        .unwrap_or_else(|| "<none>".to_owned());
+
+    if let Err(error) = writeln!(
+        output,
+        "condition-run module={module} entry={entry} kind={kind} result={result_text} work={} storage={} effects={} authority=NONE nair-instructions={} nair-minor=0.{} witness={witness} receipt={receipt}",
+        plan.work_item_count(),
+        plan.runtime_storage_item_count(),
+        plan.required_effects().len(),
+        lowering.nair_instruction_count(),
+        lowering.nair_format_minor()
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let runtime = report.runtime();
+    let execution = &runtime.runtime().execution.execution;
+    if let Err(error) = writeln!(
+        output,
+        "nair instructions={} runtime replay={} executed={} registers={} domains={} atoms={} transactions={} scheduled={} quiescent={} result={result_text}",
+        format_v05_nair_instructions(lowering.program().instructions()),
+        runtime.runtime().replay_key,
+        execution.executed_instructions,
+        runtime.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        execution.scheduled_work,
+        runtime.is_quiescent(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_static_if_source_v05(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let report = match execute_static_if_source_v05(source) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::ConditionalCoreFailure("if-run", error),
+    };
+
+    let lowering = report.lowering();
+    let plan = lowering.plan();
+    let selected = plan.selected_semantics();
+    let semantic = selected.semantic();
+    let module = match semantic.module().canonical_text() {
+        Some(name) => format!("\"{}\"", escape_fragment(&name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let bindings = format_pure_bindings(selected.bindings().bindings());
+    let result_text = match report.result_i64() {
+        Some(value) => format!("INT({value})"),
+        None => "NONE".to_owned(),
+    };
+    let entry = selected
+        .entry()
+        .map(|entry| format!("\"{}\"", escape_fragment(entry.name().as_str())))
+        .unwrap_or_else(|| "<none>".to_owned());
+    let witness = hex_bytes(&lowering.canonical_v05_lowering_bytes());
+    let receipt = hex_bytes(&report.canonical_v05_receipt_bytes());
+
+    if let Err(error) = writeln!(
+        output,
+        "if-run module={module} entry={entry} bindings={bindings} condition={} condition-value={} selected={} result={result_text} runtime-branches={} dead-branch-eliminated={} dead-branch-instructions={} nair-instructions={} nair-minor=0.{} authority=NONE witness={witness} receipt={receipt}",
+        format_static_if_condition(plan.condition()),
+        plan.condition_value(),
+        plan.selected_branch().as_str(),
+        plan.runtime_branch_count(),
+        plan.dead_branch_eliminated(),
+        lowering.dead_branch_instruction_count(),
+        lowering.nair_instruction_count(),
+        lowering.nair_format_minor(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let runtime = report.runtime();
+    let execution = &runtime.runtime().execution.execution;
+    if let Err(error) = writeln!(
+        output,
+        "nair instructions={} runtime replay={} executed={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text}",
+        format_v05_nair_instructions(lowering.program().instructions()),
+        runtime.runtime().replay_key,
+        execution.executed_instructions,
+        runtime.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.runtime().execution.frames.len(),
+        runtime.runtime().execution.created_input_bridges,
+        execution.scheduled_work,
+        runtime.is_quiescent(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn format_static_if_condition(condition: &StaticIfCondition) -> String {
+    match condition {
+        StaticIfCondition::Bool(value) => format!("BOOL({value})"),
+        StaticIfCondition::IntCompare {
+            lhs,
+            comparator,
+            rhs,
+        } => format!(
+            "{}{}{}",
+            format_static_if_operand(lhs),
+            comparator.symbol(),
+            format_static_if_operand(rhs)
+        ),
+    }
+}
+
+fn format_static_if_operand(operand: &StaticIfOperand) -> String {
+    match operand {
+        StaticIfOperand::Int(value) => value.to_string(),
+        StaticIfOperand::Binding(name) => escape_fragment(name),
+    }
+}
+
+fn format_v05_nair_instructions(instructions: &[Instruction]) -> String {
+    let parts: Vec<String> = instructions
+        .iter()
+        .map(|instruction| match instruction {
+            Instruction::Const {
+                dst,
+                value: Value::Int(value),
+            } => {
+                format!("CONST r{} INT({value})", dst.0)
+            }
+            Instruction::Const {
+                dst,
+                value: Value::Bool(value),
+            } => {
+                format!("CONST r{} BOOL({value})", dst.0)
+            }
+            Instruction::IntAddChecked { dst, lhs, rhs } => {
+                format!("ADD_INT_CHECKED r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntEq { dst, lhs, rhs } => {
+                format!("INT_EQ r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntNe { dst, lhs, rhs } => {
+                format!("INT_NE r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntLt { dst, lhs, rhs } => {
+                format!("INT_LT r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntLe { dst, lhs, rhs } => {
+                format!("INT_LE r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntGt { dst, lhs, rhs } => {
+                format!("INT_GT r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntGe { dst, lhs, rhs } => {
+                format!("INT_GE r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::Halt => "HALT".to_owned(),
+            other => format!("UNEXPECTED({other:?})"),
+        })
+        .collect();
+    format!("[{}]", parts.join(","))
 }
 
 fn run_bindings(source: &SourceText, output: &mut impl Write) -> CommandResult {

@@ -1,3 +1,29 @@
+# NORDOI V0.5 — Conditional Core Vertical Slice
+
+> Production-batch candidate. `CONSTITUTION.md` remains the supreme project authority. V0.5 groups several previously separate language/compiler/NAIR/runtime steps into one certifiable vertical slice.
+
+V0.5 adds two end-to-end commands:
+
+```text
+nordoi condition-run <path|->
+nordoi if-run <path|->
+```
+
+`condition-run` executes certified boolean literals and integer comparisons. Boolean literals stay NAIR 0.6; comparisons use certified N0.8 opcodes and require NAIR 0.8.
+
+`if-run` accepts pure static `if/else` with immutable bindings and pure integer branch expressions. Both branches are semantically validated, but only the compile-time selected branch is lowered and executed. Runtime branch count and dead-branch instruction count are both zero.
+
+```noi
+const value = 20;
+const limit = 22;
+entry main returns if value < limit { value + 22 } else { 0 };
+```
+
+Normative candidate spec: `docs/NOI_CONDITIONAL_CORE_VERTICAL_SLICE_SPEC_0_5.md`.  
+Architecture record: `research/CONDITIONAL_CORE_VERTICAL_SLICE_INTELLIGENCE_0_5.md`.
+
+---
+
 # NORDOI L0.9 — Pure Boolean & Comparison Foundation
 
 > Candidate milestone. `CONSTITUTION.md` is the supreme project authority. L0.9 is subordinate to it, to `laws/LAW_0001_NORDOI_MASTER_LAW.md`, and to every certified boundary through V0.4.

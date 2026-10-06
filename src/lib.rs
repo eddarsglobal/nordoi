@@ -3,6 +3,7 @@ pub mod atom;
 pub mod authority;
 pub mod capability;
 pub mod compiler;
+pub mod conditional_core_v05;
 pub mod dependency;
 pub mod effect;
 pub mod effect_attestation;
@@ -79,6 +80,14 @@ pub use compiler::{
     SemanticPureBindingId, SemanticPureComparator, SemanticPureCondition, SemanticPureExpressionOp,
     SemanticRegistry, SemanticTypeId, MAX_SEMANTIC_DECLARATIONS, MAX_SEMANTIC_EFFECT_REQUIREMENTS,
     MAX_SEMANTIC_NAME_BYTES, MAX_SEMANTIC_PATH_SEGMENTS,
+};
+
+pub use conditional_core_v05::{
+    compile_pure_condition_nair_v05, compile_static_if_nair_v05, compile_static_if_plan_v05,
+    execute_pure_condition_source_v05, execute_static_if_source_v05, lower_pure_condition_plan_v05,
+    lower_static_if_v05, ConditionalCoreError, ConditionalCoreResult, StaticIfBranch,
+    StaticIfCondition, StaticIfOperand, V05ConditionExecutionReport, V05ConditionNairArtifact,
+    V05StaticIfExecutionReport, V05StaticIfNairArtifact, V05StaticIfPlan,
 };
 pub use effect::{Effect, EffectSet};
 pub use effect_attestation::{
