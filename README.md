@@ -1011,3 +1011,47 @@ required platforms and an annotated `c0.3` tag is pushed.
 
 After C0.3 certification, the intended next compiler boundary is an explicit, separately governed
 plan/NSIR → NAIR lowering milestone. C0.3 itself deliberately leaves that mapping undefined.
+
+---
+
+# C0.11 candidate — Pure Condition Execution Plan
+
+C0.11 is governed by `CONSTITUTION.md` and the Master Law. It adds an additive compiler planning
+boundary for certified L0.9 boolean/comparison semantics.
+
+Example:
+
+```noi
+entry main returns 20 <= 22;
+```
+
+Inspection:
+
+```bash
+nordoi condition-plan file.noi
+```
+
+C0.11 preserves the exact condition identity and `BOOL(true)` result while defining:
+
+```text
+work=0
+storage=0
+effects=0
+authority=NONE
+branching=UNDEFINED
+lowering=UNDEFINED
+nair=UNCHANGED
+runtime=NOT_INVOKED
+```
+
+Normative candidate spec:
+
+```text
+docs/NOI_PURE_CONDITION_EXECUTION_PLAN_SPEC_0_11.md
+```
+
+Research record:
+
+```text
+research/PURE_CONDITION_EXECUTION_PLAN_INTELLIGENCE_0_11.md
+```

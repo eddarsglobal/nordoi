@@ -1,12 +1,13 @@
 //! Experimental compiler semantic boundary.
 //!
-//! L0.9 adds an additive pure-condition semantic boundary above the certified V0.4 stack.
-//! It computes boolean truth from literals/comparisons only; no execution plan, NAIR lowering,
-//! runtime work, storage, effects, capabilities, or authority are introduced.
+//! C0.11 adds an additive pure-condition execution-plan boundary above certified L0.9.
+//! It preserves exact boolean/comparison semantics and truth with zero work/storage; branching,
+//! NAIR lowering, runtime execution, effects, capabilities, and authority remain undefined.
 
 mod binding_nair;
 mod binding_plan;
 mod body;
+mod condition_plan;
 mod effects;
 mod error;
 mod expression_nair;
@@ -35,6 +36,11 @@ pub use binding_plan::{
 pub use body::{
     compile_minimal_body_boundary, lower_minimal_body_unit_to_hir, validate_body_hir, HirBodyUnit,
     HirEntryPoint, HirMinimalBody, NsirBodyUnit, NsirEntryPoint, NsirMinimalBody,
+};
+pub use condition_plan::{
+    compile_pure_condition_execution_plan_boundary, validate_pure_condition_execution_plan,
+    PlannedPureCondition, PureConditionEntryPlan, PureConditionExecutionPlan,
+    PureConditionPlanError, PureConditionPlanForm, PureConditionPlanResult,
 };
 pub use effects::{SemanticEffectSet, MAX_SEMANTIC_EFFECT_REQUIREMENTS};
 pub use error::{CompilerError, CompilerResult};
