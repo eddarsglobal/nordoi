@@ -1,97 +1,110 @@
-# NORDOI V1.3 — Real Modules & Imports
+# NORDOI V1.4 — Project Build & Package System
 
-V1.3 is additive over certified V1.2 and shifts the Production Profile toward a usable multi-file language. NORDOI source can now be organized as real `.noi` modules with statically resolved imports while preserving deterministic compilation, zero hidden runtime authority, acyclic bounded execution, and the certified NAIR/runtime boundaries.
+V1.4 is additive over certified V1.3 and turns real multi-file `.noi` programs into deterministic, lockable, distributable project artifacts without introducing a package network, build scripts, runtime module loading, or a new NAIR minor.
 
-Minimal V1.3 source tree:
+## Project layout
 
 ```text
-source-root/
-└── app/
-    ├── math.noi
-    └── main.noi
+demo/
+├── NORDOI.toml
+└── src/
+    └── app/
+        ├── math.noi
+        └── main.noi
 ```
 
-`app/math.noi`:
+`NORDOI.toml`:
+
+```toml
+[project]
+name = "demo"
+version = "0.1.0"
+entry = "app.main"
+source-root = "src"
+```
+
+`src/app/math.noi`:
 
 ```noi
 module app.math;
-
 fn add_100(x) returns x + 100;
 ```
 
-`app/main.noi`:
+`src/app/main.noi`:
 
 ```noi
 module app.main;
-
 import app.math;
-
 input key_code;
 entry main returns math.add_100(key_code);
 ```
 
-Run the graph with:
+Build:
 
 ```bash
-cargo run --quiet --bin nordoi -- \
-  module-graph-run source-root app.main 41
+cargo run --quiet --bin nordoi -- build demo
 ```
 
-Expected proof includes `modules=2`, `imports=1`, `result=INT(141)`, `runtime-calls=1`, `import-resolution=STATIC`, `runtime-fs=NONE`, and `authority=NONE`.
-
-## Module resolution law
-
-V1.3 uses canonical dotted module identities. CLI source-root resolution maps:
+V1.4 produces:
 
 ```text
-app.main -> <source-root>/app/main.noi
-app.math -> <source-root>/app/math.noi
+demo/
+├── NORDOI.toml
+├── NORDOI.lock
+├── build/
+│   └── demo-0.1.0.npkg
+└── src/...
 ```
 
-Every loaded file must declare the exact module identity expected for its path. Imports are resolved before lowering, missing modules fail closed, duplicate canonical module identities fail closed, ambiguous short aliases fail closed, and recursive/cyclic import graphs fail closed.
+A successful build reports `reproducible=true`, `dependency-network=NONE`, `runtime-fs=NONE`, and `authority=NONE`.
 
-The short qualifier is the final module segment:
+## Locked reproducibility
 
-```noi
-import app.math;
-entry main returns math.add_100(key_code);
+After the first build:
+
+```bash
+cargo run --quiet --bin nordoi -- build demo --locked
 ```
 
-Explicit import aliases are deliberately deferred beyond V1.3.
+`--locked` recompiles the current canonical manifest/module graph and compares the generated lock state byte-for-byte with `NORDOI.lock`. Any semantic source change, import-graph change, manifest change, or lowering change is rejected before package publication.
 
-## Library-only imported modules
+## Package inspection
 
-The V1.3 vertical slice keeps imported modules deliberately narrow: imported modules may define pure functions and imports, but may not declare `input`, `entry`, or imported-module `const` state. The entry module owns the canonical type/effect prelude, input, constants, and entry boundary.
-
-This restriction keeps the first real module system easy to verify while still supporting transitive pure function graphs and all previously certified runtime composition.
-
-## Imports disappear before NAIR
-
-V1.3 introduces **no new NAIR minor**. Module and import structure is compile-time language/compiler metadata and is erased before NAIR publication.
-
-Therefore existing certified NAIR minors remain exact:
-
-- fully static imported program -> NAIR 0.6;
-- one direct dynamic imported call -> NAIR 0.12;
-- transitive acyclic imported call graph -> NAIR 0.13;
-- imported structured function control -> NAIR 0.14.
-
-No runtime module lookup, runtime filesystem access, dynamic import, package-network access, reflection, indirect dispatch, or general VM loader is introduced.
-
-## Determinism and authority
-
-Reachable modules and import edges are canonicalized independently of caller/source-array order. The V1.3 witness commits to the entry module, canonical reachable module set, canonical import graph, and the already-certified V1.2 semantic plan.
-
-Filesystem reading belongs only to the tooling/compiler input phase. The runtime receives already-lowered NAIR and retains:
-
-```text
-authority=NONE
-runtime-fs=NONE
-import-resolution=STATIC
+```bash
+cargo run --quiet --bin nordoi -- package-info demo/build/demo-0.1.0.npkg
 ```
 
-The public certified tool boundary intentionally remains:
+The package inspector validates V1.4 package framing and embedded canonical NAIR without reading project sources.
+
+## No new runtime machinery
+
+V1.4 is a compiler/tooling/build milestone. Imports remain erased before NAIR. Existing certified formats remain exact:
+
+- static project -> NAIR 0.6;
+- simple dynamic imported call -> NAIR 0.12;
+- transitive acyclic call graph -> NAIR 0.13;
+- structured runtime control -> NAIR 0.14.
+
+There is no package registry, dependency download, arbitrary build command, plugin hook, post-install script, dynamic module loader, or runtime filesystem authority in V1.4.
+
+## Manifest law
+
+The V1.4 manifest parser intentionally accepts only one `[project]` section with exactly four required keys: `name`, `version`, `entry`, and `source-root`. Unknown/duplicate keys and unsafe paths fail closed. Source roots are relative, portable and cannot contain traversal segments.
+
+## Reproducibility identity
+
+The build witness commits to canonical project metadata, canonical V1.3 module order/import graph, V1.3 semantic/lowering witnesses, and canonical NAIR bytes. Equal canonical inputs produce byte-identical lock/package output independent of absolute host path or source-array order.
+
+## Certification boundary
+
+V1.4 does **not** change the public certified version string. Until a separately governed release boundary changes it, this remains:
 
 ```text
 nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
 ```
+
+See:
+
+- `docs/NOI_PROJECT_BUILD_PACKAGE_SPEC_1_4.md`
+- `research/PROJECT_BUILD_PACKAGE_INTELLIGENCE_1_4.md`
+- `docs/PRODUCTION_PROFILE_1_PROGRESS.md`

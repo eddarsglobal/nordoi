@@ -28,6 +28,7 @@ pub mod nair;
 mod nested_control_v12;
 pub mod ownership;
 pub mod program_upgrade;
+pub mod project_v14;
 pub mod pure_binding_execution;
 pub mod pure_expression_execution;
 pub mod pure_result_execution;
@@ -249,6 +250,13 @@ pub use program_upgrade::{
     RuntimeTimerUpgradePlan, RuntimeUpgradeAuthority, RuntimeUpgradeError, RuntimeUpgradeHash,
     RuntimeUpgradeLineageRecord, RuntimeUpgradePlan, RuntimeUpgradeReport, RuntimeUpgradeResult,
     TimerUpgradeRule, MAX_RUNTIME_UPGRADE_RULES,
+};
+pub use project_v14::{
+    compile_project_v14, inspect_project_package_v14, parse_project_manifest_v14,
+    ProjectBuildError, ProjectBuildResult, V14PackageInfo, V14ProjectBuild, V14ProjectManifest,
+    MAX_V14_MANIFEST_BYTES, MAX_V14_PACKAGE_BYTES, MAX_V14_PROJECT_NAME_BYTES,
+    MAX_V14_SOURCE_ROOT_BYTES, MAX_V14_VERSION_BYTES, V14_LOCK_FILE, V14_MANIFEST_FILE,
+    V14_PACKAGE_MAGIC, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
 pub use reaction::{
     AtomicReactionCore, EffectIntent, ReactionBatchReport, ReactionError, ReactionId,

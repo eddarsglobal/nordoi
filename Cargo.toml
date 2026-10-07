@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI V1.3 — Real Modules & Imports"
+description = "NORDOI V1.4 — Project Build & Package System"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

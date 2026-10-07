@@ -1,6 +1,6 @@
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
-    compile_nair_lowering_boundary, compile_pure_binding_boundary,
+    compile_nair_lowering_boundary, compile_project_v14, compile_pure_binding_boundary,
     compile_pure_binding_execution_plan_boundary, compile_pure_binding_nair_boundary,
     compile_pure_condition_boundary, compile_pure_condition_execution_plan_boundary,
     compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
@@ -12,24 +12,26 @@ use nordoi_kernel::{
     execute_dynamic_control_source_v08, execute_dynamic_source_v07, execute_module_graph_v13,
     execute_nested_function_control_source_v12, execute_pure_binding_source_v04,
     execute_pure_condition_source_v05, execute_pure_expression_source_v03,
-    execute_pure_result_source_v02, execute_source_v01, execute_static_if_source_v05, lex, parse,
-    validate_module_name_v13, AcyclicRuntimeCallError, AstElement, BoundedRuntimeCallError,
-    BranchExpr, CallExpr, CompilerError, ConditionalCoreError, CoreFunctionsError, CoreValue,
-    Delimiter, DynamicBranchBodyError, DynamicControlError, DynamicInputError, InputBatch,
-    InputDeviceId, InputEvent, InputPayload, InputSequence, InputSource, InputTarget, Instruction,
-    LexError, ModuleError, NestedFunctionControlError, NsirBodyState, NsirMinimalBody,
-    NsirPureBindingForm, NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm,
-    ParseError, PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
+    execute_pure_result_source_v02, execute_source_v01, execute_static_if_source_v05,
+    inspect_project_package_v14, lex, parse, parse_project_manifest_v14, validate_module_name_v13,
+    AcyclicRuntimeCallError, AstElement, BoundedRuntimeCallError, BranchExpr, CallExpr,
+    CompilerError, ConditionalCoreError, CoreFunctionsError, CoreValue, Delimiter,
+    DynamicBranchBodyError, DynamicControlError, DynamicInputError, InputBatch, InputDeviceId,
+    InputEvent, InputPayload, InputSequence, InputSource, InputTarget, Instruction, LexError,
+    ModuleError, NestedFunctionControlError, NsirBodyState, NsirMinimalBody, NsirPureBindingForm,
+    NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
+    PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
     PureConditionPlanError, PureConditionPlanForm, PureExpressionExecutionError,
     PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
     SemanticPureBindingExpressionOp, SemanticPureCondition, SemanticPureExpressionOp,
     SourceExecutionError, SourceId, SourceSpan, SourceText, StaticIfCondition, StaticIfOperand,
-    Token, TokenKind, Value, MAX_V13_MODULES,
+    Token, TokenKind, Value, MAX_V13_MODULES, MAX_V14_PACKAGE_BYTES, V14_LOCK_FILE,
+    V14_MANIFEST_FILE, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::ffi::OsStr;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{self, BufWriter, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -65,6 +67,8 @@ Usage:\n\
   nordoi call-graph-run <path|-> <key-code>\n\
   nordoi function-control-run <path|-> <key-code>\n\
   nordoi module-graph-run <source-root> <entry-module> <key-code>\n\
+  nordoi build <project-root> [--locked]\n\
+  nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -101,6 +105,8 @@ Commands:\n\
   call-graph-run V1.1 execute acyclic bounded pure runtime call graphs through NAIR 0.13.\n\
   function-control-run V1.2 execute selective structured if/else inside bounded pure runtime function bodies through NAIR 0.14.\n\
   module-graph-run V1.3 resolve real .noi modules/imports statically, erase them before NAIR, and execute the entry module.\n\
+  build            V1.4 build a deterministic NORDOI project package and canonical lock file.\n\
+  package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -143,7 +149,8 @@ V0.9 branch-body-run adds selective pure branch-body evaluation through NAIR 0.1
 V1.0 call-run adds bounded direct pure runtime calls through NAIR 0.12 CALL_EVAL; calls are non-recursive, direct-only, and runtime call depth is certified at one.\n\
 V1.1 call-graph-run adds statically acyclic bounded call graphs through NAIR 0.13 nested call expressions; recursion, cycles, indirect calls, and unbounded call depth remain forbidden.\n\
 V1.2 function-control-run adds selective structured if/else inside pure runtime function bodies through NAIR 0.14; only the selected arm executes and the acyclic bounded call graph remains enforced.\n\
-V1.3 module-graph-run adds statically resolved real .noi module/import graphs; imports are erased before NAIR, import cycles and ambiguities fail closed, and runtime filesystem authority remains NONE.\n";
+V1.3 module-graph-run adds statically resolved real .noi module/import graphs; imports are erased before NAIR, import cycles and ambiguities fail closed, and runtime filesystem authority remains NONE.\n\
+V1.4 build adds strict NORDOI.toml projects, canonical NORDOI.lock state, deterministic .npkg artifacts, and --locked drift rejection with no dependency network access.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -199,6 +206,26 @@ fn run() -> u8 {
             arguments[2].to_string_lossy().as_ref(),
             key_code,
         );
+    }
+
+    if command.as_ref() == "build" {
+        let locked = match arguments.len() {
+            2 => false,
+            3 if arguments[2].as_os_str() == OsStr::new("--locked") => true,
+            _ => {
+                report_usage_error("build expects <project-root> [--locked]");
+                return EXIT_USAGE;
+            }
+        };
+        return run_project_build_v14_cli(Path::new(&arguments[1]), locked);
+    }
+
+    if command.as_ref() == "package-info" {
+        if arguments.len() != 2 {
+            report_usage_error("package-info expects exactly one .npkg path");
+            return EXIT_USAGE;
+        }
+        return run_package_info_v14_cli(Path::new(&arguments[1]));
     }
     let dynamic_key_code = if matches!(
         command.as_ref(),
@@ -3410,6 +3437,261 @@ fn module_path_v13(root: &Path, module: &str) -> PathBuf {
     }
     path.set_extension("noi");
     path
+}
+
+fn run_project_build_v14_cli(project_root: &Path, locked: bool) -> u8 {
+    let manifest_path = project_root.join(V14_MANIFEST_FILE);
+    let manifest_text = match fs::read_to_string(&manifest_path) {
+        Ok(text) => text,
+        Err(error) => {
+            report_io_error(manifest_path.to_string_lossy().as_ref(), &error);
+            return EXIT_IO;
+        }
+    };
+    let manifest = match parse_project_manifest_v14(&manifest_text) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            report_plain_error("build", manifest_path.to_string_lossy().as_ref(), &error);
+            return EXIT_FRONTEND;
+        }
+    };
+
+    let source_root = project_root.join(manifest.source_root());
+    let sources = match load_module_graph_sources_v14(&source_root, manifest.entry_module()) {
+        Ok(sources) => sources,
+        Err(exit) => return exit,
+    };
+    let build = match compile_project_v14(&manifest, &sources) {
+        Ok(build) => build,
+        Err(error) => {
+            report_plain_error("build", project_root.to_string_lossy().as_ref(), &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let lock_path = project_root.join(V14_LOCK_FILE);
+    if locked {
+        let existing = match fs::read_to_string(&lock_path) {
+            Ok(text) => text,
+            Err(error) => {
+                report_io_error(lock_path.to_string_lossy().as_ref(), &error);
+                return EXIT_IO;
+            }
+        };
+        if existing != build.lock_text() {
+            report_plain_error(
+                "build",
+                lock_path.to_string_lossy().as_ref(),
+                "--locked rejected project drift: NORDOI.lock does not match the current canonical build graph",
+            );
+            return EXIT_FRONTEND;
+        }
+    }
+
+    let build_dir = project_root.join("build");
+    if let Err(error) = fs::create_dir_all(&build_dir) {
+        report_io_error(build_dir.to_string_lossy().as_ref(), &error);
+        return EXIT_IO;
+    }
+    let package_path = build_dir.join(manifest.package_file_name());
+    if let Err(error) = write_atomic_file(&package_path, build.package_bytes()) {
+        report_io_error(package_path.to_string_lossy().as_ref(), &error);
+        return EXIT_IO;
+    }
+    if !locked {
+        if let Err(error) = write_atomic_file(&lock_path, build.lock_text().as_bytes()) {
+            report_io_error(lock_path.to_string_lossy().as_ref(), &error);
+            return EXIT_IO;
+        }
+    }
+
+    let relative_package = Path::new("build").join(manifest.package_file_name());
+    let stdout = io::stdout();
+    let mut output = BufWriter::new(stdout.lock());
+    if let Err(error) = writeln!(
+        output,
+        "build project=\"{}\" version=\"{}\" entry-module=\"{}\" modules={} imports={} nair-minor=0.{} nair-instructions={} package=\"{}\" lock=\"{}\" locked={} reproducible=true dependency-network=NONE runtime-fs=NONE authority=NONE witness={}",
+        escape_fragment(manifest.name()),
+        escape_fragment(manifest.version()),
+        escape_fragment(manifest.entry_module()),
+        build.module_plan().module_count(),
+        build.module_plan().import_count(),
+        build.lowering().nair_format_minor(),
+        build.lowering().nair_instruction_count(),
+        escape_fragment(relative_package.to_string_lossy().as_ref()),
+        V14_LOCK_FILE,
+        locked,
+        hex_bytes(build.canonical_v14_build_witness_bytes()),
+    ) {
+        report_io_error("<stdout>", &error);
+        return EXIT_IO;
+    }
+    match output.flush() {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn run_package_info_v14_cli(path: &Path) -> u8 {
+    let file = match File::open(path) {
+        Ok(file) => file,
+        Err(error) => {
+            report_io_error(path.to_string_lossy().as_ref(), &error);
+            return EXIT_IO;
+        }
+    };
+    let bytes = match read_bounded(file) {
+        Ok(bytes) => bytes,
+        Err(error) => {
+            report_load_error(path.as_os_str(), &error);
+            return EXIT_IO;
+        }
+    };
+    if bytes.len() > MAX_V14_PACKAGE_BYTES {
+        report_plain_error(
+            "package-info",
+            path.to_string_lossy().as_ref(),
+            format_args!(
+                "package has {} bytes; V1.4 maximum is {} bytes",
+                bytes.len(),
+                MAX_V14_PACKAGE_BYTES
+            ),
+        );
+        return EXIT_FRONTEND;
+    }
+    let info = match inspect_project_package_v14(&bytes) {
+        Ok(info) => info,
+        Err(error) => {
+            report_plain_error("package-info", path.to_string_lossy().as_ref(), &error);
+            return EXIT_FRONTEND;
+        }
+    };
+
+    let module_order = format!("[{}]", info.module_order().join(","));
+    let stdout = io::stdout();
+    let mut output = BufWriter::new(stdout.lock());
+    if let Err(error) = writeln!(
+        output,
+        "package-info project=\"{}\" version=\"{}\" entry-module=\"{}\" source-root=\"{}\" modules={} imports={} module-order={} nair-minor=0.{} nair-instructions={} package-format={}.{} dependency-network=NONE runtime-fs=NONE authority=NONE witness={}",
+        escape_fragment(info.name()),
+        escape_fragment(info.version()),
+        escape_fragment(info.entry_module()),
+        escape_fragment(info.source_root()),
+        info.module_order().len(),
+        info.import_edges().len(),
+        module_order,
+        info.nair_format_minor(),
+        info.nair_instruction_count(),
+        V14_PACKAGE_MAJOR,
+        V14_PACKAGE_MINOR,
+        hex_bytes(info.build_witness()),
+    ) {
+        report_io_error("<stdout>", &error);
+        return EXIT_IO;
+    }
+    match output.flush() {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn load_module_graph_sources_v14(root: &Path, entry_module: &str) -> Result<Vec<SourceText>, u8> {
+    if let Err(error) = validate_module_name_v13(entry_module) {
+        report_plain_error("build", entry_module, &error);
+        return Err(EXIT_FRONTEND);
+    }
+    let mut pending = BTreeSet::new();
+    let mut loaded = BTreeMap::new();
+    pending.insert(entry_module.to_owned());
+    let mut next_source_id = 1u32;
+
+    while let Some(module_name) = pending.pop_first() {
+        if loaded.contains_key(&module_name) {
+            continue;
+        }
+        if loaded.len() >= MAX_V13_MODULES {
+            report_plain_error(
+                "build",
+                entry_module,
+                format_args!("module graph exceeds certified bound {MAX_V13_MODULES}"),
+            );
+            return Err(EXIT_FRONTEND);
+        }
+
+        let path = module_path_v13(root, &module_name);
+        let (name, text) = match load_source(path.as_os_str()) {
+            Ok(value) => value,
+            Err(error) => {
+                report_load_error(path.as_os_str(), &error);
+                return Err(EXIT_IO);
+            }
+        };
+        let source = match SourceText::new(SourceId::new(next_source_id), name, text) {
+            Ok(source) => source,
+            Err(error) => {
+                report_plain_error("build", path.to_string_lossy().as_ref(), &error);
+                return Err(EXIT_FRONTEND);
+            }
+        };
+        next_source_id = next_source_id.saturating_add(1);
+
+        let discovery = match discover_module_imports_v13(&source) {
+            Ok(discovery) => discovery,
+            Err(error) => {
+                report_plain_error("build", source.name(), &error);
+                return Err(EXIT_FRONTEND);
+            }
+        };
+        if discovery.module() != module_name {
+            report_plain_error(
+                "build",
+                source.name(),
+                format_args!(
+                    "module path requested '{}' but file declares '{}'",
+                    module_name,
+                    discovery.module()
+                ),
+            );
+            return Err(EXIT_FRONTEND);
+        }
+        for import in discovery.imports() {
+            if !loaded.contains_key(import) {
+                pending.insert(import.clone());
+            }
+        }
+        loaded.insert(module_name, source);
+    }
+
+    Ok(loaded.into_values().collect())
+}
+
+fn write_atomic_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
+    let file_name = path
+        .file_name()
+        .and_then(OsStr::to_str)
+        .unwrap_or("nordoi-output");
+    let temp_path = path.with_file_name(format!(".{file_name}.tmp-{}", std::process::id()));
+    fs::write(&temp_path, bytes)?;
+    if path.exists() {
+        fs::remove_file(path)?;
+    }
+    match fs::rename(&temp_path, path) {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            let _ = fs::remove_file(&temp_path);
+            Err(error)
+        }
+    }
 }
 
 fn load_source(path: &OsStr) -> Result<(String, String), LoadError> {
