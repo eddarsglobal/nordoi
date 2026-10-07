@@ -15,7 +15,7 @@ use crate::{
 use super::{
     error::{NairError, NairResult},
     id::{AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot},
-    instruction::{DomainRef, InputTargetRef, Instruction},
+    instruction::{BranchExpr, DomainRef, InputTargetRef, Instruction},
     program::NairProgram,
 };
 
@@ -93,6 +93,25 @@ impl NairObservedInteractiveExecutionReport {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NairBranchWorkReport {
+    pub selected_branch_instructions: usize,
+    pub discarded_branch_instructions: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NairSelectiveObservedInteractiveExecutionReport {
+    pub execution: NairInteractiveExecutionReport,
+    pub final_registers: BTreeMap<RegisterId, Value>,
+    pub branch_work: NairBranchWorkReport,
+}
+
+impl NairSelectiveObservedInteractiveExecutionReport {
+    pub fn register(&self, id: RegisterId) -> Option<&Value> {
+        self.final_registers.get(&id)
+    }
+}
+
 struct ExecutionOutcome {
     execution: NairExecutionReport,
     render_bindings: BTreeMap<RenderNodeSlot, RenderNodeId>,
@@ -100,6 +119,7 @@ struct ExecutionOutcome {
     created_input_bridges: usize,
     input_applications: Vec<InputBridgeReport>,
     final_registers: BTreeMap<RegisterId, Value>,
+    branch_work: NairBranchWorkReport,
 }
 
 pub fn execute_nair(
@@ -186,6 +206,29 @@ pub fn execute_nair_with_render_and_input_observed(
     })
 }
 
+pub fn execute_nair_with_render_and_input_selective_observed(
+    kernel: &mut AtomicKernel,
+    render: &mut AtomicRenderCore,
+    input_batch: &InputBatch,
+    program: &NairProgram,
+) -> NairResult<NairSelectiveObservedInteractiveExecutionReport> {
+    program.validate()?;
+    reject_missing_contexts(program, true, true, false)?;
+    let outcome = execute_internal(kernel, Some(render), Some(input_batch), program)?;
+
+    Ok(NairSelectiveObservedInteractiveExecutionReport {
+        execution: NairInteractiveExecutionReport {
+            execution: outcome.execution,
+            render_bindings: outcome.render_bindings,
+            frames: outcome.frames,
+            created_input_bridges: outcome.created_input_bridges,
+            input_applications: outcome.input_applications,
+        },
+        final_registers: outcome.final_registers,
+        branch_work: outcome.branch_work,
+    })
+}
+
 fn reject_missing_contexts(
     program: &NairProgram,
     has_render: bool,
@@ -238,6 +281,54 @@ fn reject_missing_contexts(
     Ok(())
 }
 
+fn eval_branch_expr(
+    expr: &BranchExpr,
+    registers: &BTreeMap<RegisterId, Value>,
+    evaluated: &mut usize,
+) -> NairResult<Value> {
+    *evaluated += 1;
+    match expr {
+        BranchExpr::Value(value) => Ok(value.clone()),
+        BranchExpr::Register(register) => registers
+            .get(register)
+            .cloned()
+            .ok_or(NairError::UnknownRegister(*register)),
+        BranchExpr::IntAddChecked { lhs, rhs } => {
+            let lhs = eval_branch_expr(lhs, registers, evaluated)?;
+            let rhs = eval_branch_expr(rhs, registers, evaluated)?;
+            let (Value::Int(lhs), Value::Int(rhs)) = (lhs, rhs) else {
+                return Err(NairError::BranchExpressionOperandNotInt);
+            };
+            Ok(Value::Int(
+                lhs.checked_add(rhs)
+                    .ok_or(NairError::BranchExpressionIntegerOverflow)?,
+            ))
+        }
+        BranchExpr::IntEq { lhs, rhs }
+        | BranchExpr::IntNe { lhs, rhs }
+        | BranchExpr::IntLt { lhs, rhs }
+        | BranchExpr::IntLe { lhs, rhs }
+        | BranchExpr::IntGt { lhs, rhs }
+        | BranchExpr::IntGe { lhs, rhs } => {
+            let lhs_value = eval_branch_expr(lhs, registers, evaluated)?;
+            let rhs_value = eval_branch_expr(rhs, registers, evaluated)?;
+            let (Value::Int(lhs), Value::Int(rhs)) = (lhs_value, rhs_value) else {
+                return Err(NairError::BranchExpressionOperandNotInt);
+            };
+            let value = match expr {
+                BranchExpr::IntEq { .. } => lhs == rhs,
+                BranchExpr::IntNe { .. } => lhs != rhs,
+                BranchExpr::IntLt { .. } => lhs < rhs,
+                BranchExpr::IntLe { .. } => lhs <= rhs,
+                BranchExpr::IntGt { .. } => lhs > rhs,
+                BranchExpr::IntGe { .. } => lhs >= rhs,
+                _ => unreachable!("comparison branch expression only"),
+            };
+            Ok(Value::Bool(value))
+        }
+    }
+}
+
 fn execute_internal(
     kernel: &mut AtomicKernel,
     mut render: Option<&mut AtomicRenderCore>,
@@ -257,6 +348,8 @@ fn execute_internal(
     let mut rolled_back_transactions = 0usize;
     let mut executed_instructions = 0usize;
     let mut runtime_branches = 0usize;
+    let mut selected_branch_instructions = 0usize;
+    let discarded_branch_instructions = 0usize;
 
     for instruction in program.instructions() {
         executed_instructions += 1;
@@ -299,6 +392,26 @@ fn execute_internal(
                         else_value.clone()
                     },
                 );
+            }
+            Instruction::BranchEval {
+                dst,
+                condition,
+                then_expr,
+                else_expr,
+            } => {
+                let condition_value = registers
+                    .get(condition)
+                    .ok_or(NairError::UnknownRegister(*condition))?;
+                let condition_bool = match condition_value {
+                    Value::Bool(value) => *value,
+                    _ => return Err(NairError::BranchConditionNotBool(*condition)),
+                };
+                runtime_branches += 1;
+                let selected_expr = if condition_bool { then_expr } else { else_expr };
+                let mut evaluated = 0usize;
+                let value = eval_branch_expr(selected_expr, &registers, &mut evaluated)?;
+                selected_branch_instructions += evaluated;
+                registers.insert(*dst, value);
             }
             Instruction::IntAddChecked { dst, lhs, rhs } => {
                 let lhs_value = registers.get(lhs).ok_or(NairError::UnknownRegister(*lhs))?;
@@ -543,6 +656,10 @@ fn execute_internal(
         created_input_bridges: input_bridges.len(),
         input_applications,
         final_registers: registers,
+        branch_work: NairBranchWorkReport {
+            selected_branch_instructions,
+            discarded_branch_instructions,
+        },
     })
 }
 

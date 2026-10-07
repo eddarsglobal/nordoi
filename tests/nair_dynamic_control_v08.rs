@@ -47,9 +47,9 @@ fn branch_program() -> NairProgram {
 }
 
 #[test]
-fn nair_010_is_the_latest_supported_minor() {
+fn nair_010_dynamic_branch_minor_remains_stable() {
     assert_eq!(NAIR_DYNAMIC_BRANCH_MINOR, 10);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 10);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 11);
 }
 
 #[test]

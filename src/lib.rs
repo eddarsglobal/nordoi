@@ -6,6 +6,7 @@ pub mod compiler;
 pub mod conditional_core_v05;
 pub mod core_functions_v06;
 pub mod dependency;
+mod dynamic_branch_v09;
 mod dynamic_control_v08;
 mod dynamic_input_v07;
 pub mod effect;
@@ -98,6 +99,12 @@ pub use core_functions_v06::{
     MAX_V06_BINDINGS, MAX_V06_CALL_DEPTH, MAX_V06_EXPR_NODES, MAX_V06_FUNCTIONS,
     MAX_V06_NAME_BYTES, MAX_V06_PARAMS,
 };
+pub use dynamic_branch_v09::{
+    compile_dynamic_branch_body_plan_v09, execute_dynamic_branch_body_source_v09,
+    lower_dynamic_branch_body_plan_v09, DynamicBranchBodyError, DynamicBranchBodyResult,
+    V09BranchBodyExecutionReport, V09BranchBodyNairArtifact, V09BranchBodyPlan, MAX_V09_CONSTANTS,
+    MAX_V09_EXPR_NODES, MAX_V09_NAME_BYTES,
+};
 pub use dynamic_control_v08::{
     compile_dynamic_control_plan_v08, execute_dynamic_control_source_v08,
     lower_dynamic_control_plan_v08, DynamicControlError, DynamicControlResult,
@@ -185,17 +192,20 @@ pub use input::{
 pub use kernel::AtomicKernel;
 pub use nair::{
     execute_nair, execute_nair_with_input, execute_nair_with_render,
-    execute_nair_with_render_and_input, execute_nair_with_render_and_input_observed, AtomSlot,
-    CompletionSlot, DomainRef, DomainSlot, InputBridgeSlot, InputTargetRef, Instruction,
+    execute_nair_with_render_and_input, execute_nair_with_render_and_input_observed,
+    execute_nair_with_render_and_input_selective_observed, AtomSlot, BranchExpr, CompletionSlot,
+    DomainRef, DomainSlot, InputBridgeSlot, InputTargetRef, Instruction, NairBranchWorkReport,
     NairCompletionAuthority, NairCompletionBinding, NairCompletionProjection,
     NairCompletionProjectionValue, NairEffectSet, NairError, NairExecutionReport,
     NairInputExecutionReport, NairInteractiveExecutionReport,
     NairObservedInteractiveExecutionReport, NairProgram, NairReactionAuthority,
     NairReactionCycleReport, NairReactionStep, NairReactionTrigger, NairReactionValue,
-    NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-    TransactionSlot, NAIR_DYNAMIC_BRANCH_MINOR, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR,
-    NAIR_INPUT_REGISTER_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR, NAIR_INTEGER_COMPARISON_MINOR,
-    NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
+    NairRenderExecutionReport, NairResult, NairSelectiveObservedInteractiveExecutionReport,
+    ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
+    MAX_NAIR_BRANCH_EXPR_DEPTH, MAX_NAIR_BRANCH_EXPR_NODES, NAIR_DYNAMIC_BRANCH_MINOR,
+    NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_INPUT_REGISTER_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR,
+    NAIR_INTEGER_COMPARISON_MINOR, NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
+    NAIR_SELECTIVE_BRANCH_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{
@@ -252,9 +262,10 @@ pub use transaction::{AtomicTransaction, TransactionId, TransactionReport};
 pub use value::Value;
 
 pub use runtime::{
-    run_closed, run_closed_observed, AtomicRuntime, PersistentAtomicRuntime,
-    PersistentRuntimeTickReport, RuntimeAtomSnapshot, RuntimeError, RuntimeObservedReport,
-    RuntimeReplayKey, RuntimeReport, RuntimeResult,
+    run_closed, run_closed_observed, run_closed_selective_observed, AtomicRuntime,
+    PersistentAtomicRuntime, PersistentRuntimeTickReport, RuntimeAtomSnapshot, RuntimeError,
+    RuntimeObservedReport, RuntimeReplayKey, RuntimeReport, RuntimeResult,
+    RuntimeSelectiveObservedReport,
 };
 
 pub use runtime_checkpoint::{

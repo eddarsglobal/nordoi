@@ -28,6 +28,40 @@ pub enum InputTargetRef {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum BranchExpr {
+    Value(Value),
+    Register(RegisterId),
+    IntAddChecked {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+    IntEq {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+    IntNe {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+    IntLt {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+    IntLe {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+    IntGt {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+    IntGe {
+        lhs: Box<BranchExpr>,
+        rhs: Box<BranchExpr>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
     Const {
         dst: RegisterId,
@@ -77,6 +111,12 @@ pub enum Instruction {
         condition: RegisterId,
         then_value: Value,
         else_value: Value,
+    },
+    BranchEval {
+        dst: RegisterId,
+        condition: RegisterId,
+        then_expr: BranchExpr,
+        else_expr: BranchExpr,
     },
     CreateDomain {
         dst: DomainSlot,

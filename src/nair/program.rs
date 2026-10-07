@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     effect::Effect,
@@ -15,18 +15,21 @@ use super::{
         AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,
         RenderNodeSlot, TimerSlot, TransactionSlot,
     },
-    instruction::{DomainRef, InputTargetRef, Instruction},
+    instruction::{BranchExpr, DomainRef, InputTargetRef, Instruction},
     reaction::{NairEffectSet, NairReactionStep, NairReactionTrigger, NairReactionValue},
 };
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 10;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 11;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
 pub const NAIR_INPUT_REGISTER_MINOR: u16 = 9;
 pub const NAIR_DYNAMIC_BRANCH_MINOR: u16 = 10;
+pub const NAIR_SELECTIVE_BRANCH_MINOR: u16 = 11;
+pub const MAX_NAIR_BRANCH_EXPR_DEPTH: usize = 32;
+pub const MAX_NAIR_BRANCH_EXPR_NODES: usize = 256;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -41,6 +44,114 @@ fn register_kind(value: &Value) -> RegisterKind {
         Value::Int(_) => RegisterKind::Int,
         Value::Bool(_) => RegisterKind::Bool,
         Value::Null | Value::Float(_) | Value::Text(_) => RegisterKind::Other,
+    }
+}
+
+fn validate_branch_expr(
+    expr: &BranchExpr,
+    registers: &BTreeSet<RegisterId>,
+    register_kinds: &BTreeMap<RegisterId, RegisterKind>,
+    register_values: &BTreeMap<RegisterId, Value>,
+    depth: usize,
+    nodes: &mut usize,
+) -> NairResult<(RegisterKind, Option<Value>)> {
+    if depth > MAX_NAIR_BRANCH_EXPR_DEPTH {
+        return Err(NairError::BranchExpressionTooDeep);
+    }
+    *nodes += 1;
+    if *nodes > MAX_NAIR_BRANCH_EXPR_NODES {
+        return Err(NairError::BranchExpressionTooLarge);
+    }
+
+    match expr {
+        BranchExpr::Value(value) => {
+            let kind = register_kind(value);
+            if kind == RegisterKind::Other {
+                return Err(NairError::BranchArmKindUnsupported);
+            }
+            Ok((kind, Some(value.clone())))
+        }
+        BranchExpr::Register(register) => {
+            require_register(*register, registers)?;
+            let kind = *register_kinds
+                .get(register)
+                .ok_or(NairError::UnknownRegister(*register))?;
+            if kind == RegisterKind::Other {
+                return Err(NairError::BranchArmKindUnsupported);
+            }
+            Ok((kind, register_values.get(register).cloned()))
+        }
+        BranchExpr::IntAddChecked { lhs, rhs } => {
+            let (lhs_kind, lhs_value) = validate_branch_expr(
+                lhs,
+                registers,
+                register_kinds,
+                register_values,
+                depth + 1,
+                nodes,
+            )?;
+            let (rhs_kind, rhs_value) = validate_branch_expr(
+                rhs,
+                registers,
+                register_kinds,
+                register_values,
+                depth + 1,
+                nodes,
+            )?;
+            if lhs_kind != RegisterKind::Int || rhs_kind != RegisterKind::Int {
+                return Err(NairError::BranchExpressionOperandNotInt);
+            }
+            let value = match (lhs_value, rhs_value) {
+                (Some(Value::Int(lhs)), Some(Value::Int(rhs))) => Some(Value::Int(
+                    lhs.checked_add(rhs)
+                        .ok_or(NairError::BranchExpressionIntegerOverflow)?,
+                )),
+                _ => None,
+            };
+            Ok((RegisterKind::Int, value))
+        }
+        BranchExpr::IntEq { lhs, rhs }
+        | BranchExpr::IntNe { lhs, rhs }
+        | BranchExpr::IntLt { lhs, rhs }
+        | BranchExpr::IntLe { lhs, rhs }
+        | BranchExpr::IntGt { lhs, rhs }
+        | BranchExpr::IntGe { lhs, rhs } => {
+            let (lhs_kind, lhs_value) = validate_branch_expr(
+                lhs,
+                registers,
+                register_kinds,
+                register_values,
+                depth + 1,
+                nodes,
+            )?;
+            let (rhs_kind, rhs_value) = validate_branch_expr(
+                rhs,
+                registers,
+                register_kinds,
+                register_values,
+                depth + 1,
+                nodes,
+            )?;
+            if lhs_kind != RegisterKind::Int || rhs_kind != RegisterKind::Int {
+                return Err(NairError::BranchExpressionOperandNotInt);
+            }
+            let value = match (lhs_value, rhs_value) {
+                (Some(Value::Int(lhs)), Some(Value::Int(rhs))) => {
+                    let result = match expr {
+                        BranchExpr::IntEq { .. } => lhs == rhs,
+                        BranchExpr::IntNe { .. } => lhs != rhs,
+                        BranchExpr::IntLt { .. } => lhs < rhs,
+                        BranchExpr::IntLe { .. } => lhs <= rhs,
+                        BranchExpr::IntGt { .. } => lhs > rhs,
+                        BranchExpr::IntGe { .. } => lhs >= rhs,
+                        _ => unreachable!("comparison branch expression only"),
+                    };
+                    Some(Value::Bool(result))
+                }
+                _ => None,
+            };
+            Ok((RegisterKind::Bool, value))
+        }
     }
 }
 
@@ -142,6 +253,52 @@ impl NairProgram {
                                 else_value.clone()
                             },
                         );
+                    }
+                }
+                Instruction::BranchEval {
+                    dst,
+                    condition,
+                    then_expr,
+                    else_expr,
+                } => {
+                    require_register(*condition, &registers)?;
+                    if register_kinds.get(condition) != Some(&RegisterKind::Bool) {
+                        return Err(NairError::BranchConditionNotBool(*condition));
+                    }
+                    let mut then_nodes = 0usize;
+                    let (then_kind, then_value) = validate_branch_expr(
+                        then_expr,
+                        &registers,
+                        &register_kinds,
+                        &register_values,
+                        0,
+                        &mut then_nodes,
+                    )?;
+                    let mut else_nodes = 0usize;
+                    let (else_kind, else_value) = validate_branch_expr(
+                        else_expr,
+                        &registers,
+                        &register_kinds,
+                        &register_values,
+                        0,
+                        &mut else_nodes,
+                    )?;
+                    if then_kind != else_kind {
+                        return Err(NairError::BranchArmKindMismatch);
+                    }
+                    if !registers.insert(*dst) {
+                        return Err(NairError::DuplicateRegister(*dst));
+                    }
+                    register_kinds.insert(*dst, then_kind);
+                    if let Some(Value::Bool(condition_value)) = register_values.get(condition) {
+                        let selected = if *condition_value {
+                            then_value
+                        } else {
+                            else_value
+                        };
+                        if let Some(value) = selected {
+                            register_values.insert(*dst, value);
+                        }
                     }
                 }
                 Instruction::IntAddChecked { dst, lhs, rhs } => {
@@ -385,6 +542,12 @@ impl NairProgram {
 
     pub fn required_format_minor(&self) -> u16 {
         if self
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::BranchEval { .. }))
+        {
+            NAIR_SELECTIVE_BRANCH_MINOR
+        } else if self
             .instructions
             .iter()
             .any(|instruction| matches!(instruction, Instruction::BranchValue { .. }))
@@ -649,6 +812,55 @@ fn encode_value(out: &mut Vec<u8>, value: &Value) -> NairResult<()> {
         Value::Text(value) => {
             out.push(0x05);
             write_string(out, value)?;
+        }
+    }
+    Ok(())
+}
+
+fn encode_branch_expr(out: &mut Vec<u8>, expr: &BranchExpr) -> NairResult<()> {
+    match expr {
+        BranchExpr::Value(value) => {
+            out.push(0x01);
+            encode_value(out, value)?;
+        }
+        BranchExpr::Register(register) => {
+            out.push(0x02);
+            write_u32(out, register.0);
+        }
+        BranchExpr::IntAddChecked { lhs, rhs } => {
+            out.push(0x03);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
+        }
+        BranchExpr::IntEq { lhs, rhs } => {
+            out.push(0x04);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
+        }
+        BranchExpr::IntNe { lhs, rhs } => {
+            out.push(0x05);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
+        }
+        BranchExpr::IntLt { lhs, rhs } => {
+            out.push(0x06);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
+        }
+        BranchExpr::IntLe { lhs, rhs } => {
+            out.push(0x07);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
+        }
+        BranchExpr::IntGt { lhs, rhs } => {
+            out.push(0x08);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
+        }
+        BranchExpr::IntGe { lhs, rhs } => {
+            out.push(0x09);
+            encode_branch_expr(out, lhs)?;
+            encode_branch_expr(out, rhs)?;
         }
     }
     Ok(())
@@ -922,6 +1134,18 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             encode_value(out, then_value)?;
             encode_value(out, else_value)?;
         }
+        Instruction::BranchEval {
+            dst,
+            condition,
+            then_expr,
+            else_expr,
+        } => {
+            out.push(0x0a);
+            write_u32(out, dst.0);
+            write_u32(out, condition.0);
+            encode_branch_expr(out, then_expr)?;
+            encode_branch_expr(out, else_expr)?;
+        }
         Instruction::CreateDomain { dst, name } => {
             out.push(0x10);
             write_u32(out, dst.0);
@@ -1140,6 +1364,20 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
             then_value: decode_value(input)?,
             else_value: decode_value(input)?,
         }),
+        0x0a if minor >= NAIR_SELECTIVE_BRANCH_MINOR => {
+            let dst = RegisterId(input.read_u32()?);
+            let condition = RegisterId(input.read_u32()?);
+            let mut then_nodes = 0usize;
+            let then_expr = decode_branch_expr(input, 0, &mut then_nodes)?;
+            let mut else_nodes = 0usize;
+            let else_expr = decode_branch_expr(input, 0, &mut else_nodes)?;
+            Ok(Instruction::BranchEval {
+                dst,
+                condition,
+                then_expr,
+                else_expr,
+            })
+        }
         0x10 => Ok(Instruction::CreateDomain {
             dst: DomainSlot(input.read_u32()?),
             name: input.read_string()?,
@@ -1294,6 +1532,54 @@ fn decode_value(input: &mut Decoder<'_>) -> NairResult<Value> {
         0x04 => Ok(Value::Float(f64::from_bits(input.read_u64()?))),
         0x05 => Ok(Value::Text(input.read_string()?)),
         other => Err(NairError::InvalidValueTag(other)),
+    }
+}
+
+fn decode_branch_expr(
+    input: &mut Decoder<'_>,
+    depth: usize,
+    nodes: &mut usize,
+) -> NairResult<BranchExpr> {
+    if depth > MAX_NAIR_BRANCH_EXPR_DEPTH {
+        return Err(NairError::BranchExpressionTooDeep);
+    }
+    *nodes += 1;
+    if *nodes > MAX_NAIR_BRANCH_EXPR_NODES {
+        return Err(NairError::BranchExpressionTooLarge);
+    }
+
+    match input.read_u8()? {
+        0x01 => Ok(BranchExpr::Value(decode_value(input)?)),
+        0x02 => Ok(BranchExpr::Register(RegisterId(input.read_u32()?))),
+        0x03 => Ok(BranchExpr::IntAddChecked {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        0x04 => Ok(BranchExpr::IntEq {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        0x05 => Ok(BranchExpr::IntNe {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        0x06 => Ok(BranchExpr::IntLt {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        0x07 => Ok(BranchExpr::IntLe {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        0x08 => Ok(BranchExpr::IntGt {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        0x09 => Ok(BranchExpr::IntGe {
+            lhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
+        }),
+        other => Err(NairError::InvalidBranchExpressionTag(other)),
     }
 }
 
