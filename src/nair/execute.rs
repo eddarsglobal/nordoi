@@ -373,7 +373,14 @@ fn eval_branch_expr(
     }
 }
 
-fn eval_call_expr(expr: &CallExpr, args: &[Value], evaluated: &mut usize) -> NairResult<Value> {
+fn eval_call_expr(
+    expr: &CallExpr,
+    args: &[Value],
+    evaluated: &mut usize,
+    nested_calls: &mut usize,
+    current_call_depth: usize,
+    max_call_depth: &mut usize,
+) -> NairResult<Value> {
     *evaluated += 1;
     match expr {
         CallExpr::Value(value) => Ok(value.clone()),
@@ -382,8 +389,22 @@ fn eval_call_expr(expr: &CallExpr, args: &[Value], evaluated: &mut usize) -> Nai
             .cloned()
             .ok_or(NairError::CallParameterOutOfRange(*index)),
         CallExpr::IntAddChecked { lhs, rhs } => {
-            let lhs = eval_call_expr(lhs, args, evaluated)?;
-            let rhs = eval_call_expr(rhs, args, evaluated)?;
+            let lhs = eval_call_expr(
+                lhs,
+                args,
+                evaluated,
+                nested_calls,
+                current_call_depth,
+                max_call_depth,
+            )?;
+            let rhs = eval_call_expr(
+                rhs,
+                args,
+                evaluated,
+                nested_calls,
+                current_call_depth,
+                max_call_depth,
+            )?;
             let (Value::Int(lhs), Value::Int(rhs)) = (lhs, rhs) else {
                 return Err(NairError::CallExpressionOperandNotInt);
             };
@@ -398,8 +419,22 @@ fn eval_call_expr(expr: &CallExpr, args: &[Value], evaluated: &mut usize) -> Nai
         | CallExpr::IntLe { lhs, rhs }
         | CallExpr::IntGt { lhs, rhs }
         | CallExpr::IntGe { lhs, rhs } => {
-            let lhs_value = eval_call_expr(lhs, args, evaluated)?;
-            let rhs_value = eval_call_expr(rhs, args, evaluated)?;
+            let lhs_value = eval_call_expr(
+                lhs,
+                args,
+                evaluated,
+                nested_calls,
+                current_call_depth,
+                max_call_depth,
+            )?;
+            let rhs_value = eval_call_expr(
+                rhs,
+                args,
+                evaluated,
+                nested_calls,
+                current_call_depth,
+                max_call_depth,
+            )?;
             let (Value::Int(lhs), Value::Int(rhs)) = (lhs_value, rhs_value) else {
                 return Err(NairError::CallExpressionOperandNotInt);
             };
@@ -413,6 +448,37 @@ fn eval_call_expr(expr: &CallExpr, args: &[Value], evaluated: &mut usize) -> Nai
                 _ => unreachable!("comparison call expression only"),
             };
             Ok(Value::Bool(value))
+        }
+        CallExpr::DirectCall {
+            function_id: _,
+            args: nested_args,
+            body,
+        } => {
+            let next_depth = current_call_depth + 1;
+            if next_depth > crate::nair::MAX_NAIR_CALL_GRAPH_DEPTH {
+                return Err(NairError::CallDepthExceeded(next_depth));
+            }
+            let mut call_args = Vec::with_capacity(nested_args.len());
+            for arg in nested_args {
+                call_args.push(eval_call_expr(
+                    arg,
+                    args,
+                    evaluated,
+                    nested_calls,
+                    current_call_depth,
+                    max_call_depth,
+                )?);
+            }
+            *nested_calls += 1;
+            *max_call_depth = (*max_call_depth).max(next_depth);
+            eval_call_expr(
+                body,
+                &call_args,
+                evaluated,
+                nested_calls,
+                next_depth,
+                max_call_depth,
+            )
         }
     }
 }
@@ -520,10 +586,19 @@ fn execute_internal(
                     );
                 }
                 let mut evaluated = 0usize;
-                let value = eval_call_expr(body, &call_args, &mut evaluated)?;
-                runtime_calls += 1;
+                let mut nested_calls = 0usize;
+                let mut observed_depth = 1usize;
+                let value = eval_call_expr(
+                    body,
+                    &call_args,
+                    &mut evaluated,
+                    &mut nested_calls,
+                    1,
+                    &mut observed_depth,
+                )?;
+                runtime_calls += 1 + nested_calls;
                 call_body_instructions += evaluated;
-                max_call_depth = max_call_depth.max(1);
+                max_call_depth = max_call_depth.max(observed_depth);
                 registers.insert(*dst, value);
             }
             Instruction::IntAddChecked { dst, lhs, rhs } => {

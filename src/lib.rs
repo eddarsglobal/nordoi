@@ -1,4 +1,5 @@
 pub mod action;
+mod acyclic_calls_v11;
 pub mod atom;
 pub mod authority;
 mod bounded_calls_v10;
@@ -87,6 +88,13 @@ pub use compiler::{
     MAX_SEMANTIC_NAME_BYTES, MAX_SEMANTIC_PATH_SEGMENTS,
 };
 
+pub use acyclic_calls_v11::{
+    compile_acyclic_runtime_call_plan_v11, execute_acyclic_runtime_call_source_v11,
+    lower_acyclic_runtime_call_plan_v11, AcyclicRuntimeCallError, AcyclicRuntimeCallResult,
+    V11AcyclicCallExecutionReport, V11AcyclicCallNairArtifact, V11AcyclicCallPlan,
+    MAX_V11_CONSTANTS, MAX_V11_EXPR_NODES, MAX_V11_FUNCTIONS, MAX_V11_NAME_BYTES, MAX_V11_PARAMS,
+    MAX_V11_RUNTIME_CALLS, MAX_V11_RUNTIME_CALL_DEPTH,
+};
 pub use bounded_calls_v10::{
     compile_bounded_runtime_call_plan_v10, execute_bounded_runtime_call_source_v10,
     lower_bounded_runtime_call_plan_v10, BoundedRuntimeCallError, BoundedRuntimeCallResult,
@@ -213,10 +221,11 @@ pub use nair::{
     NairRenderExecutionReport, NairResult, NairSelectiveObservedInteractiveExecutionReport,
     ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot, TransactionSlot,
     MAX_NAIR_BRANCH_EXPR_DEPTH, MAX_NAIR_BRANCH_EXPR_NODES, MAX_NAIR_CALL_ARGS,
-    MAX_NAIR_CALL_EXPR_DEPTH, MAX_NAIR_CALL_EXPR_NODES, NAIR_DYNAMIC_BRANCH_MINOR,
-    NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_INPUT_REGISTER_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR,
-    NAIR_INTEGER_COMPARISON_MINOR, NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
-    NAIR_RUNTIME_CALL_MINOR, NAIR_SELECTIVE_BRANCH_MINOR,
+    MAX_NAIR_CALL_EXPR_DEPTH, MAX_NAIR_CALL_EXPR_NODES, MAX_NAIR_CALL_GRAPH_DEPTH,
+    NAIR_ACYCLIC_CALL_GRAPH_MINOR, NAIR_DYNAMIC_BRANCH_MINOR, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR,
+    NAIR_INPUT_REGISTER_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR, NAIR_INTEGER_COMPARISON_MINOR,
+    NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR, NAIR_RUNTIME_CALL_MINOR,
+    NAIR_SELECTIVE_BRANCH_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{

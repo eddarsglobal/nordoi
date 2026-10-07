@@ -93,6 +93,11 @@ pub enum CallExpr {
         lhs: Box<CallExpr>,
         rhs: Box<CallExpr>,
     },
+    DirectCall {
+        function_id: u32,
+        args: Vec<CallExpr>,
+        body: Box<CallExpr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

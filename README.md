@@ -1,35 +1,52 @@
-# NORDOI V1.0 — Bounded Runtime Function Calls
+# NORDOI V1.1 — Acyclic Bounded Runtime Call Graphs
 
-V1.0 is additive over certified V0.9. It introduces direct runtime function calls while keeping the Atomic Machine deliberately bounded and non-VM-like.
+V1.1 is additive over certified V1.0. It extends bounded direct runtime calls into statically known, acyclic, bounded pure call graphs without introducing a general VM stack, indirect dispatch, recursion, or hidden authority.
 
-Minimal V1.0 example:
+Minimal V1.1 example:
 
 ```noi
-fn add_bias(x) returns x + 100;
+fn add_100(x) returns x + 100;
+fn add_200(x) returns add_100(x) + 100;
 
 input key_code;
 
-entry main returns add_bias(key_code);
+entry main returns add_200(key_code);
 ```
 
 Run it with:
 
 ```bash
-cargo run --quiet --bin nordoi -- call-run program.noi 41
+cargo run --quiet --bin nordoi -- call-graph-run program.noi 41
 ```
 
-Expected semantic result: `INT(141)` with `runtime-calls=1`, `runtime-branches=0`, `call-body-instructions=3`, `max-call-depth=1`, `nair-minor=0.12`, `authority=NONE`, and `input-boundary=CANONICAL`.
+Expected result: `INT(241)` with `runtime-calls=2`, `max-call-depth=2`, `runtime-branches=0`, authority `NONE`, and canonical input boundary `CANONICAL`.
 
-NAIR `0.12` adds structured `CALL_EVAL`. A call carries a canonical function identity, an explicitly bounded argument register list, and a bounded pure call-expression body. Parameters are positional and V1.0 parameters are INT-only.
+## NAIR 0.13
 
-V1.0 deliberately does **not** add a general call stack. Function bodies cannot call functions, so runtime call depth is certified at exactly `<= 1`. Recursion, indirect calls, function values, arbitrary jump targets, host callbacks, effects inside call bodies, and hidden authority remain forbidden.
+NAIR 0.13 extends the existing 0.12 `CALL_EVAL` body expression with a canonical nested direct-call expression. The callee identity, argument expressions, and callee body are embedded deterministically. The runtime therefore does not discover call targets, resolve function pointers, or operate an unbounded program counter/call stack.
 
-Static calls are folded before runtime and remain base NAIR `0.6 CONST + HALT`. Earlier NAIR `0.7` through `0.11` programs preserve their existing encodings and semantics.
+A V1.0-style `CALL_EVAL` with no nested direct call remains NAIR 0.12. Only a body that actually contains an acyclic nested direct call requires 0.13.
 
-The public tooling version string remains intentionally frozen:
+## Call-graph law
+
+Before lowering, V1.1 constructs the complete direct call graph and rejects:
+
+- direct recursion;
+- indirect recursion and cycles such as `A -> B -> A`;
+- unknown callees;
+- arity mismatch;
+- call depth above the certified bound;
+- indirect calls and function values;
+- effects or host authority in function bodies.
+
+The certified V1.1 maximum call depth is 8 and the parameter bound remains 8. Runtime work is observed explicitly through `runtime-calls`, `call-body-instructions`, and `max-call-depth`.
+
+## Static erasure remains mandatory
+
+A fully static acyclic call graph is evaluated before runtime and still collapses to base NAIR 0.6 `CONST + HALT`. V1.1 pays runtime cost only for genuinely dynamic work.
+
+The public certified tool boundary intentionally remains:
 
 ```text
 nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
 ```
-
-See `docs/NOI_BOUNDED_RUNTIME_FUNCTION_CALLS_SPEC_1_0.md`, `docs/NAIR_SPEC_0_12.md`, and `docs/PRODUCTION_PROFILE_1_PROGRESS.md`.

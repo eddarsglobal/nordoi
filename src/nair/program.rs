@@ -22,18 +22,20 @@ use super::{
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 12;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 13;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
 pub const NAIR_INPUT_REGISTER_MINOR: u16 = 9;
 pub const NAIR_DYNAMIC_BRANCH_MINOR: u16 = 10;
 pub const NAIR_SELECTIVE_BRANCH_MINOR: u16 = 11;
 pub const NAIR_RUNTIME_CALL_MINOR: u16 = 12;
+pub const NAIR_ACYCLIC_CALL_GRAPH_MINOR: u16 = 13;
 pub const MAX_NAIR_BRANCH_EXPR_DEPTH: usize = 32;
 pub const MAX_NAIR_BRANCH_EXPR_NODES: usize = 256;
 pub const MAX_NAIR_CALL_EXPR_DEPTH: usize = 32;
 pub const MAX_NAIR_CALL_EXPR_NODES: usize = 256;
 pub const MAX_NAIR_CALL_ARGS: usize = 8;
+pub const MAX_NAIR_CALL_GRAPH_DEPTH: usize = 8;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -164,10 +166,14 @@ fn validate_call_expr(
     arg_kinds: &[RegisterKind],
     arg_values: &[Option<Value>],
     depth: usize,
+    call_depth: usize,
     nodes: &mut usize,
 ) -> NairResult<(RegisterKind, Option<Value>)> {
     if depth > MAX_NAIR_CALL_EXPR_DEPTH {
         return Err(NairError::CallExpressionTooDeep);
+    }
+    if call_depth > MAX_NAIR_CALL_GRAPH_DEPTH {
+        return Err(NairError::CallDepthExceeded(call_depth));
     }
     *nodes += 1;
     if *nodes > MAX_NAIR_CALL_EXPR_NODES {
@@ -192,9 +198,9 @@ fn validate_call_expr(
         }
         CallExpr::IntAddChecked { lhs, rhs } => {
             let (lhs_kind, lhs_value) =
-                validate_call_expr(lhs, arg_kinds, arg_values, depth + 1, nodes)?;
+                validate_call_expr(lhs, arg_kinds, arg_values, depth + 1, call_depth, nodes)?;
             let (rhs_kind, rhs_value) =
-                validate_call_expr(rhs, arg_kinds, arg_values, depth + 1, nodes)?;
+                validate_call_expr(rhs, arg_kinds, arg_values, depth + 1, call_depth, nodes)?;
             if lhs_kind != RegisterKind::Int || rhs_kind != RegisterKind::Int {
                 return Err(NairError::CallExpressionOperandNotInt);
             }
@@ -214,9 +220,9 @@ fn validate_call_expr(
         | CallExpr::IntGt { lhs, rhs }
         | CallExpr::IntGe { lhs, rhs } => {
             let (lhs_kind, lhs_value) =
-                validate_call_expr(lhs, arg_kinds, arg_values, depth + 1, nodes)?;
+                validate_call_expr(lhs, arg_kinds, arg_values, depth + 1, call_depth, nodes)?;
             let (rhs_kind, rhs_value) =
-                validate_call_expr(rhs, arg_kinds, arg_values, depth + 1, nodes)?;
+                validate_call_expr(rhs, arg_kinds, arg_values, depth + 1, call_depth, nodes)?;
             if lhs_kind != RegisterKind::Int || rhs_kind != RegisterKind::Int {
                 return Err(NairError::CallExpressionOperandNotInt);
             }
@@ -236,6 +242,38 @@ fn validate_call_expr(
                 _ => None,
             };
             Ok((RegisterKind::Bool, value))
+        }
+        CallExpr::DirectCall {
+            function_id: _,
+            args,
+            body,
+        } => {
+            if args.len() > MAX_NAIR_CALL_ARGS {
+                return Err(NairError::CallArgumentCountExceeded(args.len()));
+            }
+            let next_call_depth = call_depth + 1;
+            if next_call_depth > MAX_NAIR_CALL_GRAPH_DEPTH {
+                return Err(NairError::CallDepthExceeded(next_call_depth));
+            }
+            let mut nested_kinds = Vec::with_capacity(args.len());
+            let mut nested_values = Vec::with_capacity(args.len());
+            for arg in args {
+                let (kind, value) =
+                    validate_call_expr(arg, arg_kinds, arg_values, depth + 1, call_depth, nodes)?;
+                if kind == RegisterKind::Other {
+                    return Err(NairError::CallExpressionOperandNotInt);
+                }
+                nested_kinds.push(kind);
+                nested_values.push(value);
+            }
+            validate_call_expr(
+                body,
+                &nested_kinds,
+                &nested_values,
+                depth + 1,
+                next_call_depth,
+                nodes,
+            )
         }
     }
 }
@@ -410,7 +448,7 @@ impl NairProgram {
                     }
                     let mut nodes = 0usize;
                     let (result_kind, result_value) =
-                        validate_call_expr(body, &arg_kinds, &arg_values, 0, &mut nodes)?;
+                        validate_call_expr(body, &arg_kinds, &arg_values, 0, 1, &mut nodes)?;
                     if !registers.insert(*dst) {
                         return Err(NairError::DuplicateRegister(*dst));
                     }
@@ -658,8 +696,33 @@ impl NairProgram {
         Ok(())
     }
 
+    fn contains_acyclic_call_graph_expr(expr: &CallExpr) -> bool {
+        match expr {
+            CallExpr::DirectCall { .. } => true,
+            CallExpr::IntAddChecked { lhs, rhs }
+            | CallExpr::IntEq { lhs, rhs }
+            | CallExpr::IntNe { lhs, rhs }
+            | CallExpr::IntLt { lhs, rhs }
+            | CallExpr::IntLe { lhs, rhs }
+            | CallExpr::IntGt { lhs, rhs }
+            | CallExpr::IntGe { lhs, rhs } => {
+                Self::contains_acyclic_call_graph_expr(lhs)
+                    || Self::contains_acyclic_call_graph_expr(rhs)
+            }
+            CallExpr::Value(_) | CallExpr::Parameter(_) => false,
+        }
+    }
+
     pub fn required_format_minor(&self) -> u16 {
-        if self
+        if self.instructions.iter().any(|instruction| {
+            matches!(
+                instruction,
+                Instruction::CallEval { body, .. }
+                    if Self::contains_acyclic_call_graph_expr(body)
+            )
+        }) {
+            NAIR_ACYCLIC_CALL_GRAPH_MINOR
+        } else if self
             .instructions
             .iter()
             .any(|instruction| matches!(instruction, Instruction::CallEval { .. }))
@@ -1034,6 +1097,19 @@ fn encode_call_expr(out: &mut Vec<u8>, expr: &CallExpr) -> NairResult<()> {
             out.push(0x09);
             encode_call_expr(out, lhs)?;
             encode_call_expr(out, rhs)?;
+        }
+        CallExpr::DirectCall {
+            function_id,
+            args,
+            body,
+        } => {
+            out.push(0x0a);
+            write_u32(out, *function_id);
+            write_len(out, args.len())?;
+            for arg in args {
+                encode_call_expr(out, arg)?;
+            }
+            encode_call_expr(out, body)?;
         }
     }
     Ok(())
@@ -1578,7 +1654,7 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
                 args.push(RegisterId(input.read_u32()?));
             }
             let mut nodes = 0usize;
-            let body = decode_call_expr(input, 0, &mut nodes)?;
+            let body = decode_call_expr(input, minor, 0, &mut nodes)?;
             Ok(Instruction::CallEval {
                 dst,
                 function_id,
@@ -1793,6 +1869,7 @@ fn decode_branch_expr(
 
 fn decode_call_expr(
     input: &mut Decoder<'_>,
+    minor: u16,
     depth: usize,
     nodes: &mut usize,
 ) -> NairResult<CallExpr> {
@@ -1809,33 +1886,50 @@ fn decode_call_expr(
         0x01 => Ok(CallExpr::Value(decode_value(input)?)),
         0x02 => Ok(CallExpr::Parameter(input.read_u16()?)),
         0x03 => Ok(CallExpr::IntAddChecked {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
         0x04 => Ok(CallExpr::IntEq {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
         0x05 => Ok(CallExpr::IntNe {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
         0x06 => Ok(CallExpr::IntLt {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
         0x07 => Ok(CallExpr::IntLe {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
         0x08 => Ok(CallExpr::IntGt {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
         0x09 => Ok(CallExpr::IntGe {
-            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
-            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            lhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
         }),
+        0x0a if minor >= NAIR_ACYCLIC_CALL_GRAPH_MINOR => {
+            let function_id = input.read_u32()?;
+            let arg_count = input.read_u32()? as usize;
+            if arg_count > MAX_NAIR_CALL_ARGS {
+                return Err(NairError::CallArgumentCountExceeded(arg_count));
+            }
+            let mut args = Vec::with_capacity(arg_count);
+            for _ in 0..arg_count {
+                args.push(decode_call_expr(input, minor, depth + 1, nodes)?);
+            }
+            let body = Box::new(decode_call_expr(input, minor, depth + 1, nodes)?);
+            Ok(CallExpr::DirectCall {
+                function_id,
+                args,
+                body,
+            })
+        }
         other => Err(NairError::InvalidCallExpressionTag(other)),
     }
 }

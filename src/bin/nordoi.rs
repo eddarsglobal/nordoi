@@ -6,22 +6,23 @@ use nordoi_kernel::{
     compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
     compile_pure_expression_nair_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
-    compile_resolved_semantic_boundary, execute_bounded_runtime_call_source_v10,
-    execute_core_source_v06, execute_dynamic_branch_body_source_v09,
-    execute_dynamic_control_source_v08, execute_dynamic_source_v07,
-    execute_pure_binding_source_v04, execute_pure_condition_source_v05,
+    compile_resolved_semantic_boundary, execute_acyclic_runtime_call_source_v11,
+    execute_bounded_runtime_call_source_v10, execute_core_source_v06,
+    execute_dynamic_branch_body_source_v09, execute_dynamic_control_source_v08,
+    execute_dynamic_source_v07, execute_pure_binding_source_v04, execute_pure_condition_source_v05,
     execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01,
-    execute_static_if_source_v05, lex, parse, AstElement, BoundedRuntimeCallError, BranchExpr,
-    CallExpr, CompilerError, ConditionalCoreError, CoreFunctionsError, CoreValue, Delimiter,
-    DynamicBranchBodyError, DynamicControlError, DynamicInputError, InputBatch, InputDeviceId,
-    InputEvent, InputPayload, InputSequence, InputSource, InputTarget, Instruction, LexError,
-    ModuleError, NsirBodyState, NsirMinimalBody, NsirPureBindingForm, NsirPureConditionForm,
-    NsirPureExpressionForm, NsirPureResultForm, ParseError, PureBindingExecutionError,
-    PureBindingPlanForm, PureConditionCompilerError, PureConditionPlanError, PureConditionPlanForm,
-    PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
-    PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp, SemanticPureCondition,
-    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText,
-    StaticIfCondition, StaticIfOperand, Token, TokenKind, Value,
+    execute_static_if_source_v05, lex, parse, AcyclicRuntimeCallError, AstElement,
+    BoundedRuntimeCallError, BranchExpr, CallExpr, CompilerError, ConditionalCoreError,
+    CoreFunctionsError, CoreValue, Delimiter, DynamicBranchBodyError, DynamicControlError,
+    DynamicInputError, InputBatch, InputDeviceId, InputEvent, InputPayload, InputSequence,
+    InputSource, InputTarget, Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody,
+    NsirPureBindingForm, NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm,
+    ParseError, PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
+    PureConditionPlanError, PureConditionPlanForm, PureExpressionExecutionError,
+    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
+    SemanticPureBindingExpressionOp, SemanticPureCondition, SemanticPureExpressionOp,
+    SourceExecutionError, SourceId, SourceSpan, SourceText, StaticIfCondition, StaticIfOperand,
+    Token, TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -58,6 +59,7 @@ Usage:\n\
   nordoi branch-run <path|-> <key-code>\n\
   nordoi branch-body-run <path|-> <key-code>\n\
   nordoi call-run <path|-> <key-code>\n\
+  nordoi call-graph-run <path|-> <key-code>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -91,6 +93,7 @@ Commands:\n\
   branch-run     V0.8 execute one governed dynamic if/else decision through NAIR 0.10.\n\
   branch-body-run V0.9 lazily evaluate only the selected dynamic branch body through NAIR 0.11.\n\
   call-run       V1.0 execute bounded direct pure runtime calls through NAIR 0.12.\n\
+  call-graph-run V1.1 execute acyclic bounded pure runtime call graphs through NAIR 0.13.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -130,7 +133,8 @@ V0.6 core-run adds checked + - * /, == != < <= > >=, && || !, immutable locals, 
 V0.7 dynamic-run adds one explicit canonical integer input (`input name;`) sourced from keyboard key-code event 0; dynamic checked addition/comparison survives into NAIR 0.9 while static expressions still collapse to CONST+HALT.\n\
 V0.8 branch-run adds structured `if condition { value } else { value }`; dynamic conditions survive as NAIR 0.10 BRANCH_VALUE while static conditions are erased before runtime.\n\
 V0.9 branch-body-run adds selective pure branch-body evaluation through NAIR 0.11 BRANCH_EVAL; only the chosen branch expression executes, while the unselected branch performs zero runtime expression work.\n\
-V1.0 call-run adds bounded direct pure runtime calls through NAIR 0.12 CALL_EVAL; calls are non-recursive, direct-only, and runtime call depth is certified at one.\n";
+V1.0 call-run adds bounded direct pure runtime calls through NAIR 0.12 CALL_EVAL; calls are non-recursive, direct-only, and runtime call depth is certified at one.\n\
+V1.1 call-graph-run adds statically acyclic bounded call graphs through NAIR 0.13 nested call expressions; recursion, cycles, indirect calls, and unbounded call depth remain forbidden.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -170,7 +174,7 @@ fn run() -> u8 {
         .unwrap_or_default();
     let dynamic_key_code = if matches!(
         command.as_ref(),
-        "dynamic-run" | "branch-run" | "branch-body-run" | "call-run"
+        "dynamic-run" | "branch-run" | "branch-body-run" | "call-run" | "call-graph-run"
     ) {
         if arguments.len() != 3 {
             report_usage_error(&format!(
@@ -213,6 +217,7 @@ fn run() -> u8 {
             | "branch-run"
             | "branch-body-run"
             | "call-run"
+            | "call-graph-run"
             | "bindings"
             | "bindings-plan"
             | "bindings-lower"
@@ -282,6 +287,11 @@ fn run() -> u8 {
         "call-run" => run_bounded_runtime_call_source_v10_cli(
             &source,
             dynamic_key_code.expect("call-run key code validated"),
+            &mut output,
+        ),
+        "call-graph-run" => run_acyclic_runtime_call_source_v11_cli(
+            &source,
+            dynamic_key_code.expect("call-graph-run key code validated"),
             &mut output,
         ),
         "bindings" => run_bindings(&source, &mut output),
@@ -398,6 +408,15 @@ fn run() -> u8 {
                 EXIT_RUNTIME
             }
         }
+        CommandResult::AcyclicRuntimeCallFailure(command, error) => {
+            if error.is_frontend_failure() {
+                report_frontend_error(command, &source, error.primary_span(), &error);
+                EXIT_FRONTEND
+            } else {
+                report_plain_error(command, source.name(), &error);
+                EXIT_RUNTIME
+            }
+        }
         CommandResult::PureBindingCompilerFailure(error) => {
             report_frontend_error("bindings", &source, error.primary_span(), &error);
             EXIT_FRONTEND
@@ -501,6 +520,7 @@ enum CommandResult {
     DynamicControlFailure(&'static str, DynamicControlError),
     DynamicBranchBodyFailure(&'static str, DynamicBranchBodyError),
     BoundedRuntimeCallFailure(&'static str, BoundedRuntimeCallError),
+    AcyclicRuntimeCallFailure(&'static str, AcyclicRuntimeCallError),
     PureBindingCompilerFailure(CompilerError),
     PureBindingPlanCompilerFailure(CompilerError),
     PureBindingLowerCompilerFailure(CompilerError),
@@ -1736,6 +1756,93 @@ fn run_bounded_runtime_call_source_v10_cli(
     CommandResult::Success
 }
 
+fn run_acyclic_runtime_call_source_v11_cli(
+    source: &SourceText,
+    key_code: u32,
+    output: &mut impl Write,
+) -> CommandResult {
+    let input = InputBatch {
+        events: vec![InputEvent {
+            sequence: InputSequence(1),
+            source: InputSource::Keyboard,
+            device: InputDeviceId(1),
+            target: InputTarget::Global,
+            payload: InputPayload::Key {
+                code: key_code,
+                pressed: true,
+                repeat: false,
+            },
+        }],
+    };
+    let report = match execute_acyclic_runtime_call_source_v11(source, &input) {
+        Ok(report) => report,
+        Err(error) => {
+            return CommandResult::AcyclicRuntimeCallFailure("call-graph-run", error);
+        }
+    };
+
+    let plan = report.plan();
+    let lowering = report.lowering();
+    let module = match plan.module() {
+        Some(name) => format!("\"{}\"", escape_fragment(name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let input_name = plan
+        .input_name()
+        .map(|name| format!("\"{}\"", escape_fragment(name)))
+        .unwrap_or_else(|| "<none>".to_owned());
+    let result_text = report.result().as_text();
+    let witness = hex_bytes(lowering.canonical_v11_witness_bytes());
+    let receipt = hex_bytes(report.canonical_v11_receipt_bytes());
+
+    if let Err(error) = writeln!(
+        output,
+        "call-graph-run module={module} entry=\"{}\" input={input_name} input-events={} key-code={} constants={} functions={} dynamic={} result={result_text} runtime-computed={} runtime-calls={} runtime-branches={} call-body-instructions={} max-call-depth={} certified-max-call-depth={} nair-instructions={} nair-minor=0.{} authority=NONE input-boundary=CANONICAL witness={witness} receipt={receipt}",
+        escape_fragment(plan.entry_name()),
+        input.len(),
+        key_code,
+        plan.constant_count(),
+        plan.function_count(),
+        plan.is_dynamic(),
+        report.runtime_computed(),
+        report.runtime_calls(),
+        report.runtime_branches(),
+        report.call_body_instructions(),
+        report.max_call_depth(),
+        plan.max_call_depth(),
+        lowering.nair_instruction_count(),
+        lowering.nair_format_minor(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let runtime = report.runtime();
+    let execution = &runtime.runtime().execution.execution;
+    if let Err(error) = writeln!(
+        output,
+        "nair instructions={} runtime replay={} executed={} runtime-calls={} runtime-branches={} call-body-instructions={} max-call-depth={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text}",
+        format_v10_nair_instructions(lowering.program().instructions()),
+        runtime.runtime().replay_key,
+        execution.executed_instructions,
+        report.runtime_calls(),
+        execution.runtime_branches,
+        report.call_body_instructions(),
+        report.max_call_depth(),
+        runtime.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.runtime().execution.frames.len(),
+        runtime.runtime().execution.created_input_bridges,
+        execution.scheduled_work,
+        runtime.is_quiescent(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
 fn format_v10_nair_instructions(instructions: &[Instruction]) -> String {
     let parts = instructions
         .iter()
@@ -1849,6 +1956,21 @@ fn format_v10_call_expr(expr: &CallExpr) -> String {
                 "GE({}, {})",
                 format_v10_call_expr(lhs),
                 format_v10_call_expr(rhs)
+            )
+        }
+        CallExpr::DirectCall {
+            function_id,
+            args,
+            body,
+        } => {
+            let args = args
+                .iter()
+                .map(format_v10_call_expr)
+                .collect::<Vec<_>>()
+                .join(",");
+            format!(
+                "CALL(fn={function_id}, args=[{args}], body={})",
+                format_v10_call_expr(body)
             )
         }
     }

@@ -1,37 +1,30 @@
-# NORDOI Production Profile 1 — Progress Ledger
+# NORDOI Production Profile 1 Progress
 
-This is an engineering progress ledger, not constitutional law. `CONSTITUTION.md` remains the supreme authority.
+## Certified baseline entering V1.1
 
-## Certified baseline entering V1.0
+V1.0 — Bounded Runtime Function Calls is the certified baseline.
 
-V0.9 is certified at commit `4eb391b35531b970876ac592f69c1989c700fdee`, tag `v0.9`, with local Release Gate PASS, 20/20 dedicated V0.9 tests PASS, selective runtime proofs, and exact-SHA five-job CI PASS (run `37595803690`).
+Estimated Production Profile 1 completion entering V1.1 = **77%**, remaining = **23%**.
 
-Estimated Production Profile 1 completion entering V1.0 = **70%**, remaining = **30%**.
+## V1.1 candidate closure target
 
-## V1.0 candidate closure targets
+V1.1 closes the next language/runtime composition gap by adding statically acyclic, bounded pure runtime call graphs.
 
-V1.0 closes the first bounded runtime-call gap:
+Candidate proof targets:
 
-- source-level direct pure function declarations;
-- explicit integer parameters;
-- dynamic direct calls from the entry expression;
-- NAIR `0.12 CALL_EVAL`;
-- canonical function identity;
-- bounded argument vectors;
-- bounded pure call-expression bodies;
-- runtime call count observation;
-- call-body work observation;
-- certified maximum runtime call depth of one;
-- compile-time erasure of fully static calls back to NAIR `0.6`;
-- deterministic witness, replay, receipt, result, and call-work observations;
-- no recursion;
-- no indirect calls;
-- no function values or closures;
-- no arbitrary jump/return address mechanism;
-- no general runtime call stack;
-- no host callback;
-- no hidden authority.
+- pure function bodies may directly call other pure functions;
+- complete call graph resolved before lowering;
+- direct and indirect recursion rejected before runtime;
+- maximum call depth statically certified and bounded to 8;
+- nested dynamic calls execute through NAIR 0.13;
+- simple V1.0 calls remain NAIR 0.12;
+- fully static call graphs still erase to NAIR 0.6 CONST + HALT;
+- runtime reports exact call count and maximum active depth;
+- runtime branches remain zero for this slice;
+- authority remains NONE;
+- canonical input boundary remains preserved;
+- public certified version boundary remains unchanged.
 
-If and only if V1.0 passes the complete local Release Gate, 20/20 focused tests, runtime-call smoke proof, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **77% complete / 23% remaining**.
+If and only if V1.1 passes the complete local Release Gate, 20/20 focused tests, runtime smoke proof, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **82% complete / 18% remaining**.
 
-The percentage is a readiness estimate, not a claim that source lines or milestone count correspond linearly to production readiness.
+The remaining Production Profile 1 work should then concentrate primarily on usable modules/imports, practical type composition, capability-based I/O integration, developer tooling/diagnostics, packaging/distribution, hardening, and a reference application.
