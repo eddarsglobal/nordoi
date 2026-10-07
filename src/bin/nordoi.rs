@@ -6,17 +6,18 @@ use nordoi_kernel::{
     compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
     compile_pure_expression_nair_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
-    compile_resolved_semantic_boundary, execute_pure_binding_source_v04,
+    compile_resolved_semantic_boundary, execute_core_source_v06, execute_pure_binding_source_v04,
     execute_pure_condition_source_v05, execute_pure_expression_source_v03,
     execute_pure_result_source_v02, execute_source_v01, execute_static_if_source_v05, lex, parse,
-    AstElement, CompilerError, ConditionalCoreError, Delimiter, Instruction, LexError, ModuleError,
-    NsirBodyState, NsirMinimalBody, NsirPureBindingForm, NsirPureConditionForm,
-    NsirPureExpressionForm, NsirPureResultForm, ParseError, PureBindingExecutionError,
-    PureBindingPlanForm, PureConditionCompilerError, PureConditionPlanError, PureConditionPlanForm,
-    PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
-    PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp, SemanticPureCondition,
-    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText,
-    StaticIfCondition, StaticIfOperand, Token, TokenKind, Value,
+    AstElement, CompilerError, ConditionalCoreError, CoreFunctionsError, CoreValue, Delimiter,
+    Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody, NsirPureBindingForm,
+    NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
+    PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
+    PureConditionPlanError, PureConditionPlanForm, PureExpressionExecutionError,
+    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
+    SemanticPureBindingExpressionOp, SemanticPureCondition, SemanticPureExpressionOp,
+    SourceExecutionError, SourceId, SourceSpan, SourceText, StaticIfCondition, StaticIfOperand,
+    Token, TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -48,6 +49,7 @@ Usage:\n\
   nordoi condition-plan <path|->\n\
   nordoi condition-run <path|->\n\
   nordoi if-run <path|->\n\
+  nordoi core-run <path|->\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -76,6 +78,7 @@ Commands:\n\
   condition-plan Print the C0.11 pure-condition execution plan.\n\
   condition-run  V0.5 execute pure booleans/comparisons through NAIR 0.6/0.8.\n\
   if-run         V0.5 compile-time-select and execute pure if/else with zero runtime branch cost.\n\
+  core-run       V0.6 execute pure functions, parameters, immutable locals and core operators after proof-driven folding.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -110,7 +113,8 @@ V0.4 bindings-run executes C0.10 through the closed runtime while proving zero b
 L0.9 condition adds pure boolean literals and integer comparisons without planning, NAIR, runtime work, storage, effects, or authority.\n\
 C0.11 condition-plan preserves exact L0.9 condition identity and truth with zero work/storage, without branches, NAIR lowering, or runtime execution.\n\
 V0.5 condition-run lowers pure boolean/comparison plans to NAIR and executes them through the closed runtime.\n\
-V0.5 if-run validates both pure integer branches, proves the static condition, erases the dead branch before NAIR, and executes only the selected branch.\n";
+V0.5 if-run validates both pure integer branches, proves the static condition, erases the dead branch before NAIR, and executes only the selected branch.\n\
+V0.6 core-run adds checked + - * /, == != < <= > >=, && || !, immutable locals, pure functions/parameters/calls and nested static if expressions; closed pure programs inline/fold to minimal CONST+HALT NAIR without runtime call frames.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -163,6 +167,7 @@ fn run() -> u8 {
             | "condition-plan"
             | "condition-run"
             | "if-run"
+            | "core-run"
             | "bindings"
             | "bindings-plan"
             | "bindings-lower"
@@ -213,6 +218,7 @@ fn run() -> u8 {
         "condition-plan" => run_condition_plan(&source, &mut output),
         "condition-run" => run_condition_source_v05(&source, &mut output),
         "if-run" => run_static_if_source_v05(&source, &mut output),
+        "core-run" => run_core_source_v06(&source, &mut output),
         "bindings" => run_bindings(&source, &mut output),
         "bindings-plan" => run_bindings_plan(&source, &mut output),
         "bindings-lower" => run_bindings_lower(&source, &mut output),
@@ -274,6 +280,15 @@ fn run() -> u8 {
             EXIT_FRONTEND
         }
         CommandResult::ConditionalCoreFailure(command, error) => {
+            if error.is_frontend_failure() {
+                report_frontend_error(command, &source, error.primary_span(), &error);
+                EXIT_FRONTEND
+            } else {
+                report_plain_error(command, source.name(), &error);
+                EXIT_RUNTIME
+            }
+        }
+        CommandResult::CoreFunctionsFailure(command, error) => {
             if error.is_frontend_failure() {
                 report_frontend_error(command, &source, error.primary_span(), &error);
                 EXIT_FRONTEND
@@ -380,6 +395,7 @@ enum CommandResult {
     PureConditionCompilerFailure(PureConditionCompilerError),
     PureConditionPlanFailure(PureConditionPlanError),
     ConditionalCoreFailure(&'static str, ConditionalCoreError),
+    CoreFunctionsFailure(&'static str, CoreFunctionsError),
     PureBindingCompilerFailure(CompilerError),
     PureBindingPlanCompilerFailure(CompilerError),
     PureBindingLowerCompilerFailure(CompilerError),
@@ -917,6 +933,70 @@ fn run_static_if_source_v05(source: &SourceText, output: &mut impl Write) -> Com
         output,
         "nair instructions={} runtime replay={} executed={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text}",
         format_v05_nair_instructions(lowering.program().instructions()),
+        runtime.runtime().replay_key,
+        execution.executed_instructions,
+        runtime.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.runtime().execution.frames.len(),
+        runtime.runtime().execution.created_input_bridges,
+        execution.scheduled_work,
+        runtime.is_quiescent(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn run_core_source_v06(source: &SourceText, output: &mut impl Write) -> CommandResult {
+    let report = match execute_core_source_v06(source) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::CoreFunctionsFailure("core-run", error),
+    };
+
+    let plan = report.plan();
+    let lowering = report.lowering();
+    let module = match plan.module() {
+        Some(name) => format!("\"{}\"", escape_fragment(name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let result_text = match report.result() {
+        CoreValue::Int(value) => format!("INT({value})"),
+        CoreValue::Bool(value) => format!("BOOL({value})"),
+    };
+    let witness = hex_bytes(lowering.canonical_v06_witness_bytes());
+    let receipt = hex_bytes(report.canonical_v06_receipt_bytes());
+
+    if let Err(error) = writeln!(
+        output,
+        "core-run module={module} entry=\"{}\" functions={} globals={} source-ops={} calls={} inlined-calls={} static-ifs={} result={result_text} constant-folded={} runtime-calls={} runtime-branches={} nair-instructions={} nair-minor=0.{} authority=NONE witness={witness} receipt={receipt}",
+        escape_fragment(plan.entry_name()),
+        plan.function_count(),
+        plan.global_binding_count(),
+        plan.source_operation_count(),
+        plan.function_call_count(),
+        plan.inlined_call_count(),
+        plan.static_if_count(),
+        report.constant_folded(),
+        plan.runtime_call_count(),
+        plan.runtime_branch_count(),
+        lowering.nair_instruction_count(),
+        lowering.nair_format_minor(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let runtime = report.runtime();
+    let execution = &runtime.runtime().execution.execution;
+    let nair_text = match lowering.result() {
+        CoreValue::Int(value) => format!("[CONST r0 INT({value}),HALT]"),
+        CoreValue::Bool(value) => format!("[CONST r0 BOOL({value}),HALT]"),
+    };
+    if let Err(error) = writeln!(
+        output,
+        "nair instructions={nair_text} runtime replay={} executed={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text}",
         runtime.runtime().replay_key,
         execution.executed_instructions,
         runtime.final_registers().len(),

@@ -4,6 +4,7 @@ pub mod authority;
 pub mod capability;
 pub mod compiler;
 pub mod conditional_core_v05;
+pub mod core_functions_v06;
 pub mod dependency;
 pub mod effect;
 pub mod effect_attestation;
@@ -88,6 +89,12 @@ pub use conditional_core_v05::{
     lower_static_if_v05, ConditionalCoreError, ConditionalCoreResult, StaticIfBranch,
     StaticIfCondition, StaticIfOperand, V05ConditionExecutionReport, V05ConditionNairArtifact,
     V05StaticIfExecutionReport, V05StaticIfNairArtifact, V05StaticIfPlan,
+};
+pub use core_functions_v06::{
+    compile_core_plan_v06, execute_core_source_v06, lower_core_plan_v06, CoreFunctionsError,
+    CoreFunctionsResult, CoreValue, V06CoreExecutionReport, V06CoreNairArtifact, V06CorePlan,
+    MAX_V06_BINDINGS, MAX_V06_CALL_DEPTH, MAX_V06_EXPR_NODES, MAX_V06_FUNCTIONS,
+    MAX_V06_NAME_BYTES, MAX_V06_PARAMS,
 };
 pub use effect::{Effect, EffectSet};
 pub use effect_attestation::{
