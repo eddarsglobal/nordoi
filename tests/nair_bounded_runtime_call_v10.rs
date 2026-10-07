@@ -47,7 +47,7 @@ fn call_program() -> NairProgram {
 #[test]
 fn nair_012_runtime_call_minor_remains_supported() {
     assert_eq!(NAIR_RUNTIME_CALL_MINOR, 12);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 13);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 14);
 }
 
 #[test]

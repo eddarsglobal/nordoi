@@ -98,6 +98,11 @@ pub enum CallExpr {
         args: Vec<CallExpr>,
         body: Box<CallExpr>,
     },
+    IfElse {
+        condition: Box<CallExpr>,
+        then_expr: Box<CallExpr>,
+        else_expr: Box<CallExpr>,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]

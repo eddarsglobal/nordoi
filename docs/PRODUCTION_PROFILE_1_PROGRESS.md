@@ -1,30 +1,32 @@
 # NORDOI Production Profile 1 Progress
 
-## Certified baseline entering V1.1
+## Certified baseline entering V1.2
 
-V1.0 — Bounded Runtime Function Calls is the certified baseline.
+V1.1 — Acyclic Bounded Runtime Call Graphs is the certified baseline.
 
-Estimated Production Profile 1 completion entering V1.1 = **77%**, remaining = **23%**.
+Estimated Production Profile 1 completion entering V1.2 = **82%**, remaining = **18%**.
 
-## V1.1 candidate closure target
+## V1.2 candidate closure target
 
-V1.1 closes the next language/runtime composition gap by adding statically acyclic, bounded pure runtime call graphs.
+V1.2 closes the next runtime-language composition gap by allowing selective structured `if/else` control inside bounded pure runtime function bodies.
 
 Candidate proof targets:
 
-- pure function bodies may directly call other pure functions;
-- complete call graph resolved before lowering;
-- direct and indirect recursion rejected before runtime;
-- maximum call depth statically certified and bounded to 8;
-- nested dynamic calls execute through NAIR 0.13;
-- simple V1.0 calls remain NAIR 0.12;
-- fully static call graphs still erase to NAIR 0.6 CONST + HALT;
-- runtime reports exact call count and maximum active depth;
-- runtime branches remain zero for this slice;
+- structured function-body conditions may depend on runtime parameters;
+- only the selected arm executes;
+- discarded-arm expression work is zero;
+- selected arms may invoke statically known acyclic pure callees;
+- direct and indirect recursion remain rejected before runtime;
+- maximum call depth remains statically certified and bounded to 8;
+- structured function control requires NAIR 0.14;
+- V1.0 simple calls remain NAIR 0.12;
+- V1.1 acyclic nested calls remain NAIR 0.13;
+- fully static function control still erases to NAIR 0.6 `CONST + HALT`;
+- runtime call and branch work remains explicitly observed;
 - authority remains NONE;
 - canonical input boundary remains preserved;
 - public certified version boundary remains unchanged.
 
-If and only if V1.1 passes the complete local Release Gate, 20/20 focused tests, runtime smoke proof, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **82% complete / 18% remaining**.
+If and only if V1.2 passes the complete local Release Gate, 20/20 focused tests, positive/negative runtime smoke proofs, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **86% complete / 14% remaining**.
 
 The remaining Production Profile 1 work should then concentrate primarily on usable modules/imports, practical type composition, capability-based I/O integration, developer tooling/diagnostics, packaging/distribution, hardening, and a reference application.

@@ -378,6 +378,7 @@ fn eval_call_expr(
     args: &[Value],
     evaluated: &mut usize,
     nested_calls: &mut usize,
+    runtime_branches: &mut usize,
     current_call_depth: usize,
     max_call_depth: &mut usize,
 ) -> NairResult<Value> {
@@ -394,6 +395,7 @@ fn eval_call_expr(
                 args,
                 evaluated,
                 nested_calls,
+                runtime_branches,
                 current_call_depth,
                 max_call_depth,
             )?;
@@ -402,6 +404,7 @@ fn eval_call_expr(
                 args,
                 evaluated,
                 nested_calls,
+                runtime_branches,
                 current_call_depth,
                 max_call_depth,
             )?;
@@ -424,6 +427,7 @@ fn eval_call_expr(
                 args,
                 evaluated,
                 nested_calls,
+                runtime_branches,
                 current_call_depth,
                 max_call_depth,
             )?;
@@ -432,6 +436,7 @@ fn eval_call_expr(
                 args,
                 evaluated,
                 nested_calls,
+                runtime_branches,
                 current_call_depth,
                 max_call_depth,
             )?;
@@ -449,6 +454,35 @@ fn eval_call_expr(
             };
             Ok(Value::Bool(value))
         }
+        CallExpr::IfElse {
+            condition,
+            then_expr,
+            else_expr,
+        } => {
+            let condition_value = eval_call_expr(
+                condition,
+                args,
+                evaluated,
+                nested_calls,
+                runtime_branches,
+                current_call_depth,
+                max_call_depth,
+            )?;
+            let Value::Bool(condition_bool) = condition_value else {
+                return Err(NairError::CallBranchConditionNotBool);
+            };
+            *runtime_branches += 1;
+            let selected = if condition_bool { then_expr } else { else_expr };
+            eval_call_expr(
+                selected,
+                args,
+                evaluated,
+                nested_calls,
+                runtime_branches,
+                current_call_depth,
+                max_call_depth,
+            )
+        }
         CallExpr::DirectCall {
             function_id: _,
             args: nested_args,
@@ -465,6 +499,7 @@ fn eval_call_expr(
                     args,
                     evaluated,
                     nested_calls,
+                    runtime_branches,
                     current_call_depth,
                     max_call_depth,
                 )?);
@@ -476,6 +511,7 @@ fn eval_call_expr(
                 &call_args,
                 evaluated,
                 nested_calls,
+                runtime_branches,
                 next_depth,
                 max_call_depth,
             )
@@ -593,6 +629,7 @@ fn execute_internal(
                     &call_args,
                     &mut evaluated,
                     &mut nested_calls,
+                    &mut runtime_branches,
                     1,
                     &mut observed_depth,
                 )?;

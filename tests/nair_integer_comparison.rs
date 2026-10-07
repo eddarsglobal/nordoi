@@ -67,7 +67,7 @@ fn nair_08_extends_latest_minor_without_rewriting_certified_base() {
     assert_eq!(NAIR_FORMAT_MINOR, 6);
     assert_eq!(NAIR_INTEGER_ARITHMETIC_MINOR, 7);
     assert_eq!(NAIR_INTEGER_COMPARISON_MINOR, 8);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 13);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 14);
 }
 
 #[test]

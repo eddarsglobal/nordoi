@@ -57,7 +57,7 @@ fn selective_program() -> NairProgram {
 fn nair_011_is_the_latest_supported_minor() {
     assert_eq!(NAIR_DYNAMIC_BRANCH_MINOR, 10);
     assert_eq!(NAIR_SELECTIVE_BRANCH_MINOR, 11);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 13);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 14);
 }
 
 #[test]

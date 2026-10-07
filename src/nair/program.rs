@@ -22,7 +22,7 @@ use super::{
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 13;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 14;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
 pub const NAIR_INPUT_REGISTER_MINOR: u16 = 9;
@@ -30,6 +30,7 @@ pub const NAIR_DYNAMIC_BRANCH_MINOR: u16 = 10;
 pub const NAIR_SELECTIVE_BRANCH_MINOR: u16 = 11;
 pub const NAIR_RUNTIME_CALL_MINOR: u16 = 12;
 pub const NAIR_ACYCLIC_CALL_GRAPH_MINOR: u16 = 13;
+pub const NAIR_STRUCTURED_CALL_CONTROL_MINOR: u16 = 14;
 pub const MAX_NAIR_BRANCH_EXPR_DEPTH: usize = 32;
 pub const MAX_NAIR_BRANCH_EXPR_NODES: usize = 256;
 pub const MAX_NAIR_CALL_EXPR_DEPTH: usize = 32;
@@ -242,6 +243,49 @@ fn validate_call_expr(
                 _ => None,
             };
             Ok((RegisterKind::Bool, value))
+        }
+        CallExpr::IfElse {
+            condition,
+            then_expr,
+            else_expr,
+        } => {
+            let (condition_kind, condition_value) = validate_call_expr(
+                condition,
+                arg_kinds,
+                arg_values,
+                depth + 1,
+                call_depth,
+                nodes,
+            )?;
+            if condition_kind != RegisterKind::Bool {
+                return Err(NairError::CallBranchConditionNotBool);
+            }
+            let (then_kind, then_value) = validate_call_expr(
+                then_expr,
+                arg_kinds,
+                arg_values,
+                depth + 1,
+                call_depth,
+                nodes,
+            )?;
+            let (else_kind, else_value) = validate_call_expr(
+                else_expr,
+                arg_kinds,
+                arg_values,
+                depth + 1,
+                call_depth,
+                nodes,
+            )?;
+            if then_kind != else_kind {
+                return Err(NairError::CallBranchArmKindMismatch);
+            }
+            let selected = match condition_value {
+                Some(Value::Bool(true)) => then_value,
+                Some(Value::Bool(false)) => else_value,
+                Some(_) => return Err(NairError::CallBranchConditionNotBool),
+                None => None,
+            };
+            Ok((then_kind, selected))
         }
         CallExpr::DirectCall {
             function_id: _,
@@ -699,6 +743,15 @@ impl NairProgram {
     fn contains_acyclic_call_graph_expr(expr: &CallExpr) -> bool {
         match expr {
             CallExpr::DirectCall { .. } => true,
+            CallExpr::IfElse {
+                condition,
+                then_expr,
+                else_expr,
+            } => {
+                Self::contains_acyclic_call_graph_expr(condition)
+                    || Self::contains_acyclic_call_graph_expr(then_expr)
+                    || Self::contains_acyclic_call_graph_expr(else_expr)
+            }
             CallExpr::IntAddChecked { lhs, rhs }
             | CallExpr::IntEq { lhs, rhs }
             | CallExpr::IntNe { lhs, rhs }
@@ -713,8 +766,37 @@ impl NairProgram {
         }
     }
 
+    fn contains_structured_call_control_expr(expr: &CallExpr) -> bool {
+        match expr {
+            CallExpr::IfElse { .. } => true,
+            CallExpr::DirectCall { args, body, .. } => {
+                args.iter().any(Self::contains_structured_call_control_expr)
+                    || Self::contains_structured_call_control_expr(body)
+            }
+            CallExpr::IntAddChecked { lhs, rhs }
+            | CallExpr::IntEq { lhs, rhs }
+            | CallExpr::IntNe { lhs, rhs }
+            | CallExpr::IntLt { lhs, rhs }
+            | CallExpr::IntLe { lhs, rhs }
+            | CallExpr::IntGt { lhs, rhs }
+            | CallExpr::IntGe { lhs, rhs } => {
+                Self::contains_structured_call_control_expr(lhs)
+                    || Self::contains_structured_call_control_expr(rhs)
+            }
+            CallExpr::Value(_) | CallExpr::Parameter(_) => false,
+        }
+    }
+
     pub fn required_format_minor(&self) -> u16 {
         if self.instructions.iter().any(|instruction| {
+            matches!(
+                instruction,
+                Instruction::CallEval { body, .. }
+                    if Self::contains_structured_call_control_expr(body)
+            )
+        }) {
+            NAIR_STRUCTURED_CALL_CONTROL_MINOR
+        } else if self.instructions.iter().any(|instruction| {
             matches!(
                 instruction,
                 Instruction::CallEval { body, .. }
@@ -1097,6 +1179,16 @@ fn encode_call_expr(out: &mut Vec<u8>, expr: &CallExpr) -> NairResult<()> {
             out.push(0x09);
             encode_call_expr(out, lhs)?;
             encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IfElse {
+            condition,
+            then_expr,
+            else_expr,
+        } => {
+            out.push(0x0b);
+            encode_call_expr(out, condition)?;
+            encode_call_expr(out, then_expr)?;
+            encode_call_expr(out, else_expr)?;
         }
         CallExpr::DirectCall {
             function_id,
@@ -1930,6 +2022,11 @@ fn decode_call_expr(
                 body,
             })
         }
+        0x0b if minor >= NAIR_STRUCTURED_CALL_CONTROL_MINOR => Ok(CallExpr::IfElse {
+            condition: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            then_expr: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+            else_expr: Box::new(decode_call_expr(input, minor, depth + 1, nodes)?),
+        }),
         other => Err(NairError::InvalidCallExpressionTag(other)),
     }
 }

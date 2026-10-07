@@ -56,10 +56,10 @@ fn two_level_program() -> NairProgram {
 }
 
 #[test]
-fn nair_013_is_latest_and_012_remains_runtime_call_minor() {
+fn nair_013_remains_acyclic_minor_and_014_is_latest() {
     assert_eq!(NAIR_RUNTIME_CALL_MINOR, 12);
     assert_eq!(NAIR_ACYCLIC_CALL_GRAPH_MINOR, 13);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 13);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 14);
 }
 
 #[test]

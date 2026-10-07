@@ -24,6 +24,7 @@ pub mod frontend;
 pub mod input;
 pub mod kernel;
 pub mod nair;
+mod nested_control_v12;
 pub mod ownership;
 pub mod program_upgrade;
 pub mod pure_binding_execution;
@@ -225,7 +226,14 @@ pub use nair::{
     NAIR_ACYCLIC_CALL_GRAPH_MINOR, NAIR_DYNAMIC_BRANCH_MINOR, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR,
     NAIR_INPUT_REGISTER_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR, NAIR_INTEGER_COMPARISON_MINOR,
     NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR, NAIR_RUNTIME_CALL_MINOR,
-    NAIR_SELECTIVE_BRANCH_MINOR,
+    NAIR_SELECTIVE_BRANCH_MINOR, NAIR_STRUCTURED_CALL_CONTROL_MINOR,
+};
+pub use nested_control_v12::{
+    compile_nested_function_control_plan_v12, execute_nested_function_control_source_v12,
+    lower_nested_function_control_plan_v12, NestedFunctionControlError,
+    NestedFunctionControlResult, V12NestedControlExecutionReport, V12NestedControlNairArtifact,
+    V12NestedControlPlan, MAX_V12_CONSTANTS, MAX_V12_EXPR_NODES, MAX_V12_FUNCTIONS,
+    MAX_V12_NAME_BYTES, MAX_V12_PARAMS, MAX_V12_RUNTIME_CALLS, MAX_V12_RUNTIME_CALL_DEPTH,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{
