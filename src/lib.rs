@@ -23,6 +23,7 @@ pub mod error;
 pub mod frontend;
 pub mod input;
 pub mod kernel;
+pub mod modules_v13;
 pub mod nair;
 mod nested_control_v12;
 pub mod ownership;
@@ -207,6 +208,12 @@ pub use input::{
     InputTarget, PointerId,
 };
 pub use kernel::AtomicKernel;
+pub use modules_v13::{
+    compile_module_graph_v13, discover_module_imports_v13, execute_module_graph_v13,
+    lower_module_graph_v13, validate_module_name_v13, ModuleGraphError, ModuleGraphResult,
+    V13ModuleDiscovery, V13ModuleGraphExecutionReport, V13ModuleGraphNairArtifact,
+    V13ModuleGraphPlan, MAX_V13_IMPORTS_PER_MODULE, MAX_V13_MODULES, MAX_V13_TOTAL_IMPORT_EDGES,
+};
 pub use nair::{
     execute_nair, execute_nair_with_input, execute_nair_with_render,
     execute_nair_with_render_and_input, execute_nair_with_render_and_input_call_observed,

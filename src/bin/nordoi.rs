@@ -6,30 +6,32 @@ use nordoi_kernel::{
     compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
     compile_pure_expression_nair_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
-    compile_resolved_semantic_boundary, execute_acyclic_runtime_call_source_v11,
-    execute_bounded_runtime_call_source_v10, execute_core_source_v06,
-    execute_dynamic_branch_body_source_v09, execute_dynamic_control_source_v08,
-    execute_dynamic_source_v07, execute_nested_function_control_source_v12,
-    execute_pure_binding_source_v04, execute_pure_condition_source_v05,
-    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01,
-    execute_static_if_source_v05, lex, parse, AcyclicRuntimeCallError, AstElement,
-    BoundedRuntimeCallError, BranchExpr, CallExpr, CompilerError, ConditionalCoreError,
-    CoreFunctionsError, CoreValue, Delimiter, DynamicBranchBodyError, DynamicControlError,
-    DynamicInputError, InputBatch, InputDeviceId, InputEvent, InputPayload, InputSequence,
-    InputSource, InputTarget, Instruction, LexError, ModuleError, NestedFunctionControlError,
-    NsirBodyState, NsirMinimalBody, NsirPureBindingForm, NsirPureConditionForm,
-    NsirPureExpressionForm, NsirPureResultForm, ParseError, PureBindingExecutionError,
-    PureBindingPlanForm, PureConditionCompilerError, PureConditionPlanError, PureConditionPlanForm,
-    PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
-    PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp, SemanticPureCondition,
-    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText,
-    StaticIfCondition, StaticIfOperand, Token, TokenKind, Value,
+    compile_resolved_semantic_boundary, discover_module_imports_v13,
+    execute_acyclic_runtime_call_source_v11, execute_bounded_runtime_call_source_v10,
+    execute_core_source_v06, execute_dynamic_branch_body_source_v09,
+    execute_dynamic_control_source_v08, execute_dynamic_source_v07, execute_module_graph_v13,
+    execute_nested_function_control_source_v12, execute_pure_binding_source_v04,
+    execute_pure_condition_source_v05, execute_pure_expression_source_v03,
+    execute_pure_result_source_v02, execute_source_v01, execute_static_if_source_v05, lex, parse,
+    validate_module_name_v13, AcyclicRuntimeCallError, AstElement, BoundedRuntimeCallError,
+    BranchExpr, CallExpr, CompilerError, ConditionalCoreError, CoreFunctionsError, CoreValue,
+    Delimiter, DynamicBranchBodyError, DynamicControlError, DynamicInputError, InputBatch,
+    InputDeviceId, InputEvent, InputPayload, InputSequence, InputSource, InputTarget, Instruction,
+    LexError, ModuleError, NestedFunctionControlError, NsirBodyState, NsirMinimalBody,
+    NsirPureBindingForm, NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm,
+    ParseError, PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
+    PureConditionPlanError, PureConditionPlanForm, PureExpressionExecutionError,
+    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
+    SemanticPureBindingExpressionOp, SemanticPureCondition, SemanticPureExpressionOp,
+    SourceExecutionError, SourceId, SourceSpan, SourceText, StaticIfCondition, StaticIfOperand,
+    Token, TokenKind, Value, MAX_V13_MODULES,
 };
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 const TOOL_VERSION: &str = "T0.1";
@@ -62,6 +64,7 @@ Usage:\n\
   nordoi call-run <path|-> <key-code>\n\
   nordoi call-graph-run <path|-> <key-code>\n\
   nordoi function-control-run <path|-> <key-code>\n\
+  nordoi module-graph-run <source-root> <entry-module> <key-code>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -97,6 +100,7 @@ Commands:\n\
   call-run       V1.0 execute bounded direct pure runtime calls through NAIR 0.12.\n\
   call-graph-run V1.1 execute acyclic bounded pure runtime call graphs through NAIR 0.13.\n\
   function-control-run V1.2 execute selective structured if/else inside bounded pure runtime function bodies through NAIR 0.14.\n\
+  module-graph-run V1.3 resolve real .noi modules/imports statically, erase them before NAIR, and execute the entry module.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -138,7 +142,8 @@ V0.8 branch-run adds structured `if condition { value } else { value }`; dynamic
 V0.9 branch-body-run adds selective pure branch-body evaluation through NAIR 0.11 BRANCH_EVAL; only the chosen branch expression executes, while the unselected branch performs zero runtime expression work.\n\
 V1.0 call-run adds bounded direct pure runtime calls through NAIR 0.12 CALL_EVAL; calls are non-recursive, direct-only, and runtime call depth is certified at one.\n\
 V1.1 call-graph-run adds statically acyclic bounded call graphs through NAIR 0.13 nested call expressions; recursion, cycles, indirect calls, and unbounded call depth remain forbidden.\n\
-V1.2 function-control-run adds selective structured if/else inside pure runtime function bodies through NAIR 0.14; only the selected arm executes and the acyclic bounded call graph remains enforced.\n";
+V1.2 function-control-run adds selective structured if/else inside pure runtime function bodies through NAIR 0.14; only the selected arm executes and the acyclic bounded call graph remains enforced.\n\
+V1.3 module-graph-run adds statically resolved real .noi module/import graphs; imports are erased before NAIR, import cycles and ambiguities fail closed, and runtime filesystem authority remains NONE.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -176,6 +181,25 @@ fn run() -> u8 {
         .first()
         .map(|value| value.to_string_lossy())
         .unwrap_or_default();
+
+    if command.as_ref() == "module-graph-run" {
+        if arguments.len() != 4 {
+            report_usage_error("module-graph-run expects <source-root> <entry-module> <key-code>");
+            return EXIT_USAGE;
+        }
+        let key_code = match arguments[3].to_string_lossy().parse::<u32>() {
+            Ok(value) => value,
+            Err(_) => {
+                report_usage_error("module-graph-run key-code must be an unsigned 32-bit integer");
+                return EXIT_USAGE;
+            }
+        };
+        return run_module_graph_from_root_v13_cli(
+            Path::new(&arguments[1]),
+            arguments[2].to_string_lossy().as_ref(),
+            key_code,
+        );
+    }
     let dynamic_key_code = if matches!(
         command.as_ref(),
         "dynamic-run"
@@ -3198,6 +3222,194 @@ fn delimiter_label(delimiter: Delimiter) -> &'static str {
         Delimiter::Bracket => "BRACKET",
         Delimiter::Brace => "BRACE",
     }
+}
+
+fn run_module_graph_from_root_v13_cli(root: &Path, entry_module: &str, key_code: u32) -> u8 {
+    let sources = match load_module_graph_sources_v13(root, entry_module) {
+        Ok(sources) => sources,
+        Err(exit) => return exit,
+    };
+    let input = InputBatch {
+        events: vec![InputEvent {
+            sequence: InputSequence(1),
+            source: InputSource::Keyboard,
+            device: InputDeviceId(1),
+            target: InputTarget::Global,
+            payload: InputPayload::Key {
+                code: key_code,
+                pressed: true,
+                repeat: false,
+            },
+        }],
+    };
+    let report = match execute_module_graph_v13(&sources, entry_module, &input) {
+        Ok(report) => report,
+        Err(error) => {
+            report_plain_error("module-graph-run", entry_module, &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let plan = report.plan();
+    let inner_plan = report.inner().plan();
+    let lowering = report.inner().lowering();
+    let result_text = report.result().as_text();
+    let module_order = format!("[{}]", plan.module_order().join(","));
+    let witness = hex_bytes(plan.canonical_v13_witness_bytes());
+    let receipt = hex_bytes(report.canonical_v13_receipt_bytes());
+    let input_name = inner_plan
+        .input_name()
+        .map(|name| format!("\"{}\"", escape_fragment(name)))
+        .unwrap_or_else(|| "<none>".to_owned());
+
+    let stdout = io::stdout();
+    let mut output = BufWriter::new(stdout.lock());
+    if let Err(error) = writeln!(
+        output,
+        "module-graph-run entry-module=\"{}\" modules={} imports={} module-order={} entry=\"{}\" input={} input-events={} key-code={} functions={} dynamic={} result={} runtime-computed={} runtime-calls={} runtime-branches={} call-body-instructions={} max-call-depth={} certified-max-call-depth={} nair-instructions={} nair-minor=0.{} authority=NONE import-resolution=STATIC runtime-fs=NONE witness={} receipt={}",
+        escape_fragment(plan.entry_module()),
+        plan.module_count(),
+        plan.import_count(),
+        module_order,
+        escape_fragment(inner_plan.entry_name()),
+        input_name,
+        input.len(),
+        key_code,
+        inner_plan.function_count(),
+        inner_plan.is_dynamic(),
+        result_text,
+        report.inner().runtime_computed(),
+        report.runtime_calls(),
+        report.runtime_branches(),
+        report.call_body_instructions(),
+        report.max_call_depth(),
+        inner_plan.max_call_depth(),
+        lowering.nair_instruction_count(),
+        lowering.nair_format_minor(),
+        witness,
+        receipt,
+    ) {
+        report_io_error("<stdout>", &error);
+        return EXIT_IO;
+    }
+
+    let runtime = report.inner().runtime();
+    let execution = &runtime.runtime().execution.execution;
+    if let Err(error) = writeln!(
+        output,
+        "nair instructions={} runtime replay={} executed={} runtime-calls={} runtime-branches={} call-body-instructions={} max-call-depth={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={}",
+        format_v10_nair_instructions(lowering.program().instructions()),
+        runtime.runtime().replay_key,
+        execution.executed_instructions,
+        report.runtime_calls(),
+        report.runtime_branches(),
+        report.call_body_instructions(),
+        report.max_call_depth(),
+        runtime.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.runtime().execution.frames.len(),
+        runtime.runtime().execution.created_input_bridges,
+        execution.scheduled_work,
+        runtime.is_quiescent(),
+        result_text,
+    ) {
+        report_io_error("<stdout>", &error);
+        return EXIT_IO;
+    }
+
+    match output.flush() {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn load_module_graph_sources_v13(root: &Path, entry_module: &str) -> Result<Vec<SourceText>, u8> {
+    if let Err(error) = validate_module_name_v13(entry_module) {
+        report_plain_error("module-graph-run", entry_module, &error);
+        return Err(EXIT_FRONTEND);
+    }
+    let mut pending = BTreeSet::new();
+    let mut loaded = BTreeMap::new();
+    pending.insert(entry_module.to_owned());
+    let mut next_source_id = 1u32;
+
+    while let Some(module_name) = pending.pop_first() {
+        if loaded.contains_key(&module_name) {
+            continue;
+        }
+        if loaded.len() >= MAX_V13_MODULES {
+            report_plain_error(
+                "module-graph-run",
+                entry_module,
+                format_args!("module graph exceeds certified bound {MAX_V13_MODULES}"),
+            );
+            return Err(EXIT_FRONTEND);
+        }
+
+        let path = module_path_v13(root, &module_name);
+        let (name, text) = match load_source(path.as_os_str()) {
+            Ok(value) => value,
+            Err(error) => {
+                report_load_error(path.as_os_str(), &error);
+                return Err(EXIT_IO);
+            }
+        };
+        let source = match SourceText::new(SourceId::new(next_source_id), name, text) {
+            Ok(source) => source,
+            Err(error) => {
+                let path_name = path.to_string_lossy();
+                report_plain_error("module-graph-run", path_name.as_ref(), &error);
+                return Err(EXIT_FRONTEND);
+            }
+        };
+        next_source_id = next_source_id.saturating_add(1);
+
+        let discovery = match discover_module_imports_v13(&source) {
+            Ok(discovery) => discovery,
+            Err(error) => {
+                report_plain_error("module-graph-run", source.name(), &error);
+                return Err(EXIT_FRONTEND);
+            }
+        };
+        if discovery.module() != module_name {
+            report_plain_error(
+                "module-graph-run",
+                source.name(),
+                format_args!(
+                    "module path requested '{}' but file declares '{}'",
+                    module_name,
+                    discovery.module()
+                ),
+            );
+            return Err(EXIT_FRONTEND);
+        }
+        for import in discovery.imports() {
+            if !loaded.contains_key(import) {
+                pending.insert(import.clone());
+            }
+        }
+        loaded.insert(module_name, source);
+    }
+
+    Ok(loaded.into_values().collect())
+}
+
+fn module_path_v13(root: &Path, module: &str) -> PathBuf {
+    let mut path = root.to_path_buf();
+    for segment in module.split('.') {
+        path.push(segment);
+    }
+    path.set_extension("noi");
+    path
 }
 
 fn load_source(path: &OsStr) -> Result<(String, String), LoadError> {
