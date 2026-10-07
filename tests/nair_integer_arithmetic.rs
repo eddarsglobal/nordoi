@@ -26,7 +26,7 @@ fn add_program(lhs: i64, rhs: i64) -> NairProgram {
 #[test]
 fn certified_nair_06_base_minor_remains_frozen() {
     assert_eq!(NAIR_FORMAT_MINOR, 6);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 11);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 12);
     assert_eq!(NAIR_INTEGER_ARITHMETIC_MINOR, 7);
 }
 

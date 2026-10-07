@@ -2,32 +2,36 @@
 
 This is an engineering progress ledger, not constitutional law. `CONSTITUTION.md` remains the supreme authority.
 
-## Certified baseline entering V0.9
+## Certified baseline entering V1.0
 
-V0.8 is certified at commit `96817a06c2479f06a9dd50d2b2568afb15e1eacf`, tag `v0.8`, with local Release Gate PASS, 20/20 dedicated V0.8 tests PASS, dynamic true/false runtime proofs, and exact-SHA five-job CI PASS (run `37592074408`).
+V0.9 is certified at commit `4eb391b35531b970876ac592f69c1989c700fdee`, tag `v0.9`, with local Release Gate PASS, 20/20 dedicated V0.9 tests PASS, selective runtime proofs, and exact-SHA five-job CI PASS (run `37595803690`).
 
-Estimated Production Profile 1 completion entering V0.9 = **64%**, remaining = **36%**.
+Estimated Production Profile 1 completion entering V1.0 = **70%**, remaining = **30%**.
 
-## V0.9 candidate closure targets
+## V1.0 candidate closure targets
 
-V0.9 closes the first selective dynamic branch-body gap:
+V1.0 closes the first bounded runtime-call gap:
 
-- source-level dynamic `if/else` whose selected arm may perform checked pure runtime computation;
-- lazy evaluation of exactly one selected branch body;
-- zero observable evaluation work from the unselected branch body;
-- NAIR `0.11` structured `BRANCH_EVAL` instruction;
-- bounded pure branch-expression trees over canonical values and already-defined registers;
-- checked integer addition and integer comparison inside a selected branch body;
-- preservation of NAIR `0.10 BRANCH_VALUE` when both dynamic-branch arms are compile-time values;
-- preservation of NAIR `0.9` when a static condition selects a dynamic straight-line expression;
-- preservation of base NAIR `0.6` for fully static programs;
-- deterministic witness, replay, receipt, result, and branch-work observations;
-- no arbitrary jumps or instruction-pointer API;
-- no runtime function call stack;
+- source-level direct pure function declarations;
+- explicit integer parameters;
+- dynamic direct calls from the entry expression;
+- NAIR `0.12 CALL_EVAL`;
+- canonical function identity;
+- bounded argument vectors;
+- bounded pure call-expression bodies;
+- runtime call count observation;
+- call-body work observation;
+- certified maximum runtime call depth of one;
+- compile-time erasure of fully static calls back to NAIR `0.6`;
+- deterministic witness, replay, receipt, result, and call-work observations;
 - no recursion;
-- no speculative evaluation of both branch bodies;
+- no indirect calls;
+- no function values or closures;
+- no arbitrary jump/return address mechanism;
+- no general runtime call stack;
+- no host callback;
 - no hidden authority.
 
-If and only if V0.9 passes the complete local Release Gate, 20/20 focused tests, true/false selective runtime proofs, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **70% complete / 30% remaining**.
+If and only if V1.0 passes the complete local Release Gate, 20/20 focused tests, runtime-call smoke proof, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **77% complete / 23% remaining**.
 
 The percentage is a readiness estimate, not a claim that source lines or milestone count correspond linearly to production readiness.

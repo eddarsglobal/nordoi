@@ -15,7 +15,7 @@ use crate::{
 use super::{
     error::{NairError, NairResult},
     id::{AtomSlot, DomainSlot, InputBridgeSlot, RegisterId, RenderNodeSlot, TransactionSlot},
-    instruction::{BranchExpr, DomainRef, InputTargetRef, Instruction},
+    instruction::{BranchExpr, CallExpr, DomainRef, InputTargetRef, Instruction},
     program::NairProgram,
 };
 
@@ -112,6 +112,26 @@ impl NairSelectiveObservedInteractiveExecutionReport {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct NairCallWorkReport {
+    pub runtime_calls: usize,
+    pub call_body_instructions: usize,
+    pub max_call_depth: usize,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct NairCallObservedInteractiveExecutionReport {
+    pub execution: NairInteractiveExecutionReport,
+    pub final_registers: BTreeMap<RegisterId, Value>,
+    pub call_work: NairCallWorkReport,
+}
+
+impl NairCallObservedInteractiveExecutionReport {
+    pub fn register(&self, id: RegisterId) -> Option<&Value> {
+        self.final_registers.get(&id)
+    }
+}
+
 struct ExecutionOutcome {
     execution: NairExecutionReport,
     render_bindings: BTreeMap<RenderNodeSlot, RenderNodeId>,
@@ -120,6 +140,7 @@ struct ExecutionOutcome {
     input_applications: Vec<InputBridgeReport>,
     final_registers: BTreeMap<RegisterId, Value>,
     branch_work: NairBranchWorkReport,
+    call_work: NairCallWorkReport,
 }
 
 pub fn execute_nair(
@@ -229,6 +250,29 @@ pub fn execute_nair_with_render_and_input_selective_observed(
     })
 }
 
+pub fn execute_nair_with_render_and_input_call_observed(
+    kernel: &mut AtomicKernel,
+    render: &mut AtomicRenderCore,
+    input_batch: &InputBatch,
+    program: &NairProgram,
+) -> NairResult<NairCallObservedInteractiveExecutionReport> {
+    program.validate()?;
+    reject_missing_contexts(program, true, true, false)?;
+    let outcome = execute_internal(kernel, Some(render), Some(input_batch), program)?;
+
+    Ok(NairCallObservedInteractiveExecutionReport {
+        execution: NairInteractiveExecutionReport {
+            execution: outcome.execution,
+            render_bindings: outcome.render_bindings,
+            frames: outcome.frames,
+            created_input_bridges: outcome.created_input_bridges,
+            input_applications: outcome.input_applications,
+        },
+        final_registers: outcome.final_registers,
+        call_work: outcome.call_work,
+    })
+}
+
 fn reject_missing_contexts(
     program: &NairProgram,
     has_render: bool,
@@ -329,6 +373,50 @@ fn eval_branch_expr(
     }
 }
 
+fn eval_call_expr(expr: &CallExpr, args: &[Value], evaluated: &mut usize) -> NairResult<Value> {
+    *evaluated += 1;
+    match expr {
+        CallExpr::Value(value) => Ok(value.clone()),
+        CallExpr::Parameter(index) => args
+            .get(usize::from(*index))
+            .cloned()
+            .ok_or(NairError::CallParameterOutOfRange(*index)),
+        CallExpr::IntAddChecked { lhs, rhs } => {
+            let lhs = eval_call_expr(lhs, args, evaluated)?;
+            let rhs = eval_call_expr(rhs, args, evaluated)?;
+            let (Value::Int(lhs), Value::Int(rhs)) = (lhs, rhs) else {
+                return Err(NairError::CallExpressionOperandNotInt);
+            };
+            Ok(Value::Int(
+                lhs.checked_add(rhs)
+                    .ok_or(NairError::CallExpressionIntegerOverflow)?,
+            ))
+        }
+        CallExpr::IntEq { lhs, rhs }
+        | CallExpr::IntNe { lhs, rhs }
+        | CallExpr::IntLt { lhs, rhs }
+        | CallExpr::IntLe { lhs, rhs }
+        | CallExpr::IntGt { lhs, rhs }
+        | CallExpr::IntGe { lhs, rhs } => {
+            let lhs_value = eval_call_expr(lhs, args, evaluated)?;
+            let rhs_value = eval_call_expr(rhs, args, evaluated)?;
+            let (Value::Int(lhs), Value::Int(rhs)) = (lhs_value, rhs_value) else {
+                return Err(NairError::CallExpressionOperandNotInt);
+            };
+            let value = match expr {
+                CallExpr::IntEq { .. } => lhs == rhs,
+                CallExpr::IntNe { .. } => lhs != rhs,
+                CallExpr::IntLt { .. } => lhs < rhs,
+                CallExpr::IntLe { .. } => lhs <= rhs,
+                CallExpr::IntGt { .. } => lhs > rhs,
+                CallExpr::IntGe { .. } => lhs >= rhs,
+                _ => unreachable!("comparison call expression only"),
+            };
+            Ok(Value::Bool(value))
+        }
+    }
+}
+
 fn execute_internal(
     kernel: &mut AtomicKernel,
     mut render: Option<&mut AtomicRenderCore>,
@@ -350,6 +438,9 @@ fn execute_internal(
     let mut runtime_branches = 0usize;
     let mut selected_branch_instructions = 0usize;
     let discarded_branch_instructions = 0usize;
+    let mut runtime_calls = 0usize;
+    let mut call_body_instructions = 0usize;
+    let mut max_call_depth = 0usize;
 
     for instruction in program.instructions() {
         executed_instructions += 1;
@@ -411,6 +502,28 @@ fn execute_internal(
                 let mut evaluated = 0usize;
                 let value = eval_branch_expr(selected_expr, &registers, &mut evaluated)?;
                 selected_branch_instructions += evaluated;
+                registers.insert(*dst, value);
+            }
+            Instruction::CallEval {
+                dst,
+                function_id: _,
+                args,
+                body,
+            } => {
+                let mut call_args = Vec::with_capacity(args.len());
+                for arg in args {
+                    call_args.push(
+                        registers
+                            .get(arg)
+                            .cloned()
+                            .ok_or(NairError::UnknownRegister(*arg))?,
+                    );
+                }
+                let mut evaluated = 0usize;
+                let value = eval_call_expr(body, &call_args, &mut evaluated)?;
+                runtime_calls += 1;
+                call_body_instructions += evaluated;
+                max_call_depth = max_call_depth.max(1);
                 registers.insert(*dst, value);
             }
             Instruction::IntAddChecked { dst, lhs, rhs } => {
@@ -659,6 +772,11 @@ fn execute_internal(
         branch_work: NairBranchWorkReport {
             selected_branch_instructions,
             discarded_branch_instructions,
+        },
+        call_work: NairCallWorkReport {
+            runtime_calls,
+            call_body_instructions,
+            max_call_depth,
         },
     })
 }

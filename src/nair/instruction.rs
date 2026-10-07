@@ -62,6 +62,40 @@ pub enum BranchExpr {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub enum CallExpr {
+    Value(Value),
+    Parameter(u16),
+    IntAddChecked {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+    IntEq {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+    IntNe {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+    IntLt {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+    IntLe {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+    IntGt {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+    IntGe {
+        lhs: Box<CallExpr>,
+        rhs: Box<CallExpr>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub enum Instruction {
     Const {
         dst: RegisterId,
@@ -117,6 +151,12 @@ pub enum Instruction {
         condition: RegisterId,
         then_expr: BranchExpr,
         else_expr: BranchExpr,
+    },
+    CallEval {
+        dst: RegisterId,
+        function_id: u32,
+        args: Vec<RegisterId>,
+        body: CallExpr,
     },
     CreateDomain {
         dst: DomainSlot,

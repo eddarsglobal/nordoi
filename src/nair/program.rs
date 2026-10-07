@@ -15,21 +15,25 @@ use super::{
         AtomSlot, CompletionSlot, DomainSlot, InputBridgeSlot, ReactionSlot, RegisterId,
         RenderNodeSlot, TimerSlot, TransactionSlot,
     },
-    instruction::{BranchExpr, DomainRef, InputTargetRef, Instruction},
+    instruction::{BranchExpr, CallExpr, DomainRef, InputTargetRef, Instruction},
     reaction::{NairEffectSet, NairReactionStep, NairReactionTrigger, NairReactionValue},
 };
 
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 11;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 12;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
 pub const NAIR_INPUT_REGISTER_MINOR: u16 = 9;
 pub const NAIR_DYNAMIC_BRANCH_MINOR: u16 = 10;
 pub const NAIR_SELECTIVE_BRANCH_MINOR: u16 = 11;
+pub const NAIR_RUNTIME_CALL_MINOR: u16 = 12;
 pub const MAX_NAIR_BRANCH_EXPR_DEPTH: usize = 32;
 pub const MAX_NAIR_BRANCH_EXPR_NODES: usize = 256;
+pub const MAX_NAIR_CALL_EXPR_DEPTH: usize = 32;
+pub const MAX_NAIR_CALL_EXPR_NODES: usize = 256;
+pub const MAX_NAIR_CALL_ARGS: usize = 8;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -145,6 +149,87 @@ fn validate_branch_expr(
                         BranchExpr::IntGt { .. } => lhs > rhs,
                         BranchExpr::IntGe { .. } => lhs >= rhs,
                         _ => unreachable!("comparison branch expression only"),
+                    };
+                    Some(Value::Bool(result))
+                }
+                _ => None,
+            };
+            Ok((RegisterKind::Bool, value))
+        }
+    }
+}
+
+fn validate_call_expr(
+    expr: &CallExpr,
+    arg_kinds: &[RegisterKind],
+    arg_values: &[Option<Value>],
+    depth: usize,
+    nodes: &mut usize,
+) -> NairResult<(RegisterKind, Option<Value>)> {
+    if depth > MAX_NAIR_CALL_EXPR_DEPTH {
+        return Err(NairError::CallExpressionTooDeep);
+    }
+    *nodes += 1;
+    if *nodes > MAX_NAIR_CALL_EXPR_NODES {
+        return Err(NairError::CallExpressionTooLarge);
+    }
+
+    match expr {
+        CallExpr::Value(value) => {
+            let kind = register_kind(value);
+            if kind == RegisterKind::Other {
+                return Err(NairError::CallExpressionOperandNotInt);
+            }
+            Ok((kind, Some(value.clone())))
+        }
+        CallExpr::Parameter(index) => {
+            let index_usize = usize::from(*index);
+            let kind = *arg_kinds
+                .get(index_usize)
+                .ok_or(NairError::CallParameterOutOfRange(*index))?;
+            let value = arg_values.get(index_usize).cloned().flatten();
+            Ok((kind, value))
+        }
+        CallExpr::IntAddChecked { lhs, rhs } => {
+            let (lhs_kind, lhs_value) =
+                validate_call_expr(lhs, arg_kinds, arg_values, depth + 1, nodes)?;
+            let (rhs_kind, rhs_value) =
+                validate_call_expr(rhs, arg_kinds, arg_values, depth + 1, nodes)?;
+            if lhs_kind != RegisterKind::Int || rhs_kind != RegisterKind::Int {
+                return Err(NairError::CallExpressionOperandNotInt);
+            }
+            let value = match (lhs_value, rhs_value) {
+                (Some(Value::Int(lhs)), Some(Value::Int(rhs))) => Some(Value::Int(
+                    lhs.checked_add(rhs)
+                        .ok_or(NairError::CallExpressionIntegerOverflow)?,
+                )),
+                _ => None,
+            };
+            Ok((RegisterKind::Int, value))
+        }
+        CallExpr::IntEq { lhs, rhs }
+        | CallExpr::IntNe { lhs, rhs }
+        | CallExpr::IntLt { lhs, rhs }
+        | CallExpr::IntLe { lhs, rhs }
+        | CallExpr::IntGt { lhs, rhs }
+        | CallExpr::IntGe { lhs, rhs } => {
+            let (lhs_kind, lhs_value) =
+                validate_call_expr(lhs, arg_kinds, arg_values, depth + 1, nodes)?;
+            let (rhs_kind, rhs_value) =
+                validate_call_expr(rhs, arg_kinds, arg_values, depth + 1, nodes)?;
+            if lhs_kind != RegisterKind::Int || rhs_kind != RegisterKind::Int {
+                return Err(NairError::CallExpressionOperandNotInt);
+            }
+            let value = match (lhs_value, rhs_value) {
+                (Some(Value::Int(lhs)), Some(Value::Int(rhs))) => {
+                    let result = match expr {
+                        CallExpr::IntEq { .. } => lhs == rhs,
+                        CallExpr::IntNe { .. } => lhs != rhs,
+                        CallExpr::IntLt { .. } => lhs < rhs,
+                        CallExpr::IntLe { .. } => lhs <= rhs,
+                        CallExpr::IntGt { .. } => lhs > rhs,
+                        CallExpr::IntGe { .. } => lhs >= rhs,
+                        _ => unreachable!("comparison call expression only"),
                     };
                     Some(Value::Bool(result))
                 }
@@ -299,6 +384,39 @@ impl NairProgram {
                         if let Some(value) = selected {
                             register_values.insert(*dst, value);
                         }
+                    }
+                }
+                Instruction::CallEval {
+                    dst,
+                    function_id: _,
+                    args,
+                    body,
+                } => {
+                    if args.len() > MAX_NAIR_CALL_ARGS {
+                        return Err(NairError::CallArgumentCountExceeded(args.len()));
+                    }
+                    let mut arg_kinds = Vec::with_capacity(args.len());
+                    let mut arg_values = Vec::with_capacity(args.len());
+                    for arg in args {
+                        require_register(*arg, &registers)?;
+                        let kind = *register_kinds
+                            .get(arg)
+                            .ok_or(NairError::UnknownRegister(*arg))?;
+                        if kind == RegisterKind::Other {
+                            return Err(NairError::CallArgumentKindUnsupported(*arg));
+                        }
+                        arg_kinds.push(kind);
+                        arg_values.push(register_values.get(arg).cloned());
+                    }
+                    let mut nodes = 0usize;
+                    let (result_kind, result_value) =
+                        validate_call_expr(body, &arg_kinds, &arg_values, 0, &mut nodes)?;
+                    if !registers.insert(*dst) {
+                        return Err(NairError::DuplicateRegister(*dst));
+                    }
+                    register_kinds.insert(*dst, result_kind);
+                    if let Some(value) = result_value {
+                        register_values.insert(*dst, value);
                     }
                 }
                 Instruction::IntAddChecked { dst, lhs, rhs } => {
@@ -542,6 +660,12 @@ impl NairProgram {
 
     pub fn required_format_minor(&self) -> u16 {
         if self
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::CallEval { .. }))
+        {
+            NAIR_RUNTIME_CALL_MINOR
+        } else if self
             .instructions
             .iter()
             .any(|instruction| matches!(instruction, Instruction::BranchEval { .. }))
@@ -866,6 +990,55 @@ fn encode_branch_expr(out: &mut Vec<u8>, expr: &BranchExpr) -> NairResult<()> {
     Ok(())
 }
 
+fn encode_call_expr(out: &mut Vec<u8>, expr: &CallExpr) -> NairResult<()> {
+    match expr {
+        CallExpr::Value(value) => {
+            out.push(0x01);
+            encode_value(out, value)?;
+        }
+        CallExpr::Parameter(index) => {
+            out.push(0x02);
+            write_u16(out, *index);
+        }
+        CallExpr::IntAddChecked { lhs, rhs } => {
+            out.push(0x03);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IntEq { lhs, rhs } => {
+            out.push(0x04);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IntNe { lhs, rhs } => {
+            out.push(0x05);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IntLt { lhs, rhs } => {
+            out.push(0x06);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IntLe { lhs, rhs } => {
+            out.push(0x07);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IntGt { lhs, rhs } => {
+            out.push(0x08);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+        CallExpr::IntGe { lhs, rhs } => {
+            out.push(0x09);
+            encode_call_expr(out, lhs)?;
+            encode_call_expr(out, rhs)?;
+        }
+    }
+    Ok(())
+}
+
 fn encode_domain_ref(out: &mut Vec<u8>, domain: DomainRef) {
     match domain {
         DomainRef::Root => out.push(0x00),
@@ -1146,6 +1319,21 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             encode_branch_expr(out, then_expr)?;
             encode_branch_expr(out, else_expr)?;
         }
+        Instruction::CallEval {
+            dst,
+            function_id,
+            args,
+            body,
+        } => {
+            out.push(0x0b);
+            write_u32(out, dst.0);
+            write_u32(out, *function_id);
+            write_len(out, args.len())?;
+            for arg in args {
+                write_u32(out, arg.0);
+            }
+            encode_call_expr(out, body)?;
+        }
         Instruction::CreateDomain { dst, name } => {
             out.push(0x10);
             write_u32(out, dst.0);
@@ -1378,6 +1566,26 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
                 else_expr,
             })
         }
+        0x0b if minor >= NAIR_RUNTIME_CALL_MINOR => {
+            let dst = RegisterId(input.read_u32()?);
+            let function_id = input.read_u32()?;
+            let arg_count = input.read_u32()? as usize;
+            if arg_count > MAX_NAIR_CALL_ARGS {
+                return Err(NairError::CallArgumentCountExceeded(arg_count));
+            }
+            let mut args = Vec::with_capacity(arg_count);
+            for _ in 0..arg_count {
+                args.push(RegisterId(input.read_u32()?));
+            }
+            let mut nodes = 0usize;
+            let body = decode_call_expr(input, 0, &mut nodes)?;
+            Ok(Instruction::CallEval {
+                dst,
+                function_id,
+                args,
+                body,
+            })
+        }
         0x10 => Ok(Instruction::CreateDomain {
             dst: DomainSlot(input.read_u32()?),
             name: input.read_string()?,
@@ -1580,6 +1788,55 @@ fn decode_branch_expr(
             rhs: Box::new(decode_branch_expr(input, depth + 1, nodes)?),
         }),
         other => Err(NairError::InvalidBranchExpressionTag(other)),
+    }
+}
+
+fn decode_call_expr(
+    input: &mut Decoder<'_>,
+    depth: usize,
+    nodes: &mut usize,
+) -> NairResult<CallExpr> {
+    if depth > MAX_NAIR_CALL_EXPR_DEPTH {
+        return Err(NairError::CallExpressionTooDeep);
+    }
+    *nodes += 1;
+    if *nodes > MAX_NAIR_CALL_EXPR_NODES {
+        return Err(NairError::CallExpressionTooLarge);
+    }
+
+    let tag = input.read_u8()?;
+    match tag {
+        0x01 => Ok(CallExpr::Value(decode_value(input)?)),
+        0x02 => Ok(CallExpr::Parameter(input.read_u16()?)),
+        0x03 => Ok(CallExpr::IntAddChecked {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        0x04 => Ok(CallExpr::IntEq {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        0x05 => Ok(CallExpr::IntNe {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        0x06 => Ok(CallExpr::IntLt {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        0x07 => Ok(CallExpr::IntLe {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        0x08 => Ok(CallExpr::IntGt {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        0x09 => Ok(CallExpr::IntGe {
+            lhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+            rhs: Box::new(decode_call_expr(input, depth + 1, nodes)?),
+        }),
+        other => Err(NairError::InvalidCallExpressionTag(other)),
     }
 }
 

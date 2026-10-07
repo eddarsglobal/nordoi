@@ -1,33 +1,35 @@
-# NORDOI V0.9 — Dynamic Branch Bodies & Selective Runtime Evaluation
+# NORDOI V1.0 — Bounded Runtime Function Calls
 
-V0.9 is additive over certified V0.8. It allows a dynamic `if/else` to carry bounded pure computation inside its branches while proving that only the selected branch body performs runtime expression work.
+V1.0 is additive over certified V0.9. It introduces direct runtime function calls while keeping the Atomic Machine deliberately bounded and non-VM-like.
 
-Minimal V0.9 example:
+Minimal V1.0 example:
 
 ```noi
+fn add_bias(x) returns x + 100;
+
 input key_code;
 
-entry main returns if key_code > 40 {
-    key_code + 100
-} else {
-    key_code + 200
-};
+entry main returns add_bias(key_code);
 ```
 
 Run it with:
 
 ```bash
-cargo run --quiet --bin nordoi -- branch-body-run program.noi 41
+cargo run --quiet --bin nordoi -- call-run program.noi 41
 ```
 
-Expected semantic result: `INT(141)` with `runtime-calls=0`, `runtime-branches=1`, `selected-branch-instructions=3`, `discarded-branch-instructions=0`, `nair-minor=0.11`, `authority=NONE`, and `input-boundary=CANONICAL`.
+Expected semantic result: `INT(141)` with `runtime-calls=1`, `runtime-branches=0`, `call-body-instructions=3`, `max-call-depth=1`, `nair-minor=0.12`, `authority=NONE`, and `input-boundary=CANONICAL`.
 
-With key-code `39`, only the else expression is evaluated and the result is `INT(239)`.
+NAIR `0.12` adds structured `CALL_EVAL`. A call carries a canonical function identity, an explicitly bounded argument register list, and a bounded pure call-expression body. Parameters are positional and V1.0 parameters are INT-only.
 
-NAIR `0.11` adds structured `BRANCH_EVAL`. Its branch bodies are bounded pure expression trees over canonical values and already-defined registers. There is still no arbitrary jump target, instruction pointer API, runtime function stack, recursion, implicit host call, or hidden authority.
+V1.0 deliberately does **not** add a general call stack. Function bodies cannot call functions, so runtime call depth is certified at exactly `<= 1`. Recursion, indirect calls, function values, arbitrary jump targets, host callbacks, effects inside call bodies, and hidden authority remain forbidden.
 
-V0.8 `BRANCH_VALUE` remains unchanged. If a dynamic condition chooses only between two compile-time values, V0.9 preserves the smaller NAIR `0.10` representation instead of forcing `0.11`.
+Static calls are folded before runtime and remain base NAIR `0.6 CONST + HALT`. Earlier NAIR `0.7` through `0.11` programs preserve their existing encodings and semantics.
 
-Static conditions continue to erase before runtime. Fully static programs still collapse to base NAIR `0.6` `CONST + HALT`.
+The public tooling version string remains intentionally frozen:
 
-See `docs/NOI_DYNAMIC_BRANCH_BODY_VERTICAL_SLICE_SPEC_0_9.md`, `docs/NAIR_SPEC_0_11.md`, and `docs/PRODUCTION_PROFILE_1_PROGRESS.md`.
+```text
+nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
+```
+
+See `docs/NOI_BOUNDED_RUNTIME_FUNCTION_CALLS_SPEC_1_0.md`, `docs/NAIR_SPEC_0_12.md`, and `docs/PRODUCTION_PROFILE_1_PROGRESS.md`.
