@@ -2,27 +2,27 @@
 
 This is an engineering progress ledger, not constitutional law. `CONSTITUTION.md` remains the supreme authority.
 
-## Certified baseline entering V0.7
+## Certified baseline entering V0.8
 
-V0.6 is certified at commit `00d09c0f352829c803abdd6cb91343c3b3d9836a`, with local Release Gate PASS and exact-SHA five-platform/job CI PASS.
+V0.7 is certified at commit `23f8ed60ce062d1d624842d8dc6c49c5ad02c523`, tag `v0.7`, with local Release Gate PASS, 20/20 dedicated V0.7 tests PASS, runtime proof `INT(42)`, and exact-SHA five-job CI PASS (run `37573867582`).
 
-Estimated Production Profile 1 completion entering V0.7 = **52%**, remaining = **48%**.
+Estimated Production Profile 1 completion entering V0.8 = **58%**, remaining = **42%**.
 
-## V0.7 candidate closure targets
+## V0.8 candidate closure targets
 
-V0.7 closes the first runtime-data gap:
+V0.8 closes the first runtime control-flow gap:
 
-- explicit canonical source-level input binding;
-- dynamic integer SSA register sourced from `InputBatch`;
-- NAIR `0.9` input-register instruction;
-- runtime checked integer addition over dynamic data;
-- runtime integer comparison over dynamic data;
-- deterministic source + canonical-input replay identity;
-- proof that unused/static data still collapses to NAIR `0.6` `CONST + HALT`;
-- no runtime call stack;
-- no runtime branch machinery;
-- no implicit host/device authority.
+- source-level structured `if/else` whose condition may depend on canonical runtime input;
+- compile-time erasure of statically decidable branches;
+- NAIR `0.10` structured `BRANCH_VALUE` instruction;
+- typed same-kind `INT`/`BOOL` branch values;
+- explicit runtime branch-count observation;
+- deterministic replay/witness/receipt binding of the selected result;
+- no arbitrary jumps or instruction-pointer API;
+- no runtime function call stack;
+- no recursion;
+- no hidden authority.
 
-If and only if V0.7 passes the complete local Release Gate, focused smoke tests, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **58% complete / 42% remaining**.
+If and only if V0.8 passes the complete local Release Gate, focused true/false branch proofs, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **64% complete / 36% remaining**.
 
 The percentage is a readiness estimate, not a claim that source lines or milestone count correspond linearly to production readiness.

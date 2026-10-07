@@ -41,9 +41,9 @@ fn dynamic_add_program() -> NairProgram {
 }
 
 #[test]
-fn nair_09_is_the_latest_supported_minor() {
+fn nair_09_input_register_minor_remains_supported() {
     assert_eq!(NAIR_INPUT_REGISTER_MINOR, 9);
-    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 9);
+    assert_eq!(NAIR_LATEST_FORMAT_MINOR, 10);
 }
 
 #[test]

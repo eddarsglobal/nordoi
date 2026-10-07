@@ -22,10 +22,11 @@ use super::{
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 9;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 10;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
 pub const NAIR_INPUT_REGISTER_MINOR: u16 = 9;
+pub const NAIR_DYNAMIC_BRANCH_MINOR: u16 = 10;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -109,6 +110,39 @@ impl NairProgram {
                         return Err(NairError::DuplicateRegister(*dst));
                     }
                     register_kinds.insert(*dst, RegisterKind::Int);
+                }
+                Instruction::BranchValue {
+                    dst,
+                    condition,
+                    then_value,
+                    else_value,
+                } => {
+                    require_register(*condition, &registers)?;
+                    if register_kinds.get(condition) != Some(&RegisterKind::Bool) {
+                        return Err(NairError::BranchConditionNotBool(*condition));
+                    }
+                    let then_kind = register_kind(then_value);
+                    let else_kind = register_kind(else_value);
+                    if then_kind == RegisterKind::Other || else_kind == RegisterKind::Other {
+                        return Err(NairError::BranchArmKindUnsupported);
+                    }
+                    if then_kind != else_kind {
+                        return Err(NairError::BranchArmKindMismatch);
+                    }
+                    if !registers.insert(*dst) {
+                        return Err(NairError::DuplicateRegister(*dst));
+                    }
+                    register_kinds.insert(*dst, then_kind);
+                    if let Some(Value::Bool(condition_value)) = register_values.get(condition) {
+                        register_values.insert(
+                            *dst,
+                            if *condition_value {
+                                then_value.clone()
+                            } else {
+                                else_value.clone()
+                            },
+                        );
+                    }
                 }
                 Instruction::IntAddChecked { dst, lhs, rhs } => {
                     require_register(*lhs, &registers)?;
@@ -351,6 +385,12 @@ impl NairProgram {
 
     pub fn required_format_minor(&self) -> u16 {
         if self
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::BranchValue { .. }))
+        {
+            NAIR_DYNAMIC_BRANCH_MINOR
+        } else if self
             .instructions
             .iter()
             .any(|instruction| matches!(instruction, Instruction::ReadInputKeyCode { .. }))
@@ -870,6 +910,18 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             write_u32(out, dst.0);
             write_u32(out, *event_index);
         }
+        Instruction::BranchValue {
+            dst,
+            condition,
+            then_value,
+            else_value,
+        } => {
+            out.push(0x09);
+            write_u32(out, dst.0);
+            write_u32(out, condition.0);
+            encode_value(out, then_value)?;
+            encode_value(out, else_value)?;
+        }
         Instruction::CreateDomain { dst, name } => {
             out.push(0x10);
             write_u32(out, dst.0);
@@ -1081,6 +1133,12 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
             dst: RegisterId(input.read_u32()?),
             lhs: RegisterId(input.read_u32()?),
             rhs: RegisterId(input.read_u32()?),
+        }),
+        0x09 if minor >= NAIR_DYNAMIC_BRANCH_MINOR => Ok(Instruction::BranchValue {
+            dst: RegisterId(input.read_u32()?),
+            condition: RegisterId(input.read_u32()?),
+            then_value: decode_value(input)?,
+            else_value: decode_value(input)?,
         }),
         0x10 => Ok(Instruction::CreateDomain {
             dst: DomainSlot(input.read_u32()?),

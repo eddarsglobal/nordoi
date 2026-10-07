@@ -1,53 +1,42 @@
-# NORDOI V0.7 — Dynamic Input & Runtime Computation Vertical Slice
+# NORDOI V0.8 — Dynamic Control Flow Vertical Slice
 
-V0.7 is additive over certified V0.6. It introduces the first value intentionally unknown at compile time: an explicit canonical input binding consumed through `InputBatch` and lowered to a NAIR 0.9 input-register instruction. Static V0.6 computation remains frozen and fully foldable.
+V0.8 is additive over certified V0.7. It introduces the first governed runtime control-flow decision while preserving NORDOI's rule that static work disappears before runtime.
 
-Minimal V0.7 example:
+Minimal V0.8 example:
 
 ```noi
 input key_code;
-const bias = 2;
-entry main returns key_code + bias;
+
+entry main returns if key_code > 40 {
+    100
+} else {
+    200
+};
 ```
 
 Run it with:
 
 ```bash
-cargo run --quiet --bin nordoi -- dynamic-run program.noi 40
+cargo run --quiet --bin nordoi -- branch-run program.noi 41
 ```
 
-Expected semantic result: `INT(42)` with `runtime-calls=0`, `runtime-branches=0`, and `nair-minor=0.9`.
+Expected semantic result: `INT(100)` with `runtime-calls=0`, `runtime-branches=1`, `nair-minor=0.10`, `authority=NONE`, and `input-boundary=CANONICAL`.
 
+The V0.8 branch primitive is deliberately structured rather than a general jump machine. A dynamic condition may choose between two statically reducible branch values. This creates real runtime path selection without introducing arbitrary instruction pointers, a runtime call stack, recursion, or a conventional VM.
 
-> Production-batch candidate. `CONSTITUTION.md` remains the supreme project authority.
-
-V0.6 accelerates NORDOI by certifying a practical closed pure-computation core in one vertical batch instead of releasing one operator or compiler layer at a time.
-
-New command:
-
-```text
-nordoi core-run <path|->
-```
-
-Example:
+Static conditions continue to erase before NAIR. For example:
 
 ```noi
-const base = 20;
-
-fn scale(x, factor) {
-    const product = x * factor;
-    if product >= 40 {
-        product + 2
-    } else {
-        0
-    }
-}
-
-entry main returns scale(base, 2);
+entry main returns if 2 > 1 { 42 } else { 7 };
 ```
 
-V0.6 supports checked `+ - * /`, comparisons, `&& || !`, immutable globals/locals, pure functions, parameters, nested calls and nested static `if/else` expressions.
+still lowers to base NAIR `0.6`:
 
-Because the V0.6 surface is closed and pure, the complete computation is proven before runtime and optimized to `CONST result; HALT`. Function calls and branches remain present in the canonical semantic witness but cost zero runtime frames and zero runtime branches.
+```text
+CONST r0 INT(42)
+HALT
+```
 
-See `docs/NOI_CORE_COMPUTATION_FUNCTIONS_VERTICAL_SLICE_SPEC_0_6.md` and `docs/PRODUCTION_PROFILE_1_PROGRESS.md`.
+Certified V0.7 `dynamic-run` remains unchanged and continues to use NAIR `0.9` for dynamic input, arithmetic, and comparison without runtime branching.
+
+See `docs/NOI_DYNAMIC_CONTROL_FLOW_VERTICAL_SLICE_SPEC_0_8.md`, `docs/NAIR_SPEC_0_10.md`, and `docs/PRODUCTION_PROFILE_1_PROGRESS.md`.

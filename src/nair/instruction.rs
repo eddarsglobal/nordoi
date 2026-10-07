@@ -72,6 +72,12 @@ pub enum Instruction {
         dst: RegisterId,
         event_index: u32,
     },
+    BranchValue {
+        dst: RegisterId,
+        condition: RegisterId,
+        then_value: Value,
+        else_value: Value,
+    },
     CreateDomain {
         dst: DomainSlot,
         name: String,

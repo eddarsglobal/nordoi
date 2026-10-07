@@ -27,6 +27,7 @@ pub struct NairExecutionReport {
     pub committed_transactions: usize,
     pub rolled_back_transactions: usize,
     pub scheduled_work: usize,
+    pub runtime_branches: usize,
     pub domain_bindings: BTreeMap<DomainSlot, DomainId>,
     pub atom_bindings: BTreeMap<AtomSlot, AtomId>,
     pub transaction_reports: Vec<TransactionReport>,
@@ -255,6 +256,7 @@ fn execute_internal(
     let mut committed_transactions = 0usize;
     let mut rolled_back_transactions = 0usize;
     let mut executed_instructions = 0usize;
+    let mut runtime_branches = 0usize;
 
     for instruction in program.instructions() {
         executed_instructions += 1;
@@ -274,6 +276,29 @@ fn execute_internal(
                     _ => return Err(NairError::InputEventNotKeyboardKey(*event_index)),
                 };
                 registers.insert(*dst, Value::Int(i64::from(code)));
+            }
+            Instruction::BranchValue {
+                dst,
+                condition,
+                then_value,
+                else_value,
+            } => {
+                let condition_value = registers
+                    .get(condition)
+                    .ok_or(NairError::UnknownRegister(*condition))?;
+                let condition_bool = match condition_value {
+                    Value::Bool(value) => *value,
+                    _ => return Err(NairError::BranchConditionNotBool(*condition)),
+                };
+                runtime_branches += 1;
+                registers.insert(
+                    *dst,
+                    if condition_bool {
+                        then_value.clone()
+                    } else {
+                        else_value.clone()
+                    },
+                );
             }
             Instruction::IntAddChecked { dst, lhs, rhs } => {
                 let lhs_value = registers.get(lhs).ok_or(NairError::UnknownRegister(*lhs))?;
@@ -508,6 +533,7 @@ fn execute_internal(
             committed_transactions,
             rolled_back_transactions,
             scheduled_work: kernel.pending_work(),
+            runtime_branches,
             domain_bindings: domains,
             atom_bindings: atoms,
             transaction_reports,
