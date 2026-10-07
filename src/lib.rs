@@ -6,6 +6,7 @@ pub mod compiler;
 pub mod conditional_core_v05;
 pub mod core_functions_v06;
 pub mod dependency;
+mod dynamic_input_v07;
 pub mod effect;
 pub mod effect_attestation;
 pub mod effect_audit;
@@ -96,6 +97,12 @@ pub use core_functions_v06::{
     MAX_V06_BINDINGS, MAX_V06_CALL_DEPTH, MAX_V06_EXPR_NODES, MAX_V06_FUNCTIONS,
     MAX_V06_NAME_BYTES, MAX_V06_PARAMS,
 };
+pub use dynamic_input_v07::{
+    compile_dynamic_plan_v07, execute_dynamic_source_v07, lower_dynamic_plan_v07,
+    DynamicInputError, DynamicInputResult, DynamicValue, DynamicValueKind,
+    V07DynamicExecutionReport, V07DynamicNairArtifact, V07DynamicPlan, MAX_V07_CONSTANTS,
+    MAX_V07_EXPR_NODES, MAX_V07_NAME_BYTES,
+};
 pub use effect::{Effect, EffectSet};
 pub use effect_attestation::{
     EffectAttestationAlgorithmId, EffectAttestationBackendError, EffectAttestationCommitReceipt,
@@ -179,8 +186,9 @@ pub use nair::{
     NairObservedInteractiveExecutionReport, NairProgram, NairReactionAuthority,
     NairReactionCycleReport, NairReactionStep, NairReactionTrigger, NairReactionValue,
     NairRenderExecutionReport, NairResult, ReactionSlot, RegisterId, RenderNodeSlot, TimerSlot,
-    TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_INTEGER_ARITHMETIC_MINOR,
-    NAIR_INTEGER_COMPARISON_MINOR, NAIR_LATEST_FORMAT_MINOR, NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
+    TransactionSlot, NAIR_FORMAT_MAJOR, NAIR_FORMAT_MINOR, NAIR_INPUT_REGISTER_MINOR,
+    NAIR_INTEGER_ARITHMETIC_MINOR, NAIR_INTEGER_COMPARISON_MINOR, NAIR_LATEST_FORMAT_MINOR,
+    NAIR_MAGIC, NAIR_MIN_SUPPORTED_MINOR,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use program_upgrade::{

@@ -1,4 +1,23 @@
-# NORDOI V0.6 — Core Computation & Functions Vertical Slice
+# NORDOI V0.7 — Dynamic Input & Runtime Computation Vertical Slice
+
+V0.7 is additive over certified V0.6. It introduces the first value intentionally unknown at compile time: an explicit canonical input binding consumed through `InputBatch` and lowered to a NAIR 0.9 input-register instruction. Static V0.6 computation remains frozen and fully foldable.
+
+Minimal V0.7 example:
+
+```noi
+input key_code;
+const bias = 2;
+entry main returns key_code + bias;
+```
+
+Run it with:
+
+```bash
+cargo run --quiet --bin nordoi -- dynamic-run program.noi 40
+```
+
+Expected semantic result: `INT(42)` with `runtime-calls=0`, `runtime-branches=0`, and `nair-minor=0.9`.
+
 
 > Production-batch candidate. `CONSTITUTION.md` remains the supreme project authority.
 

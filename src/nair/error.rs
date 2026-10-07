@@ -68,6 +68,8 @@ pub enum NairError {
         rhs: RegisterId,
     },
     IntegerCompareOperandNotInt(RegisterId),
+    InputEventMissing(u32),
+    InputEventNotKeyboardKey(u32),
     InvalidMagic,
     UnsupportedFormat {
         major: u16,
@@ -147,6 +149,8 @@ impl Display for NairError {
             Self::IntegerAddOperandNotInt(id) => write!(f, "NAIR checked integer add requires integer register {id:?}"),
             Self::IntegerAddOverflow { lhs, rhs } => write!(f, "NAIR checked integer add overflowed for registers {lhs:?} and {rhs:?}"),
             Self::IntegerCompareOperandNotInt(id) => write!(f, "NAIR integer comparison requires integer register {id:?}"),
+            Self::InputEventMissing(index) => write!(f, "NAIR input event index {index} is not present in the canonical input batch"),
+            Self::InputEventNotKeyboardKey(index) => write!(f, "NAIR input event index {index} is not a keyboard key event"),
             Self::InvalidMagic => write!(f, "invalid NAIR magic header"),
             Self::UnsupportedFormat { major, minor } => write!(f, "unsupported NAIR format {major}.{minor}"),
             Self::UnexpectedEof => write!(f, "unexpected end of NAIR binary"),

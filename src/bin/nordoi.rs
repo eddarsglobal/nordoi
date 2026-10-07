@@ -6,18 +6,19 @@ use nordoi_kernel::{
     compile_pure_expression_boundary, compile_pure_expression_execution_plan_boundary,
     compile_pure_expression_nair_boundary, compile_pure_result_boundary,
     compile_pure_result_execution_plan_boundary, compile_pure_result_nair_boundary,
-    compile_resolved_semantic_boundary, execute_core_source_v06, execute_pure_binding_source_v04,
-    execute_pure_condition_source_v05, execute_pure_expression_source_v03,
-    execute_pure_result_source_v02, execute_source_v01, execute_static_if_source_v05, lex, parse,
-    AstElement, CompilerError, ConditionalCoreError, CoreFunctionsError, CoreValue, Delimiter,
-    Instruction, LexError, ModuleError, NsirBodyState, NsirMinimalBody, NsirPureBindingForm,
-    NsirPureConditionForm, NsirPureExpressionForm, NsirPureResultForm, ParseError,
-    PureBindingExecutionError, PureBindingPlanForm, PureConditionCompilerError,
-    PureConditionPlanError, PureConditionPlanForm, PureExpressionExecutionError,
-    PureExpressionPlanForm, PureResultExecutionError, PureResultPlanForm, SemanticPlanForm,
-    SemanticPureBindingExpressionOp, SemanticPureCondition, SemanticPureExpressionOp,
-    SourceExecutionError, SourceId, SourceSpan, SourceText, StaticIfCondition, StaticIfOperand,
-    Token, TokenKind, Value,
+    compile_resolved_semantic_boundary, execute_core_source_v06, execute_dynamic_source_v07,
+    execute_pure_binding_source_v04, execute_pure_condition_source_v05,
+    execute_pure_expression_source_v03, execute_pure_result_source_v02, execute_source_v01,
+    execute_static_if_source_v05, lex, parse, AstElement, CompilerError, ConditionalCoreError,
+    CoreFunctionsError, CoreValue, Delimiter, DynamicInputError, InputBatch, InputDeviceId,
+    InputEvent, InputPayload, InputSequence, InputSource, InputTarget, Instruction, LexError,
+    ModuleError, NsirBodyState, NsirMinimalBody, NsirPureBindingForm, NsirPureConditionForm,
+    NsirPureExpressionForm, NsirPureResultForm, ParseError, PureBindingExecutionError,
+    PureBindingPlanForm, PureConditionCompilerError, PureConditionPlanError, PureConditionPlanForm,
+    PureExpressionExecutionError, PureExpressionPlanForm, PureResultExecutionError,
+    PureResultPlanForm, SemanticPlanForm, SemanticPureBindingExpressionOp, SemanticPureCondition,
+    SemanticPureExpressionOp, SourceExecutionError, SourceId, SourceSpan, SourceText,
+    StaticIfCondition, StaticIfOperand, Token, TokenKind, Value,
 };
 use std::env;
 use std::ffi::OsStr;
@@ -50,6 +51,7 @@ Usage:\n\
   nordoi condition-run <path|->\n\
   nordoi if-run <path|->\n\
   nordoi core-run <path|->\n\
+  nordoi dynamic-run <path|-> <key-code>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
   nordoi bindings-lower <path|->\n\
@@ -79,6 +81,7 @@ Commands:\n\
   condition-run  V0.5 execute pure booleans/comparisons through NAIR 0.6/0.8.\n\
   if-run         V0.5 compile-time-select and execute pure if/else with zero runtime branch cost.\n\
   core-run       V0.6 execute pure functions, parameters, immutable locals and core operators after proof-driven folding.\n\
+  dynamic-run    V0.7 execute canonical keyboard input through NAIR runtime integer computation.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
   bindings-lower Lower C0.9 pure bindings to existing NAIR with zero runtime binding storage.\n\
@@ -114,7 +117,8 @@ L0.9 condition adds pure boolean literals and integer comparisons without planni
 C0.11 condition-plan preserves exact L0.9 condition identity and truth with zero work/storage, without branches, NAIR lowering, or runtime execution.\n\
 V0.5 condition-run lowers pure boolean/comparison plans to NAIR and executes them through the closed runtime.\n\
 V0.5 if-run validates both pure integer branches, proves the static condition, erases the dead branch before NAIR, and executes only the selected branch.\n\
-V0.6 core-run adds checked + - * /, == != < <= > >=, && || !, immutable locals, pure functions/parameters/calls and nested static if expressions; closed pure programs inline/fold to minimal CONST+HALT NAIR without runtime call frames.\n";
+V0.6 core-run adds checked + - * /, == != < <= > >=, && || !, immutable locals, pure functions/parameters/calls and nested static if expressions; closed pure programs inline/fold to minimal CONST+HALT NAIR without runtime call frames.\n\
+V0.7 dynamic-run adds one explicit canonical integer input (`input name;`) sourced from keyboard key-code event 0; dynamic checked addition/comparison survives into NAIR 0.9 while static expressions still collapse to CONST+HALT.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -148,12 +152,30 @@ fn run() -> u8 {
         };
     }
 
-    if arguments.len() != 2 {
-        report_usage_error("expected a command and exactly one source path");
-        return EXIT_USAGE;
-    }
+    let command = arguments
+        .first()
+        .map(|value| value.to_string_lossy())
+        .unwrap_or_default();
+    let dynamic_key_code = if command == "dynamic-run" {
+        if arguments.len() != 3 {
+            report_usage_error("dynamic-run expects a source path and one canonical key-code");
+            return EXIT_USAGE;
+        }
+        match arguments[2].to_string_lossy().parse::<u32>() {
+            Ok(value) => Some(value),
+            Err(_) => {
+                report_usage_error("dynamic-run key-code must be an unsigned 32-bit integer");
+                return EXIT_USAGE;
+            }
+        }
+    } else {
+        if arguments.len() != 2 {
+            report_usage_error("expected a command and exactly one source path");
+            return EXIT_USAGE;
+        }
+        None
+    };
 
-    let command = arguments[0].to_string_lossy();
     if !matches!(
         command.as_ref(),
         "lex"
@@ -168,6 +190,7 @@ fn run() -> u8 {
             | "condition-run"
             | "if-run"
             | "core-run"
+            | "dynamic-run"
             | "bindings"
             | "bindings-plan"
             | "bindings-lower"
@@ -219,6 +242,11 @@ fn run() -> u8 {
         "condition-run" => run_condition_source_v05(&source, &mut output),
         "if-run" => run_static_if_source_v05(&source, &mut output),
         "core-run" => run_core_source_v06(&source, &mut output),
+        "dynamic-run" => run_dynamic_source_v07_cli(
+            &source,
+            dynamic_key_code.expect("dynamic-run key code validated"),
+            &mut output,
+        ),
         "bindings" => run_bindings(&source, &mut output),
         "bindings-plan" => run_bindings_plan(&source, &mut output),
         "bindings-lower" => run_bindings_lower(&source, &mut output),
@@ -289,6 +317,15 @@ fn run() -> u8 {
             }
         }
         CommandResult::CoreFunctionsFailure(command, error) => {
+            if error.is_frontend_failure() {
+                report_frontend_error(command, &source, error.primary_span(), &error);
+                EXIT_FRONTEND
+            } else {
+                report_plain_error(command, source.name(), &error);
+                EXIT_RUNTIME
+            }
+        }
+        CommandResult::DynamicInputFailure(command, error) => {
             if error.is_frontend_failure() {
                 report_frontend_error(command, &source, error.primary_span(), &error);
                 EXIT_FRONTEND
@@ -396,6 +433,7 @@ enum CommandResult {
     PureConditionPlanFailure(PureConditionPlanError),
     ConditionalCoreFailure(&'static str, ConditionalCoreError),
     CoreFunctionsFailure(&'static str, CoreFunctionsError),
+    DynamicInputFailure(&'static str, DynamicInputError),
     PureBindingCompilerFailure(CompilerError),
     PureBindingPlanCompilerFailure(CompilerError),
     PureBindingLowerCompilerFailure(CompilerError),
@@ -1012,6 +1050,124 @@ fn run_core_source_v06(source: &SourceText, output: &mut impl Write) -> CommandR
     }
 
     CommandResult::Success
+}
+
+fn run_dynamic_source_v07_cli(
+    source: &SourceText,
+    key_code: u32,
+    output: &mut impl Write,
+) -> CommandResult {
+    let input = InputBatch {
+        events: vec![InputEvent {
+            sequence: InputSequence(1),
+            source: InputSource::Keyboard,
+            device: InputDeviceId(1),
+            target: InputTarget::Global,
+            payload: InputPayload::Key {
+                code: key_code,
+                pressed: true,
+                repeat: false,
+            },
+        }],
+    };
+    let report = match execute_dynamic_source_v07(source, &input) {
+        Ok(report) => report,
+        Err(error) => return CommandResult::DynamicInputFailure("dynamic-run", error),
+    };
+
+    let plan = report.plan();
+    let lowering = report.lowering();
+    let module = match plan.module() {
+        Some(name) => format!("\"{}\"", escape_fragment(name)),
+        None => "<anonymous>".to_owned(),
+    };
+    let input_name = plan
+        .input_name()
+        .map(|name| format!("\"{}\"", escape_fragment(name)))
+        .unwrap_or_else(|| "<none>".to_owned());
+    let result_text = report.result().as_text();
+    let witness = hex_bytes(lowering.canonical_v07_witness_bytes());
+    let receipt = hex_bytes(report.canonical_v07_receipt_bytes());
+
+    if let Err(error) = writeln!(
+        output,
+        "dynamic-run module={module} entry=\"{}\" input={input_name} input-events={} key-code={} constants={} dynamic={} result={result_text} runtime-computed={} runtime-calls=0 runtime-branches=0 nair-instructions={} nair-minor=0.{} authority=NONE input-boundary=CANONICAL witness={witness} receipt={receipt}",
+        escape_fragment(plan.entry_name()),
+        input.len(),
+        key_code,
+        plan.constant_count(),
+        plan.is_dynamic(),
+        report.runtime_computed(),
+        lowering.nair_instruction_count(),
+        lowering.nair_format_minor(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    let runtime = report.runtime();
+    let execution = &runtime.runtime().execution.execution;
+    if let Err(error) = writeln!(
+        output,
+        "nair instructions={} runtime replay={} executed={} registers={} domains={} atoms={} transactions={} frames={} bridges={} scheduled={} quiescent={} result={result_text}",
+        format_v07_nair_instructions(lowering.program().instructions()),
+        runtime.runtime().replay_key,
+        execution.executed_instructions,
+        runtime.final_registers().len(),
+        execution.created_domains,
+        execution.created_atoms,
+        execution.committed_transactions + execution.rolled_back_transactions,
+        runtime.runtime().execution.frames.len(),
+        runtime.runtime().execution.created_input_bridges,
+        execution.scheduled_work,
+        runtime.is_quiescent(),
+    ) {
+        return CommandResult::OutputFailure(error);
+    }
+
+    CommandResult::Success
+}
+
+fn format_v07_nair_instructions(instructions: &[Instruction]) -> String {
+    let parts = instructions
+        .iter()
+        .map(|instruction| match instruction {
+            Instruction::ReadInputKeyCode { dst, event_index } => {
+                format!("READ_INPUT_KEY_CODE r{} event={event_index}", dst.0)
+            }
+            Instruction::Const {
+                dst,
+                value: Value::Int(value),
+            } => format!("CONST r{} INT({value})", dst.0),
+            Instruction::Const {
+                dst,
+                value: Value::Bool(value),
+            } => format!("CONST r{} BOOL({value})", dst.0),
+            Instruction::IntAddChecked { dst, lhs, rhs } => {
+                format!("ADD_INT_CHECKED r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntEq { dst, lhs, rhs } => {
+                format!("INT_EQ r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntNe { dst, lhs, rhs } => {
+                format!("INT_NE r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntLt { dst, lhs, rhs } => {
+                format!("INT_LT r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntLe { dst, lhs, rhs } => {
+                format!("INT_LE r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntGt { dst, lhs, rhs } => {
+                format!("INT_GT r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::IntGe { dst, lhs, rhs } => {
+                format!("INT_GE r{} r{} r{}", dst.0, lhs.0, rhs.0)
+            }
+            Instruction::Halt => "HALT".to_owned(),
+            other => format!("{other:?}"),
+        })
+        .collect::<Vec<_>>();
+    format!("[{}]", parts.join(","))
 }
 
 fn format_static_if_condition(condition: &StaticIfCondition) -> String {

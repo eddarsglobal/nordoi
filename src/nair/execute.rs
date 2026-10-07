@@ -2,7 +2,9 @@ use std::collections::BTreeMap;
 
 use crate::{
     atom::AtomId,
-    input::{InputAtomBridge, InputBatch, InputBridgeReport, InputSelector, InputTarget},
+    input::{
+        InputAtomBridge, InputBatch, InputBridgeReport, InputPayload, InputSelector, InputTarget,
+    },
     kernel::AtomicKernel,
     ownership::DomainId,
     render::{AtomicRenderCore, NairRenderFrame, RenderNodeId},
@@ -260,6 +262,18 @@ fn execute_internal(
         match instruction {
             Instruction::Const { dst, value } => {
                 registers.insert(*dst, value.clone());
+            }
+            Instruction::ReadInputKeyCode { dst, event_index } => {
+                let batch = input_batch.ok_or(NairError::InputContextRequired)?;
+                let event = batch
+                    .events
+                    .get(*event_index as usize)
+                    .ok_or(NairError::InputEventMissing(*event_index))?;
+                let code = match &event.payload {
+                    InputPayload::Key { code, .. } => *code,
+                    _ => return Err(NairError::InputEventNotKeyboardKey(*event_index)),
+                };
+                registers.insert(*dst, Value::Int(i64::from(code)));
             }
             Instruction::IntAddChecked { dst, lhs, rhs } => {
                 let lhs_value = registers.get(lhs).ok_or(NairError::UnknownRegister(*lhs))?;

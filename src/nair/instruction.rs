@@ -68,6 +68,10 @@ pub enum Instruction {
         lhs: RegisterId,
         rhs: RegisterId,
     },
+    ReadInputKeyCode {
+        dst: RegisterId,
+        event_index: u32,
+    },
     CreateDomain {
         dst: DomainSlot,
         name: String,
@@ -187,7 +191,10 @@ impl Instruction {
     pub const fn requires_input_context(&self) -> bool {
         matches!(
             self,
-            Self::CreateInputBridge { .. } | Self::BindInputAtom { .. } | Self::ApplyInput { .. }
+            Self::ReadInputKeyCode { .. }
+                | Self::CreateInputBridge { .. }
+                | Self::BindInputAtom { .. }
+                | Self::ApplyInput { .. }
         )
     }
 

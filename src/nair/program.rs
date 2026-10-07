@@ -22,10 +22,26 @@ use super::{
 pub const NAIR_MAGIC: [u8; 4] = *b"NAIR";
 pub const NAIR_FORMAT_MAJOR: u16 = 0;
 pub const NAIR_FORMAT_MINOR: u16 = 6;
-pub const NAIR_LATEST_FORMAT_MINOR: u16 = 8;
+pub const NAIR_LATEST_FORMAT_MINOR: u16 = 9;
 pub const NAIR_INTEGER_ARITHMETIC_MINOR: u16 = 7;
 pub const NAIR_INTEGER_COMPARISON_MINOR: u16 = 8;
+pub const NAIR_INPUT_REGISTER_MINOR: u16 = 9;
 pub const NAIR_MIN_SUPPORTED_MINOR: u16 = 1;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RegisterKind {
+    Int,
+    Bool,
+    Other,
+}
+
+fn register_kind(value: &Value) -> RegisterKind {
+    match value {
+        Value::Int(_) => RegisterKind::Int,
+        Value::Bool(_) => RegisterKind::Bool,
+        Value::Null | Value::Float(_) | Value::Text(_) => RegisterKind::Other,
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct NairProgram {
@@ -60,6 +76,7 @@ impl NairProgram {
     pub fn validate(&self) -> NairResult<()> {
         let mut registers = BTreeSet::new();
         let mut register_values = std::collections::BTreeMap::new();
+        let mut register_kinds = std::collections::BTreeMap::new();
         let mut domains = BTreeSet::new();
         let mut atoms = BTreeSet::new();
         let mut transaction_slots = BTreeSet::new();
@@ -84,36 +101,40 @@ impl NairProgram {
                     if matches!(value, Value::Float(value) if !value.is_finite()) {
                         return Err(NairError::NonFiniteFloat(*dst));
                     }
+                    register_kinds.insert(*dst, register_kind(value));
                     register_values.insert(*dst, value.clone());
+                }
+                Instruction::ReadInputKeyCode { dst, .. } => {
+                    if !registers.insert(*dst) {
+                        return Err(NairError::DuplicateRegister(*dst));
+                    }
+                    register_kinds.insert(*dst, RegisterKind::Int);
                 }
                 Instruction::IntAddChecked { dst, lhs, rhs } => {
                     require_register(*lhs, &registers)?;
                     require_register(*rhs, &registers)?;
+                    if register_kinds.get(lhs) != Some(&RegisterKind::Int) {
+                        return Err(NairError::IntegerAddOperandNotInt(*lhs));
+                    }
+                    if register_kinds.get(rhs) != Some(&RegisterKind::Int) {
+                        return Err(NairError::IntegerAddOperandNotInt(*rhs));
+                    }
                     if !registers.insert(*dst) {
                         return Err(NairError::DuplicateRegister(*dst));
                     }
-                    let lhs_value = register_values
-                        .get(lhs)
-                        .ok_or(NairError::UnknownRegister(*lhs))?;
-                    let rhs_value = register_values
-                        .get(rhs)
-                        .ok_or(NairError::UnknownRegister(*rhs))?;
-                    let lhs_int = match lhs_value {
-                        Value::Int(value) => *value,
-                        _ => return Err(NairError::IntegerAddOperandNotInt(*lhs)),
-                    };
-                    let rhs_int = match rhs_value {
-                        Value::Int(value) => *value,
-                        _ => return Err(NairError::IntegerAddOperandNotInt(*rhs)),
-                    };
-                    let value =
-                        lhs_int
-                            .checked_add(rhs_int)
-                            .ok_or(NairError::IntegerAddOverflow {
-                                lhs: *lhs,
-                                rhs: *rhs,
-                            })?;
-                    register_values.insert(*dst, Value::Int(value));
+                    register_kinds.insert(*dst, RegisterKind::Int);
+                    if let (Some(Value::Int(lhs_int)), Some(Value::Int(rhs_int))) =
+                        (register_values.get(lhs), register_values.get(rhs))
+                    {
+                        let value =
+                            lhs_int
+                                .checked_add(*rhs_int)
+                                .ok_or(NairError::IntegerAddOverflow {
+                                    lhs: *lhs,
+                                    rhs: *rhs,
+                                })?;
+                        register_values.insert(*dst, Value::Int(value));
+                    }
                 }
                 Instruction::IntEq { dst, lhs, rhs }
                 | Instruction::IntNe { dst, lhs, rhs }
@@ -126,30 +147,27 @@ impl NairProgram {
                     if !registers.insert(*dst) {
                         return Err(NairError::DuplicateRegister(*dst));
                     }
-                    let lhs_value = register_values
-                        .get(lhs)
-                        .ok_or(NairError::UnknownRegister(*lhs))?;
-                    let rhs_value = register_values
-                        .get(rhs)
-                        .ok_or(NairError::UnknownRegister(*rhs))?;
-                    let lhs_int = match lhs_value {
-                        Value::Int(value) => *value,
-                        _ => return Err(NairError::IntegerCompareOperandNotInt(*lhs)),
-                    };
-                    let rhs_int = match rhs_value {
-                        Value::Int(value) => *value,
-                        _ => return Err(NairError::IntegerCompareOperandNotInt(*rhs)),
-                    };
-                    let value = match instruction {
-                        Instruction::IntEq { .. } => lhs_int == rhs_int,
-                        Instruction::IntNe { .. } => lhs_int != rhs_int,
-                        Instruction::IntLt { .. } => lhs_int < rhs_int,
-                        Instruction::IntLe { .. } => lhs_int <= rhs_int,
-                        Instruction::IntGt { .. } => lhs_int > rhs_int,
-                        Instruction::IntGe { .. } => lhs_int >= rhs_int,
-                        _ => unreachable!("comparison arm only"),
-                    };
-                    register_values.insert(*dst, Value::Bool(value));
+                    if register_kinds.get(lhs) != Some(&RegisterKind::Int) {
+                        return Err(NairError::IntegerCompareOperandNotInt(*lhs));
+                    }
+                    if register_kinds.get(rhs) != Some(&RegisterKind::Int) {
+                        return Err(NairError::IntegerCompareOperandNotInt(*rhs));
+                    }
+                    register_kinds.insert(*dst, RegisterKind::Bool);
+                    if let (Some(Value::Int(lhs_int)), Some(Value::Int(rhs_int))) =
+                        (register_values.get(lhs), register_values.get(rhs))
+                    {
+                        let value = match instruction {
+                            Instruction::IntEq { .. } => lhs_int == rhs_int,
+                            Instruction::IntNe { .. } => lhs_int != rhs_int,
+                            Instruction::IntLt { .. } => lhs_int < rhs_int,
+                            Instruction::IntLe { .. } => lhs_int <= rhs_int,
+                            Instruction::IntGt { .. } => lhs_int > rhs_int,
+                            Instruction::IntGe { .. } => lhs_int >= rhs_int,
+                            _ => unreachable!("comparison arm only"),
+                        };
+                        register_values.insert(*dst, Value::Bool(value));
+                    }
                 }
                 Instruction::CreateDomain { dst, name } => {
                     if !domains.insert(*dst) {
@@ -332,7 +350,13 @@ impl NairProgram {
     }
 
     pub fn required_format_minor(&self) -> u16 {
-        if self.instructions.iter().any(|instruction| {
+        if self
+            .instructions
+            .iter()
+            .any(|instruction| matches!(instruction, Instruction::ReadInputKeyCode { .. }))
+        {
+            NAIR_INPUT_REGISTER_MINOR
+        } else if self.instructions.iter().any(|instruction| {
             matches!(
                 instruction,
                 Instruction::IntEq { .. }
@@ -841,6 +865,11 @@ fn encode_instruction(out: &mut Vec<u8>, instruction: &Instruction) -> NairResul
             write_u32(out, lhs.0);
             write_u32(out, rhs.0);
         }
+        Instruction::ReadInputKeyCode { dst, event_index } => {
+            out.push(0x43);
+            write_u32(out, dst.0);
+            write_u32(out, *event_index);
+        }
         Instruction::CreateDomain { dst, name } => {
             out.push(0x10);
             write_u32(out, dst.0);
@@ -1131,6 +1160,10 @@ fn decode_instruction(input: &mut Decoder<'_>, minor: u16) -> NairResult<Instruc
         }),
         0x42 if minor >= 3 => Ok(Instruction::ApplyInput {
             bridge: InputBridgeSlot(input.read_u32()?),
+        }),
+        0x43 if minor >= NAIR_INPUT_REGISTER_MINOR => Ok(Instruction::ReadInputKeyCode {
+            dst: RegisterId(input.read_u32()?),
+            event_index: input.read_u32()?,
         }),
         0x50 if minor >= 4 => Ok(Instruction::ScheduleTimerOnceAt {
             dst: TimerSlot(input.read_u32()?),
