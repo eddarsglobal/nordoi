@@ -29,10 +29,12 @@ use nordoi_kernel::{
     V14_MANIFEST_FILE, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
 use nordoi_kernel::{
-    check_project_sources_v15, diagnostic_from_module_error_v15, distribution_plan_v16,
-    import_trace_from_parents_v15, verify_release_candidate_v16, ReleaseCandidateError,
-    V15Diagnostic, V16ReleaseCandidateReport, NDX_MANIFEST, NDX_MISSING_IMPORT,
-    NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE, NDX_SOURCE_IO, V16_RELEASE_SCHEMA,
+    certify_production_profile1_v17, check_project_sources_v15, diagnostic_from_module_error_v15,
+    distribution_plan_v16, import_trace_from_parents_v15, verify_release_candidate_v16,
+    ProductionProfileCertificationError, ReleaseCandidateError, V15Diagnostic,
+    V16ReleaseCandidateReport, MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES, NDX_MANIFEST,
+    NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE, NDX_SOURCE_IO,
+    V16_RELEASE_SCHEMA, V17_PROFILE1_SCHEMA,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -77,6 +79,7 @@ Usage:\n\
   nordoi check <project-root> [--json]\n\
   nordoi release-check <project-root> [--json]\n\
   nordoi release <project-root> [--json]\n\
+  nordoi profile1-certify <project-root> [--json]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -118,6 +121,7 @@ Commands:\n\
   check            V1.5 validate a project with stable diagnostics, import traces and optional JSON output.\n\
   release-check    V1.6 prove sources, lock and package are exact and compute canonical release provenance.\n\
   release          V1.6 publish only verified package/checksum/provenance files into dist/.\n\
+  profile1-certify V1.7 certify the complete source/build/distribution chain for Production Profile 1.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -164,7 +168,8 @@ V1.2 function-control-run adds selective structured if/else inside pure runtime 
 V1.3 module-graph-run adds statically resolved real .noi module/import graphs; imports are erased before NAIR, import cycles and ambiguities fail closed, and runtime filesystem authority remains NONE.\n\
 V1.4 build adds strict NORDOI.toml projects, canonical NORDOI.lock state, deterministic .npkg artifacts, and --locked drift rejection with no dependency network access.\n\
 V1.5 check adds stable NDX diagnostic codes, precise source locations when available, deterministic import traces, and schema-versioned JSON without changing NAIR or runtime authority.\n\
-V1.6 release-check proves source/lock/package identity and canonical SHA-256 provenance; release publishes only platform-neutral verified distribution artifacts.\n";
+V1.6 release-check proves source/lock/package identity and canonical SHA-256 provenance; release publishes only platform-neutral verified distribution artifacts.\n\
+V1.7 profile1-certify proves the complete source/lock/build/dist/checksum/provenance chain without creating or repairing artifacts.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -268,6 +273,18 @@ fn run() -> u8 {
             }
         };
         return run_release_v16_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "profile1-certify" {
+        let json = match arguments.len() {
+            2 => false,
+            3 if arguments[2].as_os_str() == OsStr::new("--json") => true,
+            _ => {
+                report_usage_error("profile1-certify expects <project-root> [--json]");
+                return EXIT_USAGE;
+            }
+        };
+        return run_profile1_certify_v17_cli(Path::new(&arguments[1]), json);
     }
 
     if command.as_ref() == "package-info" {
@@ -3956,6 +3973,276 @@ fn prepare_release_v16_cli(project_root: &Path, json: bool) -> Result<PreparedRe
         report,
         package_bytes,
     })
+}
+
+fn run_profile1_certify_v17_cli(project_root: &Path, json: bool) -> u8 {
+    let manifest_path = project_root.join(V14_MANIFEST_FILE);
+    let manifest_text = match fs::read_to_string(&manifest_path) {
+        Ok(text) => text,
+        Err(error) => {
+            return emit_profile1_v17_error(
+                json,
+                "manifest-io",
+                &format!(
+                    "cannot read project manifest '{}': {error}",
+                    manifest_path.to_string_lossy()
+                ),
+                EXIT_IO,
+            )
+        }
+    };
+    let manifest = match parse_project_manifest_v14(&manifest_text) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            return emit_profile1_v17_error(json, "manifest", &error.to_string(), EXIT_FRONTEND)
+        }
+    };
+
+    let source_root = project_root.join(manifest.source_root());
+    let sources = match load_module_graph_sources_v15_cli(&source_root, manifest.entry_module()) {
+        Ok(sources) => sources,
+        Err((diagnostic, exit)) => return emit_profile1_v17_diagnostic(&diagnostic, json, exit),
+    };
+    let build = match compile_project_v14(&manifest, &sources) {
+        Ok(build) => build,
+        Err(error) => {
+            let exit = if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+            return emit_profile1_v17_error(json, "build", &error.to_string(), exit);
+        }
+    };
+
+    let lock_path = project_root.join(V14_LOCK_FILE);
+    let lock_text = match fs::read_to_string(&lock_path) {
+        Ok(text) => text,
+        Err(error) => {
+            return emit_profile1_v17_error(
+                json,
+                "lock-io",
+                &format!(
+                    "cannot read canonical lock '{}': {error}",
+                    lock_path.to_string_lossy()
+                ),
+                EXIT_IO,
+            )
+        }
+    };
+
+    let build_package_path = project_root
+        .join("build")
+        .join(manifest.package_file_name());
+    let build_package = match File::open(&build_package_path) {
+        Ok(file) => match read_bounded(file) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                return emit_profile1_v17_error(
+                    json,
+                    "build-package-io",
+                    &format!(
+                        "cannot read build package '{}': {}",
+                        build_package_path.to_string_lossy(),
+                        describe_load_error(&error)
+                    ),
+                    EXIT_IO,
+                )
+            }
+        },
+        Err(error) => {
+            return emit_profile1_v17_error(
+                json,
+                "build-package-io",
+                &format!(
+                    "cannot open build package '{}': {error}",
+                    build_package_path.to_string_lossy()
+                ),
+                EXIT_IO,
+            )
+        }
+    };
+
+    let dist_dir = project_root.join("dist");
+    let package_path = dist_dir.join(manifest.package_file_name());
+    let checksum_path = dist_dir.join(format!("{}.sha256", manifest.package_file_name()));
+    let provenance_path = dist_dir.join(format!(
+        "{}-{}.provenance",
+        manifest.name(),
+        manifest.version()
+    ));
+
+    let dist_package = match File::open(&package_path) {
+        Ok(file) => match read_bounded(file) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                return emit_profile1_v17_error(
+                    json,
+                    "dist-package-io",
+                    &format!(
+                        "cannot read distributed package '{}': {}",
+                        package_path.to_string_lossy(),
+                        describe_load_error(&error)
+                    ),
+                    EXIT_IO,
+                )
+            }
+        },
+        Err(error) => {
+            return emit_profile1_v17_error(
+                json,
+                "dist-package-io",
+                &format!(
+                    "cannot open distributed package '{}': {error}",
+                    package_path.to_string_lossy()
+                ),
+                EXIT_IO,
+            )
+        }
+    };
+
+    let checksum_text = match fs::read_to_string(&checksum_path) {
+        Ok(text) => {
+            if text.len() > MAX_V17_CHECKSUM_BYTES {
+                return emit_profile1_v17_error(
+                    json,
+                    "checksum",
+                    &format!(
+                        "distributed checksum has {} bytes; maximum is {}",
+                        text.len(),
+                        MAX_V17_CHECKSUM_BYTES
+                    ),
+                    EXIT_FRONTEND,
+                );
+            }
+            text
+        }
+        Err(error) => {
+            return emit_profile1_v17_error(
+                json,
+                "checksum-io",
+                &format!(
+                    "cannot read distributed checksum '{}': {error}",
+                    checksum_path.to_string_lossy()
+                ),
+                EXIT_IO,
+            )
+        }
+    };
+
+    let provenance_text = match fs::read_to_string(&provenance_path) {
+        Ok(text) => {
+            if text.len() > MAX_V16_PROVENANCE_BYTES {
+                return emit_profile1_v17_error(
+                    json,
+                    "provenance",
+                    &format!(
+                        "distributed provenance has {} bytes; maximum is {}",
+                        text.len(),
+                        MAX_V16_PROVENANCE_BYTES
+                    ),
+                    EXIT_FRONTEND,
+                );
+            }
+            text
+        }
+        Err(error) => {
+            return emit_profile1_v17_error(
+                json,
+                "provenance-io",
+                &format!(
+                    "cannot read distributed provenance '{}': {error}",
+                    provenance_path.to_string_lossy()
+                ),
+                EXIT_IO,
+            )
+        }
+    };
+
+    let certificate = match certify_production_profile1_v17(
+        &build,
+        &lock_text,
+        &build_package,
+        &dist_package,
+        &checksum_text,
+        &provenance_text,
+    ) {
+        Ok(certificate) => certificate,
+        Err(error) => {
+            let stage = match &error {
+                ProductionProfileCertificationError::ReleaseCandidate(
+                    ReleaseCandidateError::LockMismatch,
+                ) => "lock",
+                ProductionProfileCertificationError::ReleaseCandidate(
+                    ReleaseCandidateError::PackageInvalid { .. },
+                ) => "package-validation",
+                ProductionProfileCertificationError::ReleaseCandidate(
+                    ReleaseCandidateError::PackageMismatch,
+                ) => "build-package",
+                ProductionProfileCertificationError::ReleaseCandidate(
+                    ReleaseCandidateError::Invariant { .. },
+                ) => "release-invariant",
+                ProductionProfileCertificationError::DistributionPackageMismatch => "dist-package",
+                ProductionProfileCertificationError::ChecksumMismatch => "checksum",
+                ProductionProfileCertificationError::ProvenanceMismatch => "provenance",
+                ProductionProfileCertificationError::Invariant { .. } => "certification-invariant",
+            };
+            return emit_profile1_v17_error(json, stage, &error.to_string(), EXIT_FRONTEND);
+        }
+    };
+
+    let rendered = if json {
+        format!("{}\n", certificate.render_json())
+    } else {
+        certificate.render_text()
+    };
+    match write_stdout(rendered.as_bytes()) {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn emit_profile1_v17_diagnostic(diagnostic: &V15Diagnostic, json: bool, exit: u8) -> u8 {
+    if json {
+        let rendered = format!(
+            "{{\"schema\":\"{}\",\"status\":\"error\",\"stage\":\"source\",\"diagnostic\":{}}}\n",
+            V17_PROFILE1_SCHEMA,
+            diagnostic.render_json()
+        );
+        if let Err(error) = write_stdout(rendered.as_bytes()) {
+            report_io_error("<stdout>", &error);
+            return EXIT_IO;
+        }
+    } else {
+        let stderr = io::stderr();
+        let mut stderr = stderr.lock();
+        if let Err(error) = stderr.write_all(diagnostic.render_text().as_bytes()) {
+            report_io_error("<stderr>", &error);
+            return EXIT_IO;
+        }
+    }
+    exit
+}
+
+fn emit_profile1_v17_error(json: bool, stage: &str, message: &str, exit: u8) -> u8 {
+    if json {
+        let rendered = format!(
+            "{{\"schema\":\"{}\",\"status\":\"error\",\"stage\":\"{}\",\"message\":\"{}\"}}\n",
+            V17_PROFILE1_SCHEMA,
+            json_escape_cli(stage),
+            json_escape_cli(message),
+        );
+        if let Err(error) = write_stdout(rendered.as_bytes()) {
+            report_io_error("<stdout>", &error);
+            return EXIT_IO;
+        }
+    } else {
+        report_plain_error("profile1-certify", stage, message);
+    }
+    exit
 }
 
 fn emit_release_v16_diagnostic(diagnostic: &V15Diagnostic, json: bool, exit: u8) -> u8 {

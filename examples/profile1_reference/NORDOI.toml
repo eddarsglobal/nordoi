@@ -1,0 +1,5 @@
+[project]
+name = "profile1-reference"
+version = "1.0.0"
+entry = "app.main"
+source-root = "src"

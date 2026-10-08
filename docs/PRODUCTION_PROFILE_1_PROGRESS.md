@@ -1,35 +1,41 @@
 # NORDOI Production Profile 1 Progress
 
-## Certified baseline entering V1.6
+## Certified baseline entering V1.7
 
-V1.5 — Production Diagnostics & Developer Experience is the certified baseline.
+V1.6 — Production Release Candidate & Distribution Hardening is the certified baseline.
 
-Estimated Production Profile 1 completion entering V1.6 = **95%**, remaining = **5%**.
+Certified commit: `ae765c405e8650327ea81a86c550b96160eaef23`.
 
-## V1.6 candidate closure target
+Certified exact-SHA CI run: `37730271259`.
 
-V1.6 closes the deterministic release-candidate and distribution boundary required before final Production Profile 1 certification.
+Certified tag: `v1.6`.
+
+Estimated Production Profile 1 completion entering V1.7 = **98%**, remaining = **2%**.
+
+## V1.7 final closure target
+
+V1.7 is the final planned Production Profile 1 qualification milestone.
 
 Candidate proof targets:
 
-- side-effect-free `nordoi release-check <project-root>`;
-- schema-versioned `nordoi.release.v1` JSON output;
-- exact source -> lock agreement;
-- exact source -> package byte agreement;
-- canonical V1.4 package validation before distribution;
-- SHA-256 package identity;
-- SHA-256 canonical build-witness identity;
-- deterministic `nordoi.release.provenance.v1` record;
-- provenance with no timestamp, host, user, OS or absolute path;
-- `nordoi release` publication only after the complete release gate passes;
-- byte-identical package copy into `dist/`;
-- deterministic `.sha256` and `.provenance` companions;
-- no dependency network;
-- no runtime filesystem authority;
-- no new NAIR minor;
+- side-effect-free `nordoi profile1-certify <project-root>`;
+- schema-versioned `nordoi.production-profile-1.v1` JSON output;
+- exact source -> lock proof;
+- exact source -> build-package proof;
+- exact build-package -> dist-package proof;
+- exact canonical checksum proof;
+- exact canonical V1.6 provenance proof;
+- final deterministic certification SHA-256;
+- no host, timestamp, OS, username or absolute-path contribution to certification identity;
+- included `examples/profile1_reference/` application;
+- complete reference rehearsal: check -> build -> build --locked -> release-check -> release -> profile1-certify;
+- adversarial substitution/drift rejection at every artifact boundary;
+- regression proof across existing NAIR 0.6/0.12/0.13/0.14 project shapes;
+- zero new runtime/network/filesystem authority;
+- zero new NAIR minor;
 - frozen public version string;
-- regression proof across NAIR 0.6/0.12/0.13/0.14 project shapes.
+- exact-SHA multi-platform CI through the existing Ubuntu/macOS/Windows matrix.
 
-If and only if V1.6 passes the complete local Release Gate, 20/20 focused tests, release-check/publication/drift/reproducibility smoke proofs, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **98% complete / 2% remaining**.
+If and only if V1.7 passes the complete local Release Gate, 20/20 focused tests, final reference/adversarial smoke proofs, exact-SHA CI and immutable annotated `v1.7` tag, **Production Profile 1 becomes 100% certified / 0% remaining**.
 
-The final **2%** should be reserved for final adversarial qualification, one complete reference application/release rehearsal, documentation/reproducibility closure and the final Production Profile 1 release certification. It should not reopen experimental runtime layering.
+Any subsequent semantic, runtime, capability, target-platform or language expansion belongs to a later production profile and MUST NOT retroactively change the frozen Profile 1 certification evidence.

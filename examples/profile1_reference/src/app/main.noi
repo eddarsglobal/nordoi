@@ -1,0 +1,7 @@
+module app.main;
+
+import app.rules;
+
+input key_code;
+
+entry main returns rules.classify(key_code);

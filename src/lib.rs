@@ -28,6 +28,7 @@ pub mod modules_v13;
 pub mod nair;
 mod nested_control_v12;
 pub mod ownership;
+pub mod production_profile_v17;
 pub mod program_upgrade;
 pub mod project_v14;
 pub mod pure_binding_execution;
@@ -253,6 +254,11 @@ pub use nested_control_v12::{
     MAX_V12_NAME_BYTES, MAX_V12_PARAMS, MAX_V12_RUNTIME_CALLS, MAX_V12_RUNTIME_CALL_DEPTH,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
+pub use production_profile_v17::{
+    certify_production_profile1_v17, ProductionProfileCertificationError,
+    ProductionProfileCertificationResult, V17ProductionProfileCertificate,
+    MAX_V17_CERTIFICATE_BYTES, MAX_V17_CHECKSUM_BYTES, V17_PROFILE1_NAME, V17_PROFILE1_SCHEMA,
+};
 pub use program_upgrade::{
     AtomUpgradeRule, DynamicTimerUpgradeRule, ProgramEpoch, RuntimeAllTimerUpgradePlan,
     RuntimeAllTimerUpgradeReport, RuntimeDynamicTimerUpgradePlan, RuntimeTimerAwareUpgradePlan,
