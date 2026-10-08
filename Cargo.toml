@@ -3,7 +3,7 @@ name = "nordoi_kernel"
 version = "1.18.0"
 edition = "2021"
 authors = ["EDDARS Global"]
-description = "NORDOI V1.7 — Production Profile 1 Final Certification"
+description = "NORDOI P2.1 — Capability-Secured Observable I/O"
 license = "MIT"
 repository = "https://github.com/eddarsglobal/nordoi"
 

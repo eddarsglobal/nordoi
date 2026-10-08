@@ -1,105 +1,97 @@
-# NORDOI V1.7 — Production Profile 1 Final Certification
+# NORDOI P2.1 — Capability-Secured Observable I/O
 
-V1.7 is the final additive qualification layer over certified V1.6. It does not add language syntax, kernel semantics, NAIR instructions, runtime authority, dependency resolution or ambient I/O. Its job is to prove that one already-built and already-released project remains exact across the complete production chain.
+Production Profile 1 is frozen and certified at tag `v1.7`. P2.1 opens Production Profile 2 with one deliberately narrow observable capability: bounded UTF-8 console output guarded by an explicit source effect declaration and an explicit host capability grant.
 
-## Final certification command
+P2.1 does **not** modify the certified kernel, runtime, NAIR instruction set, package format, release format, or Production Profile 1 certification chain.
 
-After the V1.6 workflow has created a canonical lock, build package and verified distribution, run:
+## Source surface
+
+The first observable slice is intentionally small:
+
+```noi
+module app.main;
+
+effect ConsoleWrite;
+
+entry main emits "Hello from NORDOI P2.1!\n";
+```
+
+P2.1 accepts exactly one `entry <name> emits "<text>";` body and one declared `effect ConsoleWrite;`. Output is bounded to 4096 decoded UTF-8 bytes. Supported escapes are `\\`, `\"`, `\n`, `\r`, and `\t`.
+
+## Explicit authority
+
+Compilation alone grants no authority. Running without a host grant fails closed and emits zero program bytes:
 
 ```bash
-cargo run --quiet --bin nordoi -- profile1-certify demo
+cargo run --quiet --bin nordoi -- \
+  console-run examples/p2_1_console/hello.noi
 ```
 
-`profile1-certify` recalculates the current project from source and requires all of the following to agree exactly:
-
-- current source graph -> canonical `NORDOI.lock`;
-- current source graph -> canonical build `.npkg`;
-- build `.npkg` -> distributed `.npkg` byte identity;
-- canonical `.sha256` companion -> exact package SHA-256;
-- canonical `.provenance` companion -> exact V1.6 provenance;
-- package metadata, module/import graph, build witness and NAIR metadata -> current build;
-- zero dependency network, zero runtime filesystem authority and zero ambient authority.
-
-A successful text result contains:
-
-```text
-profile1-certify project="demo" ... source-lock=EXACT build-package=EXACT dist-package=EXACT checksum=EXACT provenance=EXACT ... status=CERTIFIED profile="Production Profile 1" reproducible=true platform-neutral=true dependency-network=NONE runtime-fs=NONE authority=NONE
-```
-
-Machine-readable mode uses schema `nordoi.production-profile-1.v1`:
+The observable effect executes only with the exact capability:
 
 ```bash
-cargo run --quiet --bin nordoi -- profile1-certify demo --json
+cargo run --quiet --bin nordoi -- \
+  console-run examples/p2_1_console/hello.noi --grant-console
 ```
 
-The JSON certificate includes the package SHA-256, build-witness SHA-256, provenance SHA-256 and a final deterministic `certificationSha256` for the complete Production Profile 1 proof.
+Program output is written exactly to stdout. Deterministic receipt metadata is written to stderr so tooling metadata never changes the program's output bytes.
 
-## Reference application and cross-platform rehearsal
+## Security boundary
 
-The repository includes:
+P2.1 guarantees for this slice:
+
+- source must explicitly declare `effect ConsoleWrite;`;
+- host must explicitly grant `Capability::ConsoleWrite`;
+- unrelated capabilities never authorize console output;
+- revoke removes authority immediately;
+- no ambient authority exists;
+- no filesystem, network, process, camera, microphone, location, GPU, or XR authority is introduced;
+- output is bounded before authority is exercised;
+- receipt identity is deterministic and independent of source file path, source ID, host name, OS, or wall-clock time;
+- denial happens before stdout receives program bytes.
+
+`ConsoleWrite` is a P2.1-local observable effect. It is intentionally **not** added to the frozen Profile 1 `Effect` serialization because doing so would mutate certified NAIR/audit/persistence encodings. P2.1 reuses the existing `CapabilitySet` authority model while preserving those byte-level boundaries unchanged.
+
+## Receipt
+
+A successful execution creates a deterministic canonical receipt and SHA-256 identity. Tooling reports fields including:
 
 ```text
-examples/profile1_reference/
-├── NORDOI.toml
-└── src/app/
-    ├── main.noi
-    └── rules.noi
+status=EMITTED
+authority=EXPLICIT
+grant=ConsoleWrite
+ambient-authority=NONE
+plan-sha256=...
+receipt-sha256=...
 ```
 
-The reference application exercises a real imported module, canonical input and structured runtime function control through the existing NAIR 0.14 boundary.
+The library also exposes schema `nordoi.observable-io.p2.1` through `P21ObservableOutputReceipt::render_json()`.
 
-The V1.7 tooling tests copy this application into an isolated temporary project and execute the entire production rehearsal:
+## Tests
 
-```text
-check
-  -> build
-  -> build --locked
-  -> release-check
-  -> release
-  -> profile1-certify
+P2.1 adds 20 focused tests:
+
+```bash
+cargo test --test observable_io_p21 -- --nocapture
+cargo test --test security_observable_io_p21 -- --nocapture
+cargo test --test tooling_observable_io_p21 -- --nocapture
 ```
 
-Because these tooling tests run under the existing GitHub matrix, the same rehearsal is exercised on Ubuntu, macOS and Windows without adding provider-specific release logic.
+Expected focused totals are 8 + 8 + 4.
 
-## Adversarial final qualification
+The normal repository Release Gate remains mandatory:
 
-V1.7 fails closed when any production artifact is substituted or drifts. Focused tests cover:
-
-- stale `NORDOI.lock` after source modification;
-- corrupted or substituted build package;
-- substituted distributed package;
-- forged checksum companion;
-- modified provenance companion;
-- oversized checksum/provenance metadata;
-- source order determinism;
-- project metadata identity;
-- exact preservation of existing NAIR 0.6, 0.12, 0.13 and 0.14 project shapes.
-
-`profile1-certify` never repairs, rebuilds or republishes an artifact. Certification is verification-only.
-
-## Canonical final certificate
-
-The internal canonical certificate uses schema:
-
-```text
-nordoi.production-profile-1.v1
+```bash
+cargo fmt --all
+./scripts/release_gate.sh
 ```
-
-It deliberately contains no timestamp, username, hostname, operating-system name or absolute path. Therefore identical certified inputs produce an identical final certification hash.
 
 ## Frozen public boundary
 
-V1.7 does **not** change the certified public version string:
+P2.1 is additive and does not promote the historical public version string. It remains:
 
 ```text
 nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
 ```
 
-V1.7 is final production qualification around the existing certified semantics, not a semantic version promotion.
-
-See:
-
-- `docs/NOI_PRODUCTION_PROFILE_1_FINAL_CERTIFICATION_SPEC_1_7.md`
-- `research/PRODUCTION_PROFILE_1_FINAL_CERTIFICATION_INTELLIGENCE_1_7.md`
-- `docs/PRODUCTION_PROFILE_1_PROGRESS.md`
-- `examples/profile1_reference/`
+Production Profile 1 remains immutable at `v1.7`; P2.1 is the first candidate milestone of Production Profile 2.

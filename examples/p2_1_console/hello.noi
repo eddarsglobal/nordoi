@@ -1,0 +1,5 @@
+module app.main;
+
+effect ConsoleWrite;
+
+entry main emits "Hello from NORDOI P2.1!\n";

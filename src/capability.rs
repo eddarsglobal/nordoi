@@ -11,6 +11,7 @@ pub enum Capability {
     Gpu,
     Xr,
     Process,
+    ConsoleWrite,
 }
 
 #[derive(Debug, Clone, Default)]

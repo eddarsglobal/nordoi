@@ -27,6 +27,7 @@ pub mod kernel;
 pub mod modules_v13;
 pub mod nair;
 mod nested_control_v12;
+pub mod observable_io_p21;
 pub mod ownership;
 pub mod production_profile_v17;
 pub mod program_upgrade;
@@ -252,6 +253,13 @@ pub use nested_control_v12::{
     NestedFunctionControlResult, V12NestedControlExecutionReport, V12NestedControlNairArtifact,
     V12NestedControlPlan, MAX_V12_CONSTANTS, MAX_V12_EXPR_NODES, MAX_V12_FUNCTIONS,
     MAX_V12_NAME_BYTES, MAX_V12_PARAMS, MAX_V12_RUNTIME_CALLS, MAX_V12_RUNTIME_CALL_DEPTH,
+};
+pub use observable_io_p21::{
+    compile_observable_output_plan_p21, execute_observable_output_p21,
+    execute_observable_output_source_p21, required_observable_capability_p21, ObservableIoError,
+    ObservableIoResult, P21ObservableEffect, P21ObservableEffectGuard, P21ObservableOutputPlan,
+    P21ObservableOutputReceipt, MAX_P21_ENTRY_NAME_BYTES, MAX_P21_OUTPUT_BYTES,
+    P21_CONSOLE_EFFECT_NAME, P21_OUTPUT_SCHEMA,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use production_profile_v17::{
