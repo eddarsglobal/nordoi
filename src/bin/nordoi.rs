@@ -29,9 +29,10 @@ use nordoi_kernel::{
     V14_MANIFEST_FILE, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
 use nordoi_kernel::{
-    check_project_sources_v15, diagnostic_from_module_error_v15, import_trace_from_parents_v15,
-    V15Diagnostic, NDX_MANIFEST, NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH,
-    NDX_SOURCE, NDX_SOURCE_IO,
+    check_project_sources_v15, diagnostic_from_module_error_v15, distribution_plan_v16,
+    import_trace_from_parents_v15, verify_release_candidate_v16, ReleaseCandidateError,
+    V15Diagnostic, V16ReleaseCandidateReport, NDX_MANIFEST, NDX_MISSING_IMPORT,
+    NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE, NDX_SOURCE_IO, V16_RELEASE_SCHEMA,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -74,6 +75,8 @@ Usage:\n\
   nordoi module-graph-run <source-root> <entry-module> <key-code>\n\
   nordoi build <project-root> [--locked]\n\
   nordoi check <project-root> [--json]\n\
+  nordoi release-check <project-root> [--json]\n\
+  nordoi release <project-root> [--json]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -113,6 +116,8 @@ Commands:\n\
   module-graph-run V1.3 resolve real .noi modules/imports statically, erase them before NAIR, and execute the entry module.\n\
   build            V1.4 build a deterministic NORDOI project package and canonical lock file.\n\
   check            V1.5 validate a project with stable diagnostics, import traces and optional JSON output.\n\
+  release-check    V1.6 prove sources, lock and package are exact and compute canonical release provenance.\n\
+  release          V1.6 publish only verified package/checksum/provenance files into dist/.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -158,7 +163,8 @@ V1.1 call-graph-run adds statically acyclic bounded call graphs through NAIR 0.1
 V1.2 function-control-run adds selective structured if/else inside pure runtime function bodies through NAIR 0.14; only the selected arm executes and the acyclic bounded call graph remains enforced.\n\
 V1.3 module-graph-run adds statically resolved real .noi module/import graphs; imports are erased before NAIR, import cycles and ambiguities fail closed, and runtime filesystem authority remains NONE.\n\
 V1.4 build adds strict NORDOI.toml projects, canonical NORDOI.lock state, deterministic .npkg artifacts, and --locked drift rejection with no dependency network access.\n\
-V1.5 check adds stable NDX diagnostic codes, precise source locations when available, deterministic import traces, and schema-versioned JSON without changing NAIR or runtime authority.\n";
+V1.5 check adds stable NDX diagnostic codes, precise source locations when available, deterministic import traces, and schema-versioned JSON without changing NAIR or runtime authority.\n\
+V1.6 release-check proves source/lock/package identity and canonical SHA-256 provenance; release publishes only platform-neutral verified distribution artifacts.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -238,6 +244,30 @@ fn run() -> u8 {
             }
         };
         return run_project_check_v15_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "release-check" {
+        let json = match arguments.len() {
+            2 => false,
+            3 if arguments[2].as_os_str() == OsStr::new("--json") => true,
+            _ => {
+                report_usage_error("release-check expects <project-root> [--json]");
+                return EXIT_USAGE;
+            }
+        };
+        return run_release_check_v16_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "release" {
+        let json = match arguments.len() {
+            2 => false,
+            3 if arguments[2].as_os_str() == OsStr::new("--json") => true,
+            _ => {
+                report_usage_error("release expects <project-root> [--json]");
+                return EXIT_USAGE;
+            }
+        };
+        return run_release_v16_cli(Path::new(&arguments[1]), json);
     }
 
     if command.as_ref() == "package-info" {
@@ -3740,6 +3770,251 @@ fn describe_load_error(error: &LoadError) -> String {
         }
         LoadError::InvalidUtf8 => "source is not valid UTF-8".to_owned(),
     }
+}
+
+struct PreparedReleaseV16 {
+    report: V16ReleaseCandidateReport,
+    package_bytes: Vec<u8>,
+}
+
+fn run_release_check_v16_cli(project_root: &Path, json: bool) -> u8 {
+    let prepared = match prepare_release_v16_cli(project_root, json) {
+        Ok(prepared) => prepared,
+        Err(exit) => return exit,
+    };
+    let rendered = if json {
+        format!("{}\n", prepared.report.render_json())
+    } else {
+        prepared.report.render_text()
+    };
+    match write_stdout(rendered.as_bytes()) {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn run_release_v16_cli(project_root: &Path, json: bool) -> u8 {
+    let prepared = match prepare_release_v16_cli(project_root, json) {
+        Ok(prepared) => prepared,
+        Err(exit) => return exit,
+    };
+    let plan = match distribution_plan_v16(&prepared.report, &prepared.package_bytes) {
+        Ok(plan) => plan,
+        Err(error) => {
+            return emit_release_v16_error(json, "distribution", &error.to_string(), EXIT_FRONTEND)
+        }
+    };
+
+    let dist_dir = project_root.join("dist");
+    if let Err(error) = fs::create_dir_all(&dist_dir) {
+        return emit_release_v16_error(
+            json,
+            "dist-io",
+            &format!("cannot create '{}': {error}", dist_dir.to_string_lossy()),
+            EXIT_IO,
+        );
+    }
+    let package_path = dist_dir.join(plan.package_file_name());
+    let checksum_path = dist_dir.join(plan.checksum_file_name());
+    let provenance_path = dist_dir.join(plan.provenance_file_name());
+
+    for (path, bytes) in [
+        (&package_path, plan.package_bytes()),
+        (&checksum_path, plan.checksum_text().as_bytes()),
+        (&provenance_path, plan.provenance_text().as_bytes()),
+    ] {
+        if let Err(error) = write_atomic_file(path, bytes) {
+            return emit_release_v16_error(
+                json,
+                "dist-io",
+                &format!("cannot publish '{}': {error}", path.to_string_lossy()),
+                EXIT_IO,
+            );
+        }
+    }
+
+    let package_rel = Path::new("dist").join(plan.package_file_name());
+    let checksum_rel = Path::new("dist").join(plan.checksum_file_name());
+    let provenance_rel = Path::new("dist").join(plan.provenance_file_name());
+    let rendered = if json {
+        format!(
+            "{{\"schema\":\"{}\",\"status\":\"published\",\"project\":\"{}\",\"version\":\"{}\",\"package\":\"{}\",\"checksum\":\"{}\",\"provenance\":\"{}\",\"packageSha256\":\"{}\",\"provenanceSha256\":\"{}\",\"reproducible\":true,\"platformNeutral\":true,\"dependencyNetwork\":\"NONE\",\"runtimeFs\":\"NONE\",\"authority\":\"NONE\"}}\n",
+            V16_RELEASE_SCHEMA,
+            json_escape_cli(prepared.report.project()),
+            json_escape_cli(prepared.report.version()),
+            json_escape_cli(package_rel.to_string_lossy().as_ref()),
+            json_escape_cli(checksum_rel.to_string_lossy().as_ref()),
+            json_escape_cli(provenance_rel.to_string_lossy().as_ref()),
+            prepared.report.package_sha256_hex(),
+            prepared.report.provenance_sha256_hex(),
+        )
+    } else {
+        format!(
+            "release project=\"{}\" version=\"{}\" package=\"{}\" checksum=\"{}\" provenance=\"{}\" package-sha256={} provenance-sha256={} status=PUBLISHED reproducible=true platform-neutral=true dependency-network=NONE runtime-fs=NONE authority=NONE\n",
+            escape_fragment(prepared.report.project()),
+            escape_fragment(prepared.report.version()),
+            escape_fragment(package_rel.to_string_lossy().as_ref()),
+            escape_fragment(checksum_rel.to_string_lossy().as_ref()),
+            escape_fragment(provenance_rel.to_string_lossy().as_ref()),
+            prepared.report.package_sha256_hex(),
+            prepared.report.provenance_sha256_hex(),
+        )
+    };
+    match write_stdout(rendered.as_bytes()) {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn prepare_release_v16_cli(project_root: &Path, json: bool) -> Result<PreparedReleaseV16, u8> {
+    let manifest_path = project_root.join(V14_MANIFEST_FILE);
+    let manifest_text = fs::read_to_string(&manifest_path).map_err(|error| {
+        emit_release_v16_error(
+            json,
+            "manifest-io",
+            &format!(
+                "cannot read project manifest '{}': {error}",
+                manifest_path.to_string_lossy()
+            ),
+            EXIT_IO,
+        )
+    })?;
+    let manifest = parse_project_manifest_v14(&manifest_text).map_err(|error| {
+        emit_release_v16_error(json, "manifest", &error.to_string(), EXIT_FRONTEND)
+    })?;
+
+    let source_root = project_root.join(manifest.source_root());
+    let sources = load_module_graph_sources_v15_cli(&source_root, manifest.entry_module())
+        .map_err(|(diagnostic, exit)| emit_release_v16_diagnostic(&diagnostic, json, exit))?;
+    let build = compile_project_v14(&manifest, &sources).map_err(|error| {
+        let exit = if error.is_frontend_failure() {
+            EXIT_FRONTEND
+        } else {
+            EXIT_RUNTIME
+        };
+        emit_release_v16_error(json, "build", &error.to_string(), exit)
+    })?;
+
+    let lock_path = project_root.join(V14_LOCK_FILE);
+    let lock_text = fs::read_to_string(&lock_path).map_err(|error| {
+        emit_release_v16_error(
+            json,
+            "lock-io",
+            &format!(
+                "cannot read canonical lock '{}': {error}",
+                lock_path.to_string_lossy()
+            ),
+            EXIT_IO,
+        )
+    })?;
+
+    let package_path = project_root
+        .join("build")
+        .join(manifest.package_file_name());
+    let package_file = File::open(&package_path).map_err(|error| {
+        emit_release_v16_error(
+            json,
+            "package-io",
+            &format!(
+                "cannot open package '{}': {error}",
+                package_path.to_string_lossy()
+            ),
+            EXIT_IO,
+        )
+    })?;
+    let package_bytes = read_bounded(package_file).map_err(|error| {
+        emit_release_v16_error(
+            json,
+            "package-io",
+            &format!(
+                "cannot read package '{}': {}",
+                package_path.to_string_lossy(),
+                describe_load_error(&error)
+            ),
+            EXIT_IO,
+        )
+    })?;
+
+    let report =
+        verify_release_candidate_v16(&build, &lock_text, &package_bytes).map_err(|error| {
+            let stage = match &error {
+                ReleaseCandidateError::LockMismatch => "lock",
+                ReleaseCandidateError::PackageInvalid { .. } => "package-validation",
+                ReleaseCandidateError::PackageMismatch => "package-match",
+                ReleaseCandidateError::Invariant { .. } => "release-invariant",
+            };
+            emit_release_v16_error(json, stage, &error.to_string(), EXIT_FRONTEND)
+        })?;
+
+    Ok(PreparedReleaseV16 {
+        report,
+        package_bytes,
+    })
+}
+
+fn emit_release_v16_diagnostic(diagnostic: &V15Diagnostic, json: bool, exit: u8) -> u8 {
+    if json {
+        let rendered = format!(
+            "{{\"schema\":\"{}\",\"status\":\"error\",\"diagnostic\":{}}}\n",
+            V16_RELEASE_SCHEMA,
+            diagnostic.render_json()
+        );
+        if let Err(error) = write_stdout(rendered.as_bytes()) {
+            report_io_error("<stdout>", &error);
+            return EXIT_IO;
+        }
+    } else {
+        let stderr = io::stderr();
+        let mut stderr = stderr.lock();
+        if let Err(error) = stderr.write_all(diagnostic.render_text().as_bytes()) {
+            report_io_error("<stderr>", &error);
+            return EXIT_IO;
+        }
+    }
+    exit
+}
+
+fn emit_release_v16_error(json: bool, stage: &str, message: &str, exit: u8) -> u8 {
+    if json {
+        let rendered = format!(
+            "{{\"schema\":\"{}\",\"status\":\"error\",\"stage\":\"{}\",\"message\":\"{}\"}}\n",
+            V16_RELEASE_SCHEMA,
+            json_escape_cli(stage),
+            json_escape_cli(message),
+        );
+        if let Err(error) = write_stdout(rendered.as_bytes()) {
+            report_io_error("<stdout>", &error);
+            return EXIT_IO;
+        }
+    } else {
+        report_plain_error("release", stage, message);
+    }
+    exit
+}
+
+fn json_escape_cli(value: &str) -> String {
+    let mut output = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '"' => output.push_str("\\\""),
+            '\\' => output.push_str("\\\\"),
+            '\n' => output.push_str("\\n"),
+            '\r' => output.push_str("\\r"),
+            '\t' => output.push_str("\\t"),
+            ch if ch.is_control() => {
+                use std::fmt::Write as _;
+                let _ = write!(output, "\\u{:04x}", ch as u32);
+            }
+            other => output.push(other),
+        }
+    }
+    output
 }
 
 fn run_package_info_v14_cli(path: &Path) -> u8 {

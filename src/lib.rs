@@ -34,6 +34,7 @@ pub mod pure_binding_execution;
 pub mod pure_expression_execution;
 pub mod pure_result_execution;
 pub mod reaction;
+pub mod release_v16;
 pub mod render;
 pub mod runtime;
 pub mod runtime_checkpoint;
@@ -269,6 +270,11 @@ pub use project_v14::{
 pub use reaction::{
     AtomicReactionCore, EffectIntent, ReactionBatchReport, ReactionError, ReactionId,
     ReactionResult, ReactionSpec, ReactionStep, ReactionTrigger, ReactionValue, TimerSelector,
+};
+pub use release_v16::{
+    distribution_plan_v16, verify_release_candidate_v16, ReleaseCandidateError,
+    ReleaseCandidateResult, V16DistributionPlan, V16ReleaseCandidateReport,
+    MAX_V16_PROVENANCE_BYTES, V16_PROVENANCE_SCHEMA, V16_RELEASE_SCHEMA,
 };
 pub use render::{
     AtomicRenderCore, DirtyMask, NairRenderBridge, NairRenderBridgeError, NairRenderBridgeResult,

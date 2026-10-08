@@ -1,84 +1,101 @@
-# NORDOI V1.5 — Production Diagnostics & Developer Experience
+# NORDOI V1.6 — Production Release Candidate & Distribution Hardening
 
-V1.5 is additive over certified V1.4. It makes real NORDOI projects diagnosable by humans, CI systems and future IDE integrations without changing kernel semantics, NAIR, runtime authority or package execution.
+V1.6 is additive over certified V1.5. It turns the deterministic V1.4 project package and V1.5 diagnostics into a fail-closed release-candidate workflow without changing kernel semantics, NAIR, runtime authority or the frozen public version boundary.
 
-## Project check
+## Release candidate verification
 
-```bash
-cargo run --quiet --bin nordoi -- check demo
-```
-
-A clean project reports a deterministic summary and writes no `NORDOI.lock` or `.npkg` output:
-
-```text
-check project="demo" version="0.1.0" entry-module="app.main" modules=2 imports=1 nair-minor=0.12 nair-instructions=3 diagnostics=0 status=PASS dependency-network=NONE runtime-fs=NONE authority=NONE
-```
-
-Machine-readable mode:
+A release candidate must already have a canonical `NORDOI.lock` and deterministic `.npkg` produced by `nordoi build`.
 
 ```bash
-cargo run --quiet --bin nordoi -- check demo --json
+cargo run --quiet --bin nordoi -- release-check demo
 ```
 
-The output uses the stable schema `nordoi.diagnostic.v1`.
+`release-check` recalculates the project from source and proves all of the following before returning PASS:
 
-## Stable diagnostic codes
+- current sources reproduce the exact `NORDOI.lock`;
+- current sources reproduce the exact existing `.npkg` bytes;
+- the package decodes canonically through the V1.4 package validator;
+- package metadata, module order, import edges, build witness and NAIR metadata match the current canonical build;
+- a deterministic SHA-256 identifies the exact package;
+- a deterministic, platform-neutral provenance record can be regenerated exactly.
 
-V1.5 separates machine identity from human wording. Initial stable families are:
-
-- `NDX1001` project manifest;
-- `NDX2001` project/source I/O;
-- `NDX2002` source/lexical boundary;
-- `NDX2003` module declaration;
-- `NDX2004` missing imported module;
-- `NDX2005` cyclic import graph;
-- `NDX2101` module-graph resolution;
-- `NDX2201` language semantics;
-- `NDX3001` lowering/NAIR validation;
-- `NDX4001` package validation;
-
-Codes are the compatibility surface. Human wording may improve later without changing the code meaning.
-
-## Multi-file import traces
-
-When project loading reaches an unavailable imported module, V1.5 records the deterministic path that led to it:
+A successful human-readable result contains:
 
 ```text
-error[NDX2004] source-io: cannot load module 'app.math': ...
- --> demo/src/app/math.noi
-  = import-trace: app.main -> app.mid -> app.math
+release-check project="demo" version="0.1.0" ... lock=EXACT package-match=EXACT ... status=PASS reproducible=true platform-neutral=true dependency-network=NONE runtime-fs=NONE authority=NONE
 ```
 
-Import cycles are similarly reported as a closed deterministic trace.
+Machine-readable mode uses schema `nordoi.release.v1`:
 
-## Source locations
-
-Frontend errors that already carry certified `SourceSpan` information are projected as `file:line:column` with a source excerpt and caret. V1.5 does not invent locations for errors that do not own a source span.
-
-## JSON contract
-
-Error example:
-
-```json
-{"schema":"nordoi.diagnostic.v1","status":"error","code":"NDX2004","stage":"source-io","message":"...","location":{"file":"demo/src/app/math.noi","line":0,"column":0,"excerpt":""},"importTrace":["app.main","app.math"]}
+```bash
+cargo run --quiet --bin nordoi -- release-check demo --json
 ```
 
-A clean check produces a single success object with `status="pass"` and an empty `diagnostics` array.
+## Distribution publication
 
-## Zero runtime change
+Only a verified candidate may be published:
 
-V1.5 is compiler/tooling-only. Existing certified lowering remains exact:
+```bash
+cargo run --quiet --bin nordoi -- release demo
+```
+
+V1.6 writes exactly three deterministic files under `dist/`:
+
+```text
+dist/demo-0.1.0.npkg
+dist/demo-0.1.0.npkg.sha256
+dist/demo-0.1.0.provenance
+```
+
+The distributed `.npkg` is byte-identical to the verified build artifact. The checksum file is canonical SHA-256 text. The provenance record uses schema `nordoi.release.provenance.v1`.
+
+## Reproducible provenance
+
+The provenance deliberately contains no timestamp, absolute filesystem path, hostname, username or operating-system name. Those values would make otherwise identical builds produce different release metadata.
+
+It commits to:
+
+- project and version identity;
+- entry module;
+- package filename and package SHA-256;
+- canonical V1.4 build-witness SHA-256;
+- package format;
+- existing NAIR minor and instruction count;
+- module and import counts;
+- `reproducible = true`;
+- `platform-neutral = true`;
+- `dependency-network = "NONE"`;
+- `runtime-fs = "NONE"`;
+- `authority = "NONE"`.
+
+## Fail-closed drift handling
+
+V1.6 never silently rebuilds, refreshes a lock, or replaces an invalid package during release verification. Any source/lock/package divergence must be resolved through the explicit V1.4 build workflow first.
+
+Typical workflow:
+
+```bash
+nordoi check demo
+nordoi build demo
+nordoi build demo --locked
+nordoi release-check demo --json
+nordoi release demo
+```
+
+## Zero language/runtime change
+
+V1.6 is release tooling only. Existing certified lowering remains exact:
 
 - static project -> NAIR 0.6;
 - simple dynamic imported call -> NAIR 0.12;
 - transitive acyclic runtime call graph -> NAIR 0.13;
 - structured runtime function control -> NAIR 0.14.
 
-There is no dependency network, dynamic module loader, runtime filesystem grant or new host authority.
+No new NAIR minor, runtime filesystem grant, network dependency resolver, dynamic loader or host authority is introduced.
 
 ## Certification boundary
 
-V1.5 does **not** change the frozen public version string:
+V1.6 does **not** change the frozen public version string:
 
 ```text
 nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
@@ -86,6 +103,6 @@ nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
 
 See:
 
-- `docs/NOI_PRODUCTION_DIAGNOSTICS_SPEC_1_5.md`
-- `research/PRODUCTION_DIAGNOSTICS_INTELLIGENCE_1_5.md`
+- `docs/NOI_PRODUCTION_RELEASE_CANDIDATE_SPEC_1_6.md`
+- `research/PRODUCTION_RELEASE_CANDIDATE_INTELLIGENCE_1_6.md`
 - `docs/PRODUCTION_PROFILE_1_PROGRESS.md`

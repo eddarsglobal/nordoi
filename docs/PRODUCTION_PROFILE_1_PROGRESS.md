@@ -1,31 +1,35 @@
 # NORDOI Production Profile 1 Progress
 
-## Certified baseline entering V1.5
+## Certified baseline entering V1.6
 
-V1.4 — Project Build & Package System is the certified baseline.
+V1.5 — Production Diagnostics & Developer Experience is the certified baseline.
 
-Estimated Production Profile 1 completion entering V1.5 = **92%**, remaining = **8%**.
+Estimated Production Profile 1 completion entering V1.6 = **95%**, remaining = **5%**.
 
-## V1.5 candidate closure target
+## V1.6 candidate closure target
 
-V1.5 closes the developer-grade diagnostic boundary required for practical CI/editor use.
+V1.6 closes the deterministic release-candidate and distribution boundary required before final Production Profile 1 certification.
 
 Candidate proof targets:
 
-- stable versioned `NDX` diagnostic code families;
-- `nordoi check <project-root>` with zero package/lock publication;
-- schema-versioned `--json` output;
-- exact source file/line/column when a certified span exists;
-- no invented source locations;
-- deterministic multi-file import traces;
-- dedicated missing-import and import-cycle identities;
-- deterministic success JSON independent of source-array order;
-- V1.4 project/NAIR semantics reused unchanged;
-- no new NAIR minor;
-- no runtime filesystem authority;
+- side-effect-free `nordoi release-check <project-root>`;
+- schema-versioned `nordoi.release.v1` JSON output;
+- exact source -> lock agreement;
+- exact source -> package byte agreement;
+- canonical V1.4 package validation before distribution;
+- SHA-256 package identity;
+- SHA-256 canonical build-witness identity;
+- deterministic `nordoi.release.provenance.v1` record;
+- provenance with no timestamp, host, user, OS or absolute path;
+- `nordoi release` publication only after the complete release gate passes;
+- byte-identical package copy into `dist/`;
+- deterministic `.sha256` and `.provenance` companions;
 - no dependency network;
-- frozen public version string.
+- no runtime filesystem authority;
+- no new NAIR minor;
+- frozen public version string;
+- regression proof across NAIR 0.6/0.12/0.13/0.14 project shapes.
 
-If and only if V1.5 passes the complete local Release Gate, 20/20 focused tests, text/JSON/missing-import/cycle smoke proofs, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **95% complete / 5% remaining**.
+If and only if V1.6 passes the complete local Release Gate, 20/20 focused tests, release-check/publication/drift/reproducibility smoke proofs, exact-SHA multi-platform CI, and annotated certification tag, the planned readiness estimate becomes **98% complete / 2% remaining**.
 
-The remaining Production Profile 1 work should then concentrate on capability-based production I/O composition, final adversarial hardening/fuzzing, a complete reference application, distribution artifacts and final release-candidate certification.
+The final **2%** should be reserved for final adversarial qualification, one complete reference application/release rehearsal, documentation/reproducibility closure and the final Production Profile 1 release certification. It should not reopen experimental runtime layering.
