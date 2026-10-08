@@ -1,0 +1,8 @@
+module app.main;
+
+effect ConsoleWrite;
+
+input key_code;
+const bias = 2;
+
+entry main emits "value=[" + (key_code + bias) + "]";

@@ -1,0 +1,775 @@
+use std::error::Error;
+use std::fmt::{Display, Formatter};
+
+use crate::capability::{Capability, CapabilitySet};
+use crate::dynamic_input_v07::{
+    compile_dynamic_plan_v07, execute_dynamic_source_v07, DynamicInputError, DynamicValue,
+    DynamicValueKind, V07DynamicPlan,
+};
+use crate::effect_audit::hash::sha256;
+use crate::frontend::{
+    analyze_type_effect_unit, lex, LexError, SourceError, SourceSpan, SourceText,
+    SurfaceDeclarationKind, Token, TokenKind, TypeEffectError,
+};
+use crate::input::{
+    InputBatch, InputDeviceId, InputEvent, InputPayload, InputSequence, InputSource, InputTarget,
+};
+use crate::observable_io_p21::{
+    P21ObservableEffect, P21ObservableEffectGuard, P21_CONSOLE_EFFECT_NAME,
+};
+
+const P23_PLAN_DOMAIN: &[u8] = b"NORDOI-P2.3-STRUCTURED-DYNAMIC-TEXT-OUTPUT-PLAN\0";
+const P23_RECEIPT_DOMAIN: &[u8] = b"NORDOI-P2.3-STRUCTURED-DYNAMIC-TEXT-OUTPUT-RECEIPT\0";
+
+pub const P23_OUTPUT_SCHEMA: &str = "nordoi.observable-io.p2.3";
+pub const MAX_P23_OUTPUT_BYTES: usize = 4096;
+
+#[derive(Debug)]
+pub enum StructuredObservableIoError {
+    TypeEffect(TypeEffectError),
+    Lex(LexError),
+    Source(SourceError),
+    Dynamic(DynamicInputError),
+    Syntax {
+        message: String,
+        span: SourceSpan,
+    },
+    Policy {
+        message: String,
+        span: Option<SourceSpan>,
+    },
+    CapabilityDenied(Capability),
+    Invariant {
+        message: String,
+    },
+}
+
+impl StructuredObservableIoError {
+    pub fn primary_span(&self) -> Option<SourceSpan> {
+        match self {
+            Self::TypeEffect(error) => error.primary_span(),
+            Self::Lex(error) => error.span(),
+            Self::Source(_) => None,
+            Self::Dynamic(error) => error.primary_span(),
+            Self::Syntax { span, .. } => Some(*span),
+            Self::Policy { span, .. } => *span,
+            Self::CapabilityDenied(_) | Self::Invariant { .. } => None,
+        }
+    }
+
+    pub fn is_frontend_failure(&self) -> bool {
+        !matches!(self, Self::CapabilityDenied(_) | Self::Invariant { .. })
+    }
+}
+
+impl Display for StructuredObservableIoError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TypeEffect(error) => Display::fmt(error, f),
+            Self::Lex(error) => Display::fmt(error, f),
+            Self::Source(error) => Display::fmt(error, f),
+            Self::Dynamic(error) => Display::fmt(error, f),
+            Self::Syntax { message, .. } => {
+                write!(f, "P2.3 structured output syntax error: {message}")
+            }
+            Self::Policy { message, .. } => {
+                write!(f, "P2.3 structured output policy error: {message}")
+            }
+            Self::CapabilityDenied(capability) => write!(
+                f,
+                "P2.3 structured output authority error: capability denied: {capability:?}"
+            ),
+            Self::Invariant { message } => {
+                write!(f, "P2.3 structured output invariant failed: {message}")
+            }
+        }
+    }
+}
+
+impl Error for StructuredObservableIoError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        match self {
+            Self::TypeEffect(error) => Some(error),
+            Self::Lex(error) => Some(error),
+            Self::Source(error) => Some(error),
+            Self::Dynamic(error) => Some(error),
+            Self::Syntax { .. }
+            | Self::Policy { .. }
+            | Self::CapabilityDenied(_)
+            | Self::Invariant { .. } => None,
+        }
+    }
+}
+
+impl From<TypeEffectError> for StructuredObservableIoError {
+    fn from(value: TypeEffectError) -> Self {
+        Self::TypeEffect(value)
+    }
+}
+
+impl From<LexError> for StructuredObservableIoError {
+    fn from(value: LexError) -> Self {
+        Self::Lex(value)
+    }
+}
+
+impl From<SourceError> for StructuredObservableIoError {
+    fn from(value: SourceError) -> Self {
+        Self::Source(value)
+    }
+}
+
+impl From<DynamicInputError> for StructuredObservableIoError {
+    fn from(value: DynamicInputError) -> Self {
+        Self::Dynamic(value)
+    }
+}
+
+pub type StructuredObservableIoResult<T> = Result<T, StructuredObservableIoError>;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct P23StructuredObservableOutputPlan {
+    module: Option<String>,
+    entry_name: String,
+    input_name: String,
+    result_kind: DynamicValueKind,
+    prefix: String,
+    suffix: String,
+    runtime_source: String,
+    dynamic_plan: V07DynamicPlan,
+    canonical_plan: Vec<u8>,
+    plan_sha256: [u8; 32],
+}
+
+impl P23StructuredObservableOutputPlan {
+    pub fn module(&self) -> Option<&str> {
+        self.module.as_deref()
+    }
+
+    pub fn entry_name(&self) -> &str {
+        &self.entry_name
+    }
+
+    pub fn input_name(&self) -> &str {
+        &self.input_name
+    }
+
+    pub fn result_kind(&self) -> DynamicValueKind {
+        self.result_kind
+    }
+
+    pub fn prefix(&self) -> &str {
+        &self.prefix
+    }
+
+    pub fn suffix(&self) -> &str {
+        &self.suffix
+    }
+
+    pub fn dynamic_plan(&self) -> &V07DynamicPlan {
+        &self.dynamic_plan
+    }
+
+    pub fn canonical_plan_bytes(&self) -> &[u8] {
+        &self.canonical_plan
+    }
+
+    pub fn plan_sha256(&self) -> &[u8; 32] {
+        &self.plan_sha256
+    }
+
+    pub fn plan_sha256_hex(&self) -> String {
+        hex_bytes(&self.plan_sha256)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct P23StructuredObservableOutputReceipt {
+    module: Option<String>,
+    entry_name: String,
+    input_name: String,
+    key_code: u32,
+    result: DynamicValue,
+    output: String,
+    plan_sha256: [u8; 32],
+    runtime_receipt_sha256: [u8; 32],
+    receipt_sha256: [u8; 32],
+    canonical_receipt: Vec<u8>,
+}
+
+impl P23StructuredObservableOutputReceipt {
+    pub fn module(&self) -> Option<&str> {
+        self.module.as_deref()
+    }
+
+    pub fn entry_name(&self) -> &str {
+        &self.entry_name
+    }
+
+    pub fn input_name(&self) -> &str {
+        &self.input_name
+    }
+
+    pub fn key_code(&self) -> u32 {
+        self.key_code
+    }
+
+    pub fn result(&self) -> DynamicValue {
+        self.result
+    }
+
+    pub fn output(&self) -> &str {
+        &self.output
+    }
+
+    pub fn output_bytes(&self) -> usize {
+        self.output.len()
+    }
+
+    pub fn plan_sha256_hex(&self) -> String {
+        hex_bytes(&self.plan_sha256)
+    }
+
+    pub fn runtime_receipt_sha256_hex(&self) -> String {
+        hex_bytes(&self.runtime_receipt_sha256)
+    }
+
+    pub fn receipt_sha256_hex(&self) -> String {
+        hex_bytes(&self.receipt_sha256)
+    }
+
+    pub fn canonical_receipt_bytes(&self) -> &[u8] {
+        &self.canonical_receipt
+    }
+
+    pub fn render_text(&self) -> String {
+        format!(
+            "structured-console-run module=\"{}\" entry=\"{}\" input=\"{}\" key-code={} result={} effect={} capability={} output-bytes={} plan-sha256={} runtime-receipt-sha256={} receipt-sha256={} status=EMITTED authority=EXPLICIT grant=ConsoleWrite ambient-authority=NONE\n",
+            escape_text(self.module.as_deref().unwrap_or("<anonymous>")),
+            escape_text(&self.entry_name),
+            escape_text(&self.input_name),
+            self.key_code,
+            self.result.as_text(),
+            P21_CONSOLE_EFFECT_NAME,
+            P21_CONSOLE_EFFECT_NAME,
+            self.output_bytes(),
+            self.plan_sha256_hex(),
+            self.runtime_receipt_sha256_hex(),
+            self.receipt_sha256_hex(),
+        )
+    }
+
+    pub fn render_json(&self) -> String {
+        format!(
+            "{{\"schema\":\"{}\",\"status\":\"emitted\",\"module\":\"{}\",\"entry\":\"{}\",\"input\":\"{}\",\"keyCode\":{},\"resultKind\":\"{}\",\"result\":\"{}\",\"effect\":\"{}\",\"capability\":\"{}\",\"output\":\"{}\",\"outputBytes\":{},\"planSha256\":\"{}\",\"runtimeReceiptSha256\":\"{}\",\"receiptSha256\":\"{}\",\"authority\":\"EXPLICIT\",\"ambientAuthority\":\"NONE\"}}",
+            P23_OUTPUT_SCHEMA,
+            escape_json(self.module.as_deref().unwrap_or("<anonymous>")),
+            escape_json(&self.entry_name),
+            escape_json(&self.input_name),
+            self.key_code,
+            self.result.kind().as_str(),
+            escape_json(&self.result.as_text()),
+            P21_CONSOLE_EFFECT_NAME,
+            P21_CONSOLE_EFFECT_NAME,
+            escape_json(&self.output),
+            self.output_bytes(),
+            self.plan_sha256_hex(),
+            self.runtime_receipt_sha256_hex(),
+            self.receipt_sha256_hex(),
+        )
+    }
+}
+
+pub fn compile_structured_observable_output_plan_p23(
+    source: &SourceText,
+) -> StructuredObservableIoResult<P23StructuredObservableOutputPlan> {
+    let unit = analyze_type_effect_unit(source)?;
+    validate_effect_prelude(source, &unit)?;
+
+    let tokens = lex(source)?;
+    let significant = tokens
+        .iter()
+        .filter(|token| {
+            !token.is_trivia()
+                && token.kind() != &TokenKind::Eof
+                && token.span().start().get() >= unit.body_span().start().get()
+        })
+        .collect::<Vec<_>>();
+
+    let entry_indexes = significant
+        .iter()
+        .enumerate()
+        .filter_map(|(index, token)| {
+            (token.kind() == &TokenKind::Identifier
+                && source.slice(token.span()).ok() == Some("entry"))
+            .then_some(index)
+        })
+        .collect::<Vec<_>>();
+
+    if entry_indexes.len() != 1 {
+        return Err(StructuredObservableIoError::Policy {
+            message: "P2.3 requires exactly one entry declaration".to_owned(),
+            span: entry_indexes
+                .first()
+                .and_then(|index| significant.get(*index))
+                .map(|token| token.span())
+                .or(Some(unit.body_span())),
+        });
+    }
+
+    let entry_index = entry_indexes[0];
+    let emits_token =
+        significant
+            .get(entry_index + 2)
+            .ok_or_else(|| StructuredObservableIoError::Syntax {
+                message: "expected: entry <name> emits \"prefix\" + <dynamic-expression>;"
+                    .to_owned(),
+                span: significant[entry_index].span(),
+            })?;
+    if emits_token.kind() != &TokenKind::Identifier || source.slice(emits_token.span())? != "emits"
+    {
+        return Err(StructuredObservableIoError::Syntax {
+            message: "expected contextual 'emits' after the entry name".to_owned(),
+            span: emits_token.span(),
+        });
+    }
+
+    let semicolon_index = significant
+        .iter()
+        .enumerate()
+        .skip(entry_index + 3)
+        .find_map(|(index, token)| (token.kind() == &TokenKind::Punctuation(';')).then_some(index))
+        .ok_or_else(|| StructuredObservableIoError::Syntax {
+            message: "structured output entry must end with ';'".to_owned(),
+            span: emits_token.span(),
+        })?;
+
+    let expression_tokens = &significant[entry_index + 3..semicolon_index];
+    if expression_tokens.len() < 3 {
+        return Err(StructuredObservableIoError::Syntax {
+            message: "P2.3 requires a quoted prefix, '+', and one runtime expression".to_owned(),
+            span: expression_tokens
+                .first()
+                .map(|token| token.span())
+                .unwrap_or(emits_token.span()),
+        });
+    }
+    if expression_tokens[0].kind() != &TokenKind::QuotedText {
+        return Err(StructuredObservableIoError::Policy {
+            message: "P2.3 requires the structured output to begin with one quoted UTF-8 prefix"
+                .to_owned(),
+            span: Some(expression_tokens[0].span()),
+        });
+    }
+    if expression_tokens[1].kind() != &TokenKind::Punctuation('+') {
+        return Err(StructuredObservableIoError::Syntax {
+            message: "expected '+' between the quoted prefix and runtime expression".to_owned(),
+            span: expression_tokens[1].span(),
+        });
+    }
+
+    let has_suffix = expression_tokens.len() >= 4
+        && expression_tokens[expression_tokens.len() - 2].kind() == &TokenKind::Punctuation('+')
+        && expression_tokens[expression_tokens.len() - 1].kind() == &TokenKind::QuotedText;
+    let dynamic_end = if has_suffix {
+        expression_tokens.len() - 2
+    } else {
+        expression_tokens.len()
+    };
+    if dynamic_end <= 2 {
+        return Err(StructuredObservableIoError::Syntax {
+            message: "P2.3 runtime segment must not be empty".to_owned(),
+            span: expression_tokens[1].span(),
+        });
+    }
+
+    if let Some(token) = expression_tokens[2..dynamic_end]
+        .iter()
+        .find(|token| token.kind() == &TokenKind::QuotedText)
+    {
+        return Err(StructuredObservableIoError::Policy {
+            message:
+                "P2.3 permits exactly one runtime Int/Bool segment between the static text segments"
+                    .to_owned(),
+            span: Some(token.span()),
+        });
+    }
+
+    let prefix = decode_quoted_output(source, expression_tokens[0])?;
+    let suffix = if has_suffix {
+        decode_quoted_output(source, expression_tokens[expression_tokens.len() - 1])?
+    } else {
+        String::new()
+    };
+
+    let runtime_start = expression_tokens[2].span().start().get() as usize;
+    let runtime_end = expression_tokens[dynamic_end - 1].span().end().get() as usize;
+    let runtime_source = build_runtime_source(
+        source,
+        emits_token.span(),
+        runtime_start,
+        runtime_end,
+        significant[semicolon_index].span(),
+    )?;
+    let synthetic = SourceText::new(source.id(), source.name(), runtime_source.clone())?;
+    let dynamic_plan = compile_dynamic_plan_v07(&synthetic)?;
+
+    if !dynamic_plan.is_dynamic() {
+        return Err(StructuredObservableIoError::Policy {
+            message: "P2.3 runtime segment must depend on explicit runtime input".to_owned(),
+            span: Some(expression_tokens[2].span()),
+        });
+    }
+    let input_name = dynamic_plan
+        .input_name()
+        .ok_or_else(|| StructuredObservableIoError::Policy {
+            message: "P2.3 requires exactly one explicit runtime input".to_owned(),
+            span: Some(unit.body_span()),
+        })?
+        .to_owned();
+    let result_kind = dynamic_plan.result_kind();
+    let maximum_output = prefix
+        .len()
+        .saturating_add(maximum_rendered_bytes(result_kind))
+        .saturating_add(suffix.len());
+    if maximum_output > MAX_P23_OUTPUT_BYTES {
+        return Err(StructuredObservableIoError::Policy {
+            message: format!(
+                "structured output can require {maximum_output} UTF-8 bytes, exceeding bound {MAX_P23_OUTPUT_BYTES}"
+            ),
+            span: Some(expression_tokens[0].span()),
+        });
+    }
+
+    let module = dynamic_plan.module().map(str::to_owned);
+    let entry_name = dynamic_plan.entry_name().to_owned();
+    let canonical_plan = canonical_plan_bytes(&dynamic_plan, &prefix, &suffix)?;
+    let plan_sha256 = sha256(&canonical_plan);
+
+    Ok(P23StructuredObservableOutputPlan {
+        module,
+        entry_name,
+        input_name,
+        result_kind,
+        prefix,
+        suffix,
+        runtime_source,
+        dynamic_plan,
+        canonical_plan,
+        plan_sha256,
+    })
+}
+
+pub fn execute_structured_observable_output_p23(
+    plan: &P23StructuredObservableOutputPlan,
+    key_code: u32,
+    authority: &CapabilitySet,
+) -> StructuredObservableIoResult<P23StructuredObservableOutputReceipt> {
+    let guard = P21ObservableEffectGuard::new(true, authority.clone());
+    guard
+        .check(P21ObservableEffect::ConsoleWrite)
+        .map_err(|error| match error {
+            crate::observable_io_p21::ObservableIoError::CapabilityDenied(capability) => {
+                StructuredObservableIoError::CapabilityDenied(capability)
+            }
+            other => StructuredObservableIoError::Invariant {
+                message: format!("P2.1 authority guard failed unexpectedly: {other}"),
+            },
+        })?;
+
+    let synthetic = SourceText::new(
+        crate::frontend::SourceId::new(0x2303),
+        "<p2.3-runtime>",
+        plan.runtime_source.clone(),
+    )?;
+    let input = key_batch(key_code);
+    let runtime = execute_dynamic_source_v07(&synthetic, &input)?;
+
+    if runtime.plan().canonical_v07_semantic_bytes()
+        != plan.dynamic_plan.canonical_v07_semantic_bytes()
+    {
+        return Err(StructuredObservableIoError::Invariant {
+            message: "runtime dynamic semantics differ from the certified P2.3 plan".to_owned(),
+        });
+    }
+    if runtime.plan().result_kind() != plan.result_kind {
+        return Err(StructuredObservableIoError::Invariant {
+            message: "runtime result kind differs from the certified P2.3 plan".to_owned(),
+        });
+    }
+
+    let result = runtime.result();
+    let rendered = render_dynamic_value(result);
+    let mut output = String::with_capacity(plan.prefix.len() + rendered.len() + plan.suffix.len());
+    output.push_str(&plan.prefix);
+    output.push_str(&rendered);
+    output.push_str(&plan.suffix);
+    if output.len() > MAX_P23_OUTPUT_BYTES {
+        return Err(StructuredObservableIoError::Invariant {
+            message: format!(
+                "rendered structured output has {} bytes, exceeding bound {MAX_P23_OUTPUT_BYTES}",
+                output.len()
+            ),
+        });
+    }
+
+    let runtime_receipt_sha256 = sha256(runtime.canonical_v07_receipt_bytes());
+    let canonical_receipt =
+        canonical_receipt_bytes(plan, key_code, result, &output, &runtime_receipt_sha256)?;
+    let receipt_sha256 = sha256(&canonical_receipt);
+
+    Ok(P23StructuredObservableOutputReceipt {
+        module: plan.module.clone(),
+        entry_name: plan.entry_name.clone(),
+        input_name: plan.input_name.clone(),
+        key_code,
+        result,
+        output,
+        plan_sha256: plan.plan_sha256,
+        runtime_receipt_sha256,
+        receipt_sha256,
+        canonical_receipt,
+    })
+}
+
+pub fn execute_structured_observable_output_source_p23(
+    source: &SourceText,
+    key_code: u32,
+    authority: &CapabilitySet,
+) -> StructuredObservableIoResult<P23StructuredObservableOutputReceipt> {
+    let plan = compile_structured_observable_output_plan_p23(source)?;
+    execute_structured_observable_output_p23(&plan, key_code, authority)
+}
+
+fn validate_effect_prelude(
+    source: &SourceText,
+    unit: &crate::frontend::TypeEffectUnit,
+) -> StructuredObservableIoResult<()> {
+    let mut console_write = None;
+    for declaration in unit.declarations() {
+        if declaration.kind() != SurfaceDeclarationKind::Effect {
+            continue;
+        }
+        let name = declaration.name().text(source)?;
+        if name != P21_CONSOLE_EFFECT_NAME {
+            return Err(StructuredObservableIoError::Policy {
+                message: format!(
+                    "P2.3 permits only effect {P21_CONSOLE_EFFECT_NAME}; found '{name}'"
+                ),
+                span: Some(declaration.span()),
+            });
+        }
+        if console_write.is_some() {
+            return Err(StructuredObservableIoError::Policy {
+                message: format!("duplicate effect {P21_CONSOLE_EFFECT_NAME}"),
+                span: Some(declaration.span()),
+            });
+        }
+        console_write = Some(declaration.span());
+    }
+
+    if console_write.is_none() {
+        return Err(StructuredObservableIoError::Policy {
+            message: format!(
+                "structured console output requires explicit 'effect {P21_CONSOLE_EFFECT_NAME};'"
+            ),
+            span: Some(unit.body_span()),
+        });
+    }
+    Ok(())
+}
+
+fn decode_quoted_output(
+    source: &SourceText,
+    token: &Token,
+) -> StructuredObservableIoResult<String> {
+    let span = token.span();
+    let raw = source.slice(span)?;
+    let bytes = raw.as_bytes();
+    if bytes.len() < 2 || bytes.first() != Some(&b'"') || bytes.last() != Some(&b'"') {
+        return Err(StructuredObservableIoError::Syntax {
+            message: "invalid quoted structured-output token".to_owned(),
+            span,
+        });
+    }
+
+    let content = &raw[1..raw.len() - 1];
+    let mut output = String::with_capacity(content.len());
+    let mut chars = content.chars();
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            output.push(ch);
+            continue;
+        }
+        let escaped = chars
+            .next()
+            .ok_or_else(|| StructuredObservableIoError::Syntax {
+                message: "trailing escape in structured output".to_owned(),
+                span,
+            })?;
+        match escaped {
+            '\\' => output.push('\\'),
+            '"' => output.push('"'),
+            'n' => output.push('\n'),
+            'r' => output.push('\r'),
+            't' => output.push('\t'),
+            _ => {
+                return Err(StructuredObservableIoError::Syntax {
+                    message: format!(
+                        "unsupported output escape '\\{escaped}'; allowed escapes are \\\\, \\\" , \\n, \\r and \\t"
+                    ),
+                    span,
+                })
+            }
+        }
+    }
+    Ok(output)
+}
+
+fn build_runtime_source(
+    source: &SourceText,
+    emits_span: SourceSpan,
+    runtime_start: usize,
+    runtime_end: usize,
+    semicolon_span: SourceSpan,
+) -> StructuredObservableIoResult<String> {
+    let text = source.text();
+    let emits_start = emits_span.start().get() as usize;
+    let semicolon_start = semicolon_span.start().get() as usize;
+    if emits_start > runtime_start
+        || runtime_start >= runtime_end
+        || runtime_end > semicolon_start
+        || semicolon_start > text.len()
+    {
+        return Err(StructuredObservableIoError::Invariant {
+            message: "invalid structured-output source spans".to_owned(),
+        });
+    }
+
+    let mut transformed = String::with_capacity(text.len());
+    transformed.push_str(&text[..emits_start]);
+    transformed.push_str("returns ");
+    transformed.push_str(&text[runtime_start..runtime_end]);
+    transformed.push_str(&text[semicolon_start..]);
+    Ok(transformed)
+}
+
+fn key_batch(code: u32) -> InputBatch {
+    InputBatch {
+        events: vec![InputEvent {
+            sequence: InputSequence(1),
+            source: InputSource::Keyboard,
+            device: InputDeviceId(1),
+            target: InputTarget::Global,
+            payload: InputPayload::Key {
+                code,
+                pressed: true,
+                repeat: false,
+            },
+        }],
+    }
+}
+
+fn render_dynamic_value(value: DynamicValue) -> String {
+    match value {
+        DynamicValue::Int(value) => value.to_string(),
+        DynamicValue::Bool(value) => {
+            if value {
+                "true".to_owned()
+            } else {
+                "false".to_owned()
+            }
+        }
+    }
+}
+
+const fn maximum_rendered_bytes(kind: DynamicValueKind) -> usize {
+    match kind {
+        DynamicValueKind::Int => 20,
+        DynamicValueKind::Bool => 5,
+    }
+}
+
+fn canonical_plan_bytes(
+    plan: &V07DynamicPlan,
+    prefix: &str,
+    suffix: &str,
+) -> StructuredObservableIoResult<Vec<u8>> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(P23_PLAN_DOMAIN);
+    push_component(&mut bytes, plan.canonical_v07_semantic_bytes())?;
+    push_string(&mut bytes, P21_CONSOLE_EFFECT_NAME)?;
+    push_string(&mut bytes, plan.result_kind().as_str())?;
+    push_string(&mut bytes, prefix)?;
+    push_string(&mut bytes, suffix)?;
+    bytes.extend_from_slice(&(MAX_P23_OUTPUT_BYTES as u32).to_be_bytes());
+    Ok(bytes)
+}
+
+fn canonical_receipt_bytes(
+    plan: &P23StructuredObservableOutputPlan,
+    key_code: u32,
+    result: DynamicValue,
+    output: &str,
+    runtime_receipt_sha256: &[u8; 32],
+) -> StructuredObservableIoResult<Vec<u8>> {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(P23_RECEIPT_DOMAIN);
+    bytes.extend_from_slice(&plan.plan_sha256);
+    bytes.extend_from_slice(runtime_receipt_sha256);
+    bytes.extend_from_slice(&key_code.to_be_bytes());
+    push_string(&mut bytes, plan.module.as_deref().unwrap_or("<anonymous>"))?;
+    push_string(&mut bytes, &plan.entry_name)?;
+    push_string(&mut bytes, &plan.input_name)?;
+    push_string(&mut bytes, result.kind().as_str())?;
+    push_string(&mut bytes, &result.as_text())?;
+    push_string(&mut bytes, output)?;
+    push_string(&mut bytes, "EXPLICIT")?;
+    push_string(&mut bytes, "NONE")?;
+    Ok(bytes)
+}
+
+fn push_component(out: &mut Vec<u8>, value: &[u8]) -> StructuredObservableIoResult<()> {
+    let len = u32::try_from(value.len()).map_err(|_| StructuredObservableIoError::Invariant {
+        message: "P2.3 canonical component exceeded u32 length".to_owned(),
+    })?;
+    out.extend_from_slice(&len.to_be_bytes());
+    out.extend_from_slice(value);
+    Ok(())
+}
+
+fn push_string(out: &mut Vec<u8>, value: &str) -> StructuredObservableIoResult<()> {
+    push_component(out, value.as_bytes())
+}
+
+fn hex_bytes(bytes: &[u8]) -> String {
+    let mut text = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        use std::fmt::Write as _;
+        let _ = write!(&mut text, "{byte:02x}");
+    }
+    text
+}
+
+fn escape_text(value: &str) -> String {
+    value.replace('\\', "\\\\").replace('"', "\\\"")
+}
+
+fn escape_json(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for ch in value.chars() {
+        match ch {
+            '"' => escaped.push_str("\\\""),
+            '\\' => escaped.push_str("\\\\"),
+            '\n' => escaped.push_str("\\n"),
+            '\r' => escaped.push_str("\\r"),
+            '\t' => escaped.push_str("\\t"),
+            ch if ch.is_control() => {
+                use std::fmt::Write as _;
+                let _ = write!(&mut escaped, "\\u{:04x}", ch as u32);
+            }
+            ch => escaped.push(ch),
+        }
+    }
+    escaped
+}

@@ -29,6 +29,7 @@ pub mod nair;
 mod nested_control_v12;
 pub mod observable_io_p21;
 pub mod observable_io_p22;
+pub mod observable_io_p23;
 pub mod ownership;
 pub mod production_profile_v17;
 pub mod program_upgrade;
@@ -267,6 +268,12 @@ pub use observable_io_p22::{
     execute_dynamic_observable_output_source_p22, DynamicObservableIoError,
     DynamicObservableIoResult, P22DynamicObservableOutputPlan, P22DynamicObservableOutputReceipt,
     MAX_P22_OUTPUT_BYTES, P22_OUTPUT_SCHEMA,
+};
+pub use observable_io_p23::{
+    compile_structured_observable_output_plan_p23, execute_structured_observable_output_p23,
+    execute_structured_observable_output_source_p23, P23StructuredObservableOutputPlan,
+    P23StructuredObservableOutputReceipt, StructuredObservableIoError,
+    StructuredObservableIoResult, MAX_P23_OUTPUT_BYTES, P23_OUTPUT_SCHEMA,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use production_profile_v17::{

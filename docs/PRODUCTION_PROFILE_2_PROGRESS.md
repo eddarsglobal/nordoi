@@ -8,38 +8,45 @@ Production Profile 1 is certified and frozen at immutable tag `v1.7`.
 
 Certified at immutable annotated tag `p2.1`.
 
-Certified proof set:
+Proof set includes explicit `ConsoleWrite`, exact host capability grant, deny-by-default zero-output failure, bounded static UTF-8, deterministic receipts, zero ambient authority, unchanged Profile 1 encodings, Release Gate PASS, and exact-SHA cross-platform CI.
 
-- explicit `effect ConsoleWrite;`;
-- exact `Capability::ConsoleWrite` host grant;
-- deny-by-default with zero stdout bytes on denial;
-- bounded static UTF-8 output;
-- deterministic plan and receipt SHA-256 identities;
-- host/path/time-independent receipt;
-- zero ambient authority;
-- unchanged Profile 1 kernel/runtime/NAIR encodings;
-- Release Gate PASS;
-- exact-SHA Linux/macOS/Windows CI.
+## P2.2 — Dynamic Capability-Secured Observable Output — CERTIFIED
 
-## P2.2 — Dynamic Capability-Secured Observable Output — CANDIDATE
+Certified commit:
 
-P2.2 extends the observable boundary to one runtime-computed `Int` or `Bool` while preserving P2.1 authority semantics.
+```text
+2270161e1f5a816379754ff7cfd02cb31e1183c0
+```
+
+Certified exact-SHA CI run:
+
+```text
+37768061909
+```
+
+Immutable annotated tag: `p2.2`.
+
+Proof set includes runtime-dependent `Int`/`Bool` output through certified V0.7 computation, exact `ConsoleWrite` authority, deterministic runtime/P2.2 receipt binding, zero ambient authority, fail-closed static/dynamic boundary, Release Gate PASS, 20/20 focused tests, and Linux/macOS/Windows CI.
+
+## P2.3 — Structured Dynamic Text Output — CANDIDATE
+
+P2.3 composes bounded decoded UTF-8 text with exactly one runtime-computed `Int` or `Bool` while preserving P2.1/P2.2 authority and evidence semantics.
 
 Target proof set:
 
-- `entry <name> emits <dynamic-expression>;`;
-- expression must depend on explicit runtime input;
-- V0.7 dynamic computation reused rather than replaced;
-- canonical Int/Bool rendering only;
-- 64-byte rendered-output bound;
-- exact `ConsoleWrite` grant required before runtime execution;
+- required quoted UTF-8 prefix;
+- one V0.7 runtime `Int`/`Bool` segment;
+- optional quoted UTF-8 suffix;
+- runtime segment must depend on explicit input;
+- arithmetic remains V0.7 numeric arithmetic rather than implicit string coercion;
+- 4096-byte total output bound proven before authority;
+- exact `ConsoleWrite` host grant required before runtime execution;
 - zero stdout bytes when grant is absent;
-- deterministic P2.2 plan, V0.7 runtime receipt hash, and P2.2 receipt;
+- deterministic template plan, V0.7 runtime receipt hash, and P2.3 receipt;
 - source path/ID/host/time independent identities;
-- no string concatenation, filesystem, network, or new ambient authority;
-- Profile 1 and P2.1 certified boundaries unchanged;
+- Profile 1, P2.1, and P2.2 certified boundaries unchanged;
 - Release Gate PASS;
 - 20/20 focused tests;
-- exact-SHA cross-platform CI before immutable `p2.2` tag.
+- exact-SHA cross-platform CI before immutable `p2.3` tag.
 
 Production Profile 2 remains incremental; no global completion percentage is claimed yet.
