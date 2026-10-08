@@ -33,6 +33,15 @@ impl ModuleGraphError {
     pub fn is_frontend_failure(&self) -> bool {
         !matches!(self, Self::Nested(error) if !error.is_frontend_failure())
     }
+
+    pub fn primary_span(&self) -> Option<crate::frontend::SourceSpan> {
+        match self {
+            Self::Lex(error) => error.span(),
+            Self::Module(error) => error.primary_span(),
+            Self::Nested(error) => error.primary_span(),
+            Self::Source(_) | Self::Semantic { .. } => None,
+        }
+    }
 }
 
 impl Display for ModuleGraphError {

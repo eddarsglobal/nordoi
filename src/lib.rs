@@ -8,6 +8,7 @@ pub mod compiler;
 pub mod conditional_core_v05;
 pub mod core_functions_v06;
 pub mod dependency;
+pub mod diagnostics_v15;
 mod dynamic_branch_v09;
 mod dynamic_control_v08;
 mod dynamic_input_v07;
@@ -117,6 +118,13 @@ pub use core_functions_v06::{
     CoreFunctionsResult, CoreValue, V06CoreExecutionReport, V06CoreNairArtifact, V06CorePlan,
     MAX_V06_BINDINGS, MAX_V06_CALL_DEPTH, MAX_V06_EXPR_NODES, MAX_V06_FUNCTIONS,
     MAX_V06_NAME_BYTES, MAX_V06_PARAMS,
+};
+pub use diagnostics_v15::{
+    check_project_sources_v15, detect_import_cycle_v15, diagnostic_from_module_error_v15,
+    diagnostic_from_project_error_v15, discover_import_graph_v15, import_trace_from_parents_v15,
+    V15Diagnostic, V15DiagnosticLocation, V15ProjectCheckReport, NDX_IMPORT_CYCLE, NDX_LOWERING,
+    NDX_MANIFEST, NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_PACKAGE,
+    NDX_SEMANTIC, NDX_SOURCE, NDX_SOURCE_IO, V15_DIAGNOSTIC_SCHEMA,
 };
 pub use dynamic_branch_v09::{
     compile_dynamic_branch_body_plan_v09, execute_dynamic_branch_body_source_v09,

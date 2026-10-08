@@ -28,6 +28,11 @@ use nordoi_kernel::{
     Token, TokenKind, Value, MAX_V13_MODULES, MAX_V14_PACKAGE_BYTES, V14_LOCK_FILE,
     V14_MANIFEST_FILE, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
+use nordoi_kernel::{
+    check_project_sources_v15, diagnostic_from_module_error_v15, import_trace_from_parents_v15,
+    V15Diagnostic, NDX_MANIFEST, NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH,
+    NDX_SOURCE, NDX_SOURCE_IO,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::ffi::OsStr;
@@ -68,6 +73,7 @@ Usage:\n\
   nordoi function-control-run <path|-> <key-code>\n\
   nordoi module-graph-run <source-root> <entry-module> <key-code>\n\
   nordoi build <project-root> [--locked]\n\
+  nordoi check <project-root> [--json]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -106,6 +112,7 @@ Commands:\n\
   function-control-run V1.2 execute selective structured if/else inside bounded pure runtime function bodies through NAIR 0.14.\n\
   module-graph-run V1.3 resolve real .noi modules/imports statically, erase them before NAIR, and execute the entry module.\n\
   build            V1.4 build a deterministic NORDOI project package and canonical lock file.\n\
+  check            V1.5 validate a project with stable diagnostics, import traces and optional JSON output.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -150,7 +157,8 @@ V1.0 call-run adds bounded direct pure runtime calls through NAIR 0.12 CALL_EVAL
 V1.1 call-graph-run adds statically acyclic bounded call graphs through NAIR 0.13 nested call expressions; recursion, cycles, indirect calls, and unbounded call depth remain forbidden.\n\
 V1.2 function-control-run adds selective structured if/else inside pure runtime function bodies through NAIR 0.14; only the selected arm executes and the acyclic bounded call graph remains enforced.\n\
 V1.3 module-graph-run adds statically resolved real .noi module/import graphs; imports are erased before NAIR, import cycles and ambiguities fail closed, and runtime filesystem authority remains NONE.\n\
-V1.4 build adds strict NORDOI.toml projects, canonical NORDOI.lock state, deterministic .npkg artifacts, and --locked drift rejection with no dependency network access.\n";
+V1.4 build adds strict NORDOI.toml projects, canonical NORDOI.lock state, deterministic .npkg artifacts, and --locked drift rejection with no dependency network access.\n\
+V1.5 check adds stable NDX diagnostic codes, precise source locations when available, deterministic import traces, and schema-versioned JSON without changing NAIR or runtime authority.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -218,6 +226,18 @@ fn run() -> u8 {
             }
         };
         return run_project_build_v14_cli(Path::new(&arguments[1]), locked);
+    }
+
+    if command.as_ref() == "check" {
+        let json = match arguments.len() {
+            2 => false,
+            3 if arguments[2].as_os_str() == OsStr::new("--json") => true,
+            _ => {
+                report_usage_error("check expects <project-root> [--json]");
+                return EXIT_USAGE;
+            }
+        };
+        return run_project_check_v15_cli(Path::new(&arguments[1]), json);
     }
 
     if command.as_ref() == "package-info" {
@@ -3536,6 +3556,189 @@ fn run_project_build_v14_cli(project_root: &Path, locked: bool) -> u8 {
             report_io_error("<stdout>", &error);
             EXIT_IO
         }
+    }
+}
+
+fn run_project_check_v15_cli(project_root: &Path, json: bool) -> u8 {
+    let manifest_path = project_root.join(V14_MANIFEST_FILE);
+    let manifest_text = match fs::read_to_string(&manifest_path) {
+        Ok(text) => text,
+        Err(error) => {
+            let diagnostic = V15Diagnostic::new(
+                NDX_SOURCE_IO,
+                "manifest-io",
+                format!("cannot read project manifest: {error}"),
+            )
+            .with_file(manifest_path.to_string_lossy().into_owned());
+            return emit_v15_diagnostic(&diagnostic, json, EXIT_IO);
+        }
+    };
+    let manifest = match parse_project_manifest_v14(&manifest_text) {
+        Ok(manifest) => manifest,
+        Err(error) => {
+            let diagnostic = V15Diagnostic::new(NDX_MANIFEST, "manifest", error.to_string())
+                .with_file(manifest_path.to_string_lossy().into_owned());
+            return emit_v15_diagnostic(&diagnostic, json, EXIT_FRONTEND);
+        }
+    };
+
+    let source_root = project_root.join(manifest.source_root());
+    let sources = match load_module_graph_sources_v15_cli(&source_root, manifest.entry_module()) {
+        Ok(sources) => sources,
+        Err((diagnostic, exit)) => return emit_v15_diagnostic(&diagnostic, json, exit),
+    };
+
+    let report = match check_project_sources_v15(&manifest, &sources) {
+        Ok(report) => report,
+        Err(diagnostic) => return emit_v15_diagnostic(&diagnostic, json, EXIT_FRONTEND),
+    };
+    let rendered = if json {
+        format!("{}\n", report.render_json())
+    } else {
+        report.render_text()
+    };
+    match write_stdout(rendered.as_bytes()) {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn load_module_graph_sources_v15_cli(
+    root: &Path,
+    entry_module: &str,
+) -> Result<Vec<SourceText>, (Box<V15Diagnostic>, u8)> {
+    if let Err(error) = validate_module_name_v13(entry_module) {
+        return Err((
+            Box::new(
+                V15Diagnostic::new(NDX_MODULE_DECLARATION, "module", error.to_string())
+                    .with_import_trace(vec![entry_module.to_owned()]),
+            ),
+            EXIT_FRONTEND,
+        ));
+    }
+
+    let mut pending = BTreeSet::new();
+    let mut loaded = BTreeMap::new();
+    let mut parents = BTreeMap::<String, String>::new();
+    pending.insert(entry_module.to_owned());
+    let mut next_source_id = 1u32;
+
+    while let Some(module_name) = pending.pop_first() {
+        if loaded.contains_key(&module_name) {
+            continue;
+        }
+        let trace = import_trace_from_parents_v15(&parents, &module_name);
+        if loaded.len() >= MAX_V13_MODULES {
+            return Err((
+                Box::new(
+                    V15Diagnostic::new(
+                        NDX_MODULE_GRAPH,
+                        "module-graph",
+                        format!("module graph exceeds certified bound {MAX_V13_MODULES}"),
+                    )
+                    .with_import_trace(trace),
+                ),
+                EXIT_FRONTEND,
+            ));
+        }
+
+        let path = module_path_v13(root, &module_name);
+        let (name, text) = match load_source(path.as_os_str()) {
+            Ok(value) => value,
+            Err(error) => {
+                let code = if parents.contains_key(&module_name) {
+                    NDX_MISSING_IMPORT
+                } else {
+                    NDX_SOURCE_IO
+                };
+                let diagnostic = V15Diagnostic::new(
+                    code,
+                    "source-io",
+                    format!(
+                        "cannot load module '{module_name}': {}",
+                        describe_load_error(&error)
+                    ),
+                )
+                .with_file(path.to_string_lossy().into_owned())
+                .with_import_trace(trace);
+                return Err((Box::new(diagnostic), EXIT_IO));
+            }
+        };
+        let source = match SourceText::new(SourceId::new(next_source_id), name, text) {
+            Ok(source) => source,
+            Err(error) => {
+                let diagnostic = V15Diagnostic::new(NDX_SOURCE, "source", error.to_string())
+                    .with_file(path.to_string_lossy().into_owned())
+                    .with_import_trace(trace);
+                return Err((Box::new(diagnostic), EXIT_FRONTEND));
+            }
+        };
+        next_source_id = next_source_id.saturating_add(1);
+
+        let discovery = match discover_module_imports_v13(&source) {
+            Ok(discovery) => discovery,
+            Err(error) => {
+                let diagnostic =
+                    diagnostic_from_module_error_v15(&error, std::slice::from_ref(&source), trace);
+                return Err((Box::new(diagnostic), EXIT_FRONTEND));
+            }
+        };
+        if discovery.module() != module_name {
+            let diagnostic = V15Diagnostic::new(
+                NDX_MODULE_DECLARATION,
+                "module",
+                format!(
+                    "module path requested '{}' but file declares '{}'",
+                    module_name,
+                    discovery.module()
+                ),
+            )
+            .with_file(source.name().to_owned())
+            .with_import_trace(trace);
+            return Err((Box::new(diagnostic), EXIT_FRONTEND));
+        }
+        for import in discovery.imports() {
+            if !loaded.contains_key(import) {
+                parents
+                    .entry(import.clone())
+                    .or_insert_with(|| module_name.clone());
+                pending.insert(import.clone());
+            }
+        }
+        loaded.insert(module_name, source);
+    }
+
+    Ok(loaded.into_values().collect())
+}
+
+fn emit_v15_diagnostic(diagnostic: &V15Diagnostic, json: bool, exit: u8) -> u8 {
+    if json {
+        let rendered = format!("{}\n", diagnostic.render_json());
+        if let Err(error) = write_stdout(rendered.as_bytes()) {
+            report_io_error("<stdout>", &error);
+            return EXIT_IO;
+        }
+    } else {
+        let stderr = io::stderr();
+        let mut stderr = stderr.lock();
+        if let Err(error) = stderr.write_all(diagnostic.render_text().as_bytes()) {
+            report_io_error("<stderr>", &error);
+            return EXIT_IO;
+        }
+    }
+    exit
+}
+
+fn describe_load_error(error: &LoadError) -> String {
+    match error {
+        LoadError::Io(error) => error.to_string(),
+        LoadError::TooLarge { bytes, maximum } => {
+            format!("input has {bytes} bytes; maximum is {maximum} bytes")
+        }
+        LoadError::InvalidUtf8 => "source is not valid UTF-8".to_owned(),
     }
 }
 
