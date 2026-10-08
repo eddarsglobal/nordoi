@@ -1,85 +1,89 @@
-# NORDOI P2.1 — Capability-Secured Observable I/O
+# NORDOI P2.2 — Dynamic Capability-Secured Observable Output
 
-Production Profile 1 is frozen and certified at tag `v1.7`. P2.1 opens Production Profile 2 with one deliberately narrow observable capability: bounded UTF-8 console output guarded by an explicit source effect declaration and an explicit host capability grant.
+Production Profile 1 is frozen and certified at tag `v1.7`. P2.1 is certified at immutable tag `p2.1`. P2.2 adds one narrow capability above that certified base: a runtime-computed `Int` or `Bool` may be emitted to stdout only after explicit `ConsoleWrite` authorization.
 
-P2.1 does **not** modify the certified kernel, runtime, NAIR instruction set, package format, release format, or Production Profile 1 certification chain.
+P2.2 does **not** modify the certified kernel K1.18, the Profile 1 runtime, NAIR encodings, package/release formats, or P2.1 static console semantics.
 
 ## Source surface
 
-The first observable slice is intentionally small:
+P2.1 remains unchanged:
+
+```noi
+module app.main;
+effect ConsoleWrite;
+entry main emits "Hello";
+```
+
+P2.2 adds dynamic observable output:
 
 ```noi
 module app.main;
 
 effect ConsoleWrite;
 
-entry main emits "Hello from NORDOI P2.1!\n";
+input key_code;
+const bias = 2;
+
+entry main emits key_code + bias;
 ```
 
-P2.1 accepts exactly one `entry <name> emits "<text>";` body and one declared `effect ConsoleWrite;`. Output is bounded to 4096 decoded UTF-8 bytes. Supported escapes are `\\`, `\"`, `\n`, `\r`, and `\t`.
+The expression is compiled through the already-certified V0.7 dynamic computation vertical. P2.2 requires runtime dependence; static numeric/boolean expressions are rejected and quoted text remains the P2.1 surface.
 
 ## Explicit authority
 
-Compilation alone grants no authority. Running without a host grant fails closed and emits zero program bytes:
+Compilation grants no authority. The new command is additive:
 
 ```bash
-cargo run --quiet --bin nordoi -- \
-  console-run examples/p2_1_console/hello.noi
+cargo run --quiet --bin nordoi --   dynamic-console-run examples/p2_2_dynamic/value.noi 40
 ```
 
-The observable effect executes only with the exact capability:
+Without `--grant-console`, execution fails closed with zero program bytes on stdout.
+
+Authorized execution:
 
 ```bash
-cargo run --quiet --bin nordoi -- \
-  console-run examples/p2_1_console/hello.noi --grant-console
+cargo run --quiet --bin nordoi --   dynamic-console-run examples/p2_2_dynamic/value.noi 40 --grant-console
 ```
 
-Program output is written exactly to stdout. Deterministic receipt metadata is written to stderr so tooling metadata never changes the program's output bytes.
+The program emits exactly:
+
+```text
+42
+```
+
+Receipt metadata is written to stderr and includes the P2.2 plan identity, the certified V0.7 runtime receipt identity, the explicit authority state, and the final P2.2 receipt identity.
 
 ## Security boundary
 
-P2.1 guarantees for this slice:
+P2.2 guarantees for this slice:
 
 - source must explicitly declare `effect ConsoleWrite;`;
 - host must explicitly grant `Capability::ConsoleWrite`;
-- unrelated capabilities never authorize console output;
-- revoke removes authority immediately;
-- no ambient authority exists;
-- no filesystem, network, process, camera, microphone, location, GPU, or XR authority is introduced;
-- output is bounded before authority is exercised;
-- receipt identity is deterministic and independent of source file path, source ID, host name, OS, or wall-clock time;
-- denial happens before stdout receives program bytes.
+- no ambient console authority exists;
+- unrelated or revoked capabilities fail closed;
+- P2.2 accepts only runtime-computed `Int`/`Bool` output;
+- canonical rendering is decimal integer or lowercase `true`/`false`;
+- rendered output is bounded to 64 UTF-8 bytes;
+- runtime computation reuses the certified V0.7 NAIR path;
+- the P2.2 receipt commits to the P2.2 plan, exact runtime input, V0.7 runtime receipt hash, rendered result, and authority mode;
+- source path, source ID, hostname, OS, and wall-clock time do not enter the receipt identity;
+- no filesystem, network, process, camera, microphone, location, GPU, or XR authority is introduced.
 
-`ConsoleWrite` is a P2.1-local observable effect. It is intentionally **not** added to the frozen Profile 1 `Effect` serialization because doing so would mutate certified NAIR/audit/persistence encodings. P2.1 reuses the existing `CapabilitySet` authority model while preserving those byte-level boundaries unchanged.
-
-## Receipt
-
-A successful execution creates a deterministic canonical receipt and SHA-256 identity. Tooling reports fields including:
-
-```text
-status=EMITTED
-authority=EXPLICIT
-grant=ConsoleWrite
-ambient-authority=NONE
-plan-sha256=...
-receipt-sha256=...
-```
-
-The library also exposes schema `nordoi.observable-io.p2.1` through `P21ObservableOutputReceipt::render_json()`.
+P2.2 deliberately does not add string concatenation or arbitrary formatting. That remains a later milestone.
 
 ## Tests
 
-P2.1 adds 20 focused tests:
+P2.2 adds 20 focused tests:
 
 ```bash
-cargo test --test observable_io_p21 -- --nocapture
-cargo test --test security_observable_io_p21 -- --nocapture
-cargo test --test tooling_observable_io_p21 -- --nocapture
+cargo test --test observable_io_p22 -- --nocapture
+cargo test --test security_observable_io_p22 -- --nocapture
+cargo test --test tooling_observable_io_p22 -- --nocapture
 ```
 
 Expected focused totals are 8 + 8 + 4.
 
-The normal repository Release Gate remains mandatory:
+The normal Release Gate remains mandatory:
 
 ```bash
 cargo fmt --all
@@ -88,10 +92,10 @@ cargo fmt --all
 
 ## Frozen public boundary
 
-P2.1 is additive and does not promote the historical public version string. It remains:
+P2.2 remains additive. The public version string stays:
 
 ```text
 nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)
 ```
 
-Production Profile 1 remains immutable at `v1.7`; P2.1 is the first candidate milestone of Production Profile 2.
+Production Profile 1 remains immutable at `v1.7`, and P2.1 remains immutable at `p2.1`.

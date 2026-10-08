@@ -29,10 +29,12 @@ use nordoi_kernel::{
     V14_MANIFEST_FILE, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
 use nordoi_kernel::{
-    certify_production_profile1_v17, check_project_sources_v15, compile_observable_output_plan_p21,
-    diagnostic_from_module_error_v15, distribution_plan_v16, execute_observable_output_p21,
-    import_trace_from_parents_v15, verify_release_candidate_v16, Capability, CapabilitySet,
-    ObservableIoError, ProductionProfileCertificationError, ReleaseCandidateError, V15Diagnostic,
+    certify_production_profile1_v17, check_project_sources_v15,
+    compile_dynamic_observable_output_plan_p22, compile_observable_output_plan_p21,
+    diagnostic_from_module_error_v15, distribution_plan_v16, execute_dynamic_observable_output_p22,
+    execute_observable_output_p21, import_trace_from_parents_v15, verify_release_candidate_v16,
+    Capability, CapabilitySet, DynamicObservableIoError, ObservableIoError,
+    ProductionProfileCertificationError, ReleaseCandidateError, V15Diagnostic,
     V16ReleaseCandidateReport, MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES, NDX_MANIFEST,
     NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE, NDX_SOURCE_IO,
     V16_RELEASE_SCHEMA, V17_PROFILE1_SCHEMA,
@@ -82,6 +84,7 @@ Usage:\n\
   nordoi release <project-root> [--json]\n\
   nordoi profile1-certify <project-root> [--json]\n\
   nordoi console-run <path|-> [--grant-console]\n\
+  nordoi dynamic-console-run <path|-> <key-code> [--grant-console]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -125,6 +128,7 @@ Commands:\n\
   release          V1.6 publish only verified package/checksum/provenance files into dist/.\n\
   profile1-certify V1.7 certify the complete source/build/distribution chain for Production Profile 1.\n\
   console-run      P2.1 emit one bounded UTF-8 console output only with explicit ConsoleWrite authority.\n\
+  dynamic-console-run P2.2 emit one runtime-computed Int/Bool result only with explicit ConsoleWrite authority.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -173,7 +177,8 @@ V1.4 build adds strict NORDOI.toml projects, canonical NORDOI.lock state, determ
 V1.5 check adds stable NDX diagnostic codes, precise source locations when available, deterministic import traces, and schema-versioned JSON without changing NAIR or runtime authority.\n\
 V1.6 release-check proves source/lock/package identity and canonical SHA-256 provenance; release publishes only platform-neutral verified distribution artifacts.\n\
 V1.7 profile1-certify proves the complete source/lock/build/dist/checksum/provenance chain without creating or repairing artifacts.\n\
-P2.1 console-run adds one bounded observable UTF-8 output with declared ConsoleWrite effect, explicit host grant, deterministic receipt, and zero ambient authority.\n";
+P2.1 console-run adds one bounded observable UTF-8 output with declared ConsoleWrite effect, explicit host grant, deterministic receipt, and zero ambient authority.\n\
+P2.2 dynamic-console-run reuses certified V0.7 runtime input computation and renders one Int/Bool result only after explicit ConsoleWrite authorization; P2.1 behavior and Profile 1 encodings remain unchanged.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -289,6 +294,42 @@ fn run() -> u8 {
             }
         };
         return run_profile1_certify_v17_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "dynamic-console-run" {
+        let (key_code, grant_console) = match arguments.len() {
+            3 => {
+                let key_code = match arguments[2].to_string_lossy().parse::<u32>() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        report_usage_error(
+                            "dynamic-console-run key-code must be an unsigned 32-bit integer",
+                        );
+                        return EXIT_USAGE;
+                    }
+                };
+                (key_code, false)
+            }
+            4 if arguments[3].as_os_str() == OsStr::new("--grant-console") => {
+                let key_code = match arguments[2].to_string_lossy().parse::<u32>() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        report_usage_error(
+                            "dynamic-console-run key-code must be an unsigned 32-bit integer",
+                        );
+                        return EXIT_USAGE;
+                    }
+                };
+                (key_code, true)
+            }
+            _ => {
+                report_usage_error(
+                    "dynamic-console-run expects <path|-> <key-code> [--grant-console]",
+                );
+                return EXIT_USAGE;
+            }
+        };
+        return run_dynamic_console_output_p22_cli(&arguments[1], key_code, grant_console);
     }
 
     if command.as_ref() == "console-run" {
@@ -4472,6 +4513,83 @@ fn write_atomic_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
             let _ = fs::remove_file(&temp_path);
             Err(error)
         }
+    }
+}
+
+fn run_dynamic_console_output_p22_cli(path: &OsStr, key_code: u32, grant_console: bool) -> u8 {
+    let (name, text) = match load_source(path) {
+        Ok(input) => input,
+        Err(error) => {
+            report_load_error(path, &error);
+            return EXIT_IO;
+        }
+    };
+
+    let source = match SourceText::new(SourceId::new(1), name, text) {
+        Ok(source) => source,
+        Err(error) => {
+            let source_name = if path == OsStr::new("-") {
+                "<stdin>".to_owned()
+            } else {
+                path.to_string_lossy().into_owned()
+            };
+            report_plain_error("source", &source_name, &error);
+            return EXIT_FRONTEND;
+        }
+    };
+
+    let plan = match compile_dynamic_observable_output_plan_p22(&source) {
+        Ok(plan) => plan,
+        Err(error) => {
+            report_frontend_error("dynamic-console-run", &source, error.primary_span(), &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let mut authority = CapabilitySet::new();
+    if grant_console {
+        authority.allow(Capability::ConsoleWrite);
+    }
+
+    let receipt = match execute_dynamic_observable_output_p22(&plan, key_code, &authority) {
+        Ok(receipt) => receipt,
+        Err(error) => {
+            report_dynamic_console_output_p22_error(&source, &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    if let Err(error) = write_stdout(receipt.output().as_bytes()) {
+        report_io_error("<stdout>", &error);
+        return EXIT_IO;
+    }
+
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    if let Err(error) = stderr.write_all(receipt.render_text().as_bytes()) {
+        report_io_error("<stderr>", &error);
+        return EXIT_IO;
+    }
+    if let Err(error) = stderr.flush() {
+        report_io_error("<stderr>", &error);
+        return EXIT_IO;
+    }
+    EXIT_OK
+}
+
+fn report_dynamic_console_output_p22_error(source: &SourceText, error: &DynamicObservableIoError) {
+    if error.is_frontend_failure() {
+        report_frontend_error("dynamic-console-run", source, error.primary_span(), error);
+    } else {
+        report_plain_error("dynamic-console-run", source.name(), error);
     }
 }
 

@@ -28,6 +28,7 @@ pub mod modules_v13;
 pub mod nair;
 mod nested_control_v12;
 pub mod observable_io_p21;
+pub mod observable_io_p22;
 pub mod ownership;
 pub mod production_profile_v17;
 pub mod program_upgrade;
@@ -260,6 +261,12 @@ pub use observable_io_p21::{
     ObservableIoResult, P21ObservableEffect, P21ObservableEffectGuard, P21ObservableOutputPlan,
     P21ObservableOutputReceipt, MAX_P21_ENTRY_NAME_BYTES, MAX_P21_OUTPUT_BYTES,
     P21_CONSOLE_EFFECT_NAME, P21_OUTPUT_SCHEMA,
+};
+pub use observable_io_p22::{
+    compile_dynamic_observable_output_plan_p22, execute_dynamic_observable_output_p22,
+    execute_dynamic_observable_output_source_p22, DynamicObservableIoError,
+    DynamicObservableIoResult, P22DynamicObservableOutputPlan, P22DynamicObservableOutputReceipt,
+    MAX_P22_OUTPUT_BYTES, P22_OUTPUT_SCHEMA,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use production_profile_v17::{
