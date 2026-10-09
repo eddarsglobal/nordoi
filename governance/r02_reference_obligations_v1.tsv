@@ -1,0 +1,17 @@
+id	model_witness	status	limitation
+R01-I01	i01_acquire_requires_explicit_grant	MODEL_TESTED	Host permit is an embedding witness not production authorization
+R01-I02	i02_owner_is_unique_across_scopes	MODEL_TESTED	Ownership transfer and borrowing not modeled
+R01-I03	i03_double_release_rejected_atomically	MODEL_TESTED	Not proof about external handles
+R01-I04	i04_no_use_after_release	MODEL_TESTED	Not integrated with compiler lifetime checking
+R01-I05	i05_effect_must_be_declared	MODEL_TESTED	Effect declaration does not yet lower to NAIR
+R01-I06	i06_no_external_io_or_irreversible_rollback_claim	MODEL_TESTED	External effects rejected rather than integrated
+R01-I07	i07_children_cannot_outlive_parent_scope	MODEL_TESTED	Task execution is not implemented
+R01-I08	i08_cancel_request_is_not_silent_success	MODEL_TESTED	Cooperative cancellation only
+R01-I09	i09_failure_is_propagated_and_accounted	MODEL_TESTED	One deterministic failure precedence policy only
+R01-I10	i10_task_admission_is_bounded	MODEL_TESTED	Reference budgets not production backpressure
+R01-I11	i11_join_is_independent_of_host_completion_order	MODEL_TESTED	Same identities and same outcomes assumed
+R01-I12	i12_no_scope_close_with_unjoined_child_task	MODEL_TESTED	No scheduler or resource reclamation proof
+R01-I13	i13_model_is_backend_neutral	MODEL_TESTED	No backend implementation certified
+R01-I14	i14_accepted_causal_log_replays_exactly	MODEL_TESTED	Trusted volatile log only, no durable attestation
+R01-I15	i15_no_tasks_means_no_scheduler_or_grant	MODEL_TESTED	Reference only, no runtime overhead benchmark
+R01-I16	i16_reference_is_not_exported_by_certified_runtime	STATIC_CHECKED_ONLY	Verify exact Git diffs before certification
