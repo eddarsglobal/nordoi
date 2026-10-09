@@ -29,13 +29,14 @@ use nordoi_kernel::{
     V14_MANIFEST_FILE, V14_PACKAGE_MAJOR, V14_PACKAGE_MINOR,
 };
 use nordoi_kernel::{
-    certify_production_profile1_v17, check_project_sources_v15,
-    compile_dynamic_observable_output_plan_p22, compile_multi_segment_output_plan_p24,
-    compile_observable_output_plan_p21, compile_structured_observable_output_plan_p23,
-    diagnostic_from_module_error_v15, distribution_plan_v16, execute_dynamic_observable_output_p22,
-    execute_multi_segment_output_p24, execute_observable_output_p21,
-    execute_structured_observable_output_p23, import_trace_from_parents_v15,
-    verify_release_candidate_v16, Capability, CapabilitySet, DynamicObservableIoError,
+    authorize_file_output_p25, certify_production_profile1_v17, check_project_sources_v15,
+    compile_dynamic_observable_output_plan_p22, compile_file_output_plan_p25,
+    compile_multi_segment_output_plan_p24, compile_observable_output_plan_p21,
+    compile_structured_observable_output_plan_p23, diagnostic_from_module_error_v15,
+    distribution_plan_v16, execute_dynamic_observable_output_p22, execute_multi_segment_output_p24,
+    execute_observable_output_p21, execute_structured_observable_output_p23,
+    import_trace_from_parents_v15, materialize_file_output_p25, verify_release_candidate_v16,
+    Capability, CapabilitySet, DynamicObservableIoError, FileOutputError,
     MultiSegmentObservableIoError, ObservableIoError, ProductionProfileCertificationError,
     ReleaseCandidateError, StructuredObservableIoError, V15Diagnostic, V16ReleaseCandidateReport,
     MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES, NDX_MANIFEST, NDX_MISSING_IMPORT,
@@ -90,6 +91,7 @@ Usage:\n\
   nordoi dynamic-console-run <path|-> <key-code> [--grant-console]\n\
   nordoi structured-console-run <path|-> <key-code> [--grant-console]\n\
   nordoi multi-console-run <path|-> <key-code> [--grant-console]\n\
+  nordoi file-write <path|-> [--grant-output-dir <dir>]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -136,6 +138,7 @@ Commands:\n\
   dynamic-console-run P2.2 emit one runtime-computed Int/Bool result only with explicit ConsoleWrite authority.\n\
   structured-console-run P2.3 compose bounded static UTF-8 text with one runtime Int/Bool result under explicit ConsoleWrite authority.\n\
   multi-console-run P2.4 compose 2..8 ordered runtime Int/Bool segments with bounded static UTF-8 text under explicit ConsoleWrite authority.\n\
+  file-write      P2.5 write one bounded UTF-8 file into an explicitly granted output directory with exact FileWrite authority and no overwrite.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -187,7 +190,8 @@ V1.7 profile1-certify proves the complete source/lock/build/dist/checksum/proven
 P2.1 console-run adds one bounded observable UTF-8 output with declared ConsoleWrite effect, explicit host grant, deterministic receipt, and zero ambient authority.\n\
 P2.2 dynamic-console-run reuses certified V0.7 runtime input computation and renders one Int/Bool result only after explicit ConsoleWrite authorization; P2.1 behavior and Profile 1 encodings remain unchanged.\n\
 P2.3 structured-console-run composes a bounded quoted UTF-8 prefix/suffix with exactly one V0.7 runtime Int/Bool segment after explicit ConsoleWrite authorization; P2.1/P2.2 behavior and Profile 1 encodings remain unchanged.\n\
-P2.4 multi-console-run composes 2..8 ordered P2.3 runtime Int/Bool segments with bounded static UTF-8 separators; one-segment programs remain P2.3, authority is explicit, and all earlier certified boundaries remain unchanged.\n";
+P2.4 multi-console-run composes 2..8 ordered P2.3 runtime Int/Bool segments with bounded static UTF-8 separators; one-segment programs remain P2.3, authority is explicit, and all earlier certified boundaries remain unchanged.\n\
+P2.5 file-write adds one bounded create-new file output with an exact FileWrite(target) capability, a host-granted output directory, deterministic receipts, and zero ambient filesystem authority.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -303,6 +307,20 @@ fn run() -> u8 {
             }
         };
         return run_profile1_certify_v17_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "file-write" {
+        let output_dir = match arguments.len() {
+            2 => None,
+            4 if arguments[2].as_os_str() == OsStr::new("--grant-output-dir") => {
+                Some(Path::new(&arguments[3]))
+            }
+            _ => {
+                report_usage_error("file-write expects <path|-> [--grant-output-dir <dir>]");
+                return EXIT_USAGE;
+            }
+        };
+        return run_file_output_p25_cli(&arguments[1], output_dir);
     }
 
     if command.as_ref() == "multi-console-run" {
@@ -4594,6 +4612,104 @@ fn write_atomic_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
             let _ = fs::remove_file(&temp_path);
             Err(error)
         }
+    }
+}
+
+fn run_file_output_p25_cli(path: &OsStr, output_dir: Option<&Path>) -> u8 {
+    let (name, text) = match load_source(path) {
+        Ok(input) => input,
+        Err(error) => {
+            report_load_error(path, &error);
+            return EXIT_IO;
+        }
+    };
+
+    let source = match SourceText::new(SourceId::new(1), name, text) {
+        Ok(source) => source,
+        Err(error) => {
+            let source_name = if path == OsStr::new("-") {
+                "<stdin>".to_owned()
+            } else {
+                path.to_string_lossy().into_owned()
+            };
+            report_plain_error("source", &source_name, &error);
+            return EXIT_FRONTEND;
+        }
+    };
+
+    let plan = match compile_file_output_plan_p25(&source) {
+        Ok(plan) => plan,
+        Err(error) => {
+            report_file_output_p25_error(&source, &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let mut authority = CapabilitySet::new();
+    if output_dir.is_some() {
+        authority.allow(Capability::FileWrite(plan.file_name().to_owned()));
+    }
+
+    let authorized = match authorize_file_output_p25(&plan, &authority) {
+        Ok(authorized) => authorized,
+        Err(error) => {
+            report_file_output_p25_error(&source, &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let output_dir = match output_dir {
+        Some(output_dir) => output_dir,
+        None => {
+            report_plain_error(
+                "file-write",
+                source.name(),
+                "P2.5 internal authority invariant failed: authorized without output directory",
+            );
+            return EXIT_RUNTIME;
+        }
+    };
+
+    let receipt = match materialize_file_output_p25(&authorized, output_dir) {
+        Ok(receipt) => receipt,
+        Err(error) => {
+            report_file_output_p25_error(&source, &error);
+            return if error.is_authority_failure() {
+                EXIT_RUNTIME
+            } else if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_IO
+            };
+        }
+    };
+
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    if let Err(error) = stderr.write_all(receipt.render_text().as_bytes()) {
+        report_io_error("<stderr>", &error);
+        return EXIT_IO;
+    }
+    if let Err(error) = stderr.flush() {
+        report_io_error("<stderr>", &error);
+        return EXIT_IO;
+    }
+    EXIT_OK
+}
+
+fn report_file_output_p25_error(source: &SourceText, error: &FileOutputError) {
+    if error.is_frontend_failure() {
+        report_frontend_error("file-write", source, error.primary_span(), error);
+    } else {
+        report_plain_error("file-write", source.name(), error);
     }
 }
 

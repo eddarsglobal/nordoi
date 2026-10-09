@@ -31,6 +31,7 @@ pub mod observable_io_p21;
 pub mod observable_io_p22;
 pub mod observable_io_p23;
 pub mod observable_io_p24;
+pub mod observable_io_p25;
 pub mod ownership;
 pub mod production_profile_v17;
 pub mod program_upgrade;
@@ -281,6 +282,12 @@ pub use observable_io_p24::{
     execute_multi_segment_output_source_p24, MultiSegmentObservableIoError,
     MultiSegmentObservableIoResult, P24MultiSegmentOutputPlan, P24MultiSegmentOutputReceipt,
     MAX_P24_OUTPUT_BYTES, MAX_P24_RUNTIME_SEGMENTS, MIN_P24_RUNTIME_SEGMENTS, P24_OUTPUT_SCHEMA,
+};
+pub use observable_io_p25::{
+    authorize_file_output_p25, compile_file_output_plan_p25, execute_file_output_p25,
+    execute_file_output_source_p25, materialize_file_output_p25, FileOutputError, FileOutputResult,
+    P25AuthorizedFileOutput, P25FileOutputPlan, P25FileOutputReceipt, MAX_P25_ENTRY_NAME_BYTES,
+    MAX_P25_FILE_NAME_BYTES, MAX_P25_OUTPUT_BYTES, P25_FILE_EFFECT_NAME, P25_OUTPUT_SCHEMA,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use production_profile_v17::{

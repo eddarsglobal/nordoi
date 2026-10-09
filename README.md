@@ -1,82 +1,63 @@
-# NORDOI P2.4 — Multi-Segment Structured Output
+# NORDOI P2.5 — Capability-Secured File Output
 
-Production Profile 1 and P2.1/P2.2/P2.3 are immutable certified baselines. P2.4 adds one narrow capability above them: a single observable output may contain **2 to 8 ordered runtime `Int`/`Bool` segments** separated by bounded static UTF-8 text.
+Production Profile 1 and P2.1-P2.4 are immutable certified baselines. P2.5 opens the first bounded filesystem write capability without introducing ambient filesystem authority.
 
-P2.4 does not change kernel K1.18, NAIR, runtime semantics, package/release formats, or any already-certified P2.x command.
-
-## Source surface
+Canonical source:
 
 ```noi
 module app.main;
 
-effect ConsoleWrite;
+effect FileWrite;
 
-input key_code;
-const bias = 1;
-
-entry main emits
-    "input=" + key_code +
-    ", next=" + (key_code + bias) +
-    ", accepted=" + (key_code >= 40);
+entry main writes "report.txt" emits "Hello from NORDOI P2.5!\n";
 ```
-
-P2.4 requires at least two runtime segments. One segment remains P2.3.
-
-Each dynamic slot reuses the certified P2.3 -> V0.7 computation path. Numeric arithmetic is still numeric arithmetic; P2.4 does not introduce unrestricted String `+`.
-
-## Explicit authority
 
 Without authority:
 
 ```bash
 cargo run --quiet --bin nordoi -- \
-  multi-console-run examples/p2_4_multi/value.noi 40
+  file-write examples/p2_5_file/report.noi
 ```
 
-must fail closed with zero stdout program bytes.
+The command fails closed with no file creation.
 
-Authorized execution:
+With explicit host authority:
 
 ```bash
+mkdir -p /tmp/nordoi-p25-output
+
 cargo run --quiet --bin nordoi -- \
-  multi-console-run examples/p2_4_multi/value.noi 40 --grant-console
+  file-write examples/p2_5_file/report.noi \
+  --grant-output-dir /tmp/nordoi-p25-output
 ```
 
-emits exactly:
+Expected artifact:
 
 ```text
-input=40, next=41, accepted=true
+/tmp/nordoi-p25-output/report.txt
 ```
 
-Receipt metadata is written to stderr and commits to ordered P2.3 segment receipts, values, final output, and explicit authority.
+with exact bytes:
 
-## Bounds
-
-- minimum runtime segments: 2;
-- maximum runtime segments: 8;
-- maximum final UTF-8 output: 4096 bytes;
-- worst-case size is proven before authority and runtime execution.
-
-## Tests
-
-```bash
-cargo test --test observable_io_p24 -- --nocapture
-cargo test --test security_observable_io_p24 -- --nocapture
-cargo test --test tooling_observable_io_p24 -- --nocapture
+```text
+Hello from NORDOI P2.5!\n
 ```
 
-Expected focused totals: 8 + 8 + 4.
+Security boundary:
 
-The normal Release Gate remains mandatory:
+- exact `effect FileWrite;` declaration;
+- exact `Capability::FileWrite("report.txt")` authority;
+- one ordinary relative file name only;
+- no `/`, `\\`, `.`, `..` or control characters;
+- file name <= 128 UTF-8 bytes;
+- file content <= 4096 UTF-8 bytes;
+- host output directory must already exist;
+- create-new only; overwrite is denied;
+- canonical receipt excludes host absolute path;
+- zero ambient filesystem authority;
+- no new kernel, runtime or NAIR semantics.
 
-```bash
-cargo fmt --all
-./scripts/release_gate.sh
-```
-
-## Frozen public boundary
-
-The public version string intentionally remains:
+Public version remains intentionally frozen:
 
 ```text
 nordoi T0.1 (compiler C0.2, kernel K1.18, NAIR 0.6)

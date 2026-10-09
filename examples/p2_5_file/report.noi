@@ -1,0 +1,5 @@
+module app.main;
+
+effect FileWrite;
+
+entry main writes "report.txt" emits "Hello from NORDOI P2.5!\n";
