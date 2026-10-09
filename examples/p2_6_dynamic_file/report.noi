@@ -1,0 +1,8 @@
+module app.main;
+
+effect FileWrite;
+
+input key_code;
+const bias = 1;
+
+entry main writes "report.txt" emits "input=" + key_code + ", next=" + (key_code + bias) + ", accepted=" + (key_code >= 40);
