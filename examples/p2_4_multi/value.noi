@@ -1,0 +1,8 @@
+module app.main;
+
+effect ConsoleWrite;
+
+input key_code;
+const bias = 1;
+
+entry main emits "input=" + key_code + ", next=" + (key_code + bias) + ", accepted=" + (key_code >= 40);
