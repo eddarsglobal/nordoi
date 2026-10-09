@@ -20,6 +20,8 @@ jobs:
           components: rustfmt, clippy
       - name: Rustfmt
         run: cargo fmt --all -- --check
+      - name: R0.2 source manifest integrity
+        run: python3 scripts/validate_r02_manifest.py
       - name: Clippy
         run: cargo clippy --all-targets -- -D warnings
 
