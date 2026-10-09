@@ -33,17 +33,18 @@ use nordoi_kernel::{
     compile_atomic_bundle_plan_p27, compile_dynamic_file_output_plan_p26,
     compile_dynamic_observable_output_plan_p22, compile_file_output_plan_p25,
     compile_multi_segment_output_plan_p24, compile_observable_output_plan_p21,
-    compile_structured_observable_output_plan_p23, diagnostic_from_module_error_v15,
-    distribution_plan_v16, execute_atomic_bundle_p27, execute_dynamic_file_output_p26,
-    execute_dynamic_observable_output_p22, execute_multi_segment_output_p24,
-    execute_observable_output_p21, execute_structured_observable_output_p23,
-    import_trace_from_parents_v15, materialize_file_output_p25, verify_release_candidate_v16,
-    AtomicBundleOutputError, Capability, CapabilitySet, DynamicFileOutputError,
-    DynamicObservableIoError, FileOutputError, MultiSegmentObservableIoError, ObservableIoError,
-    ProductionProfileCertificationError, ReleaseCandidateError, StructuredObservableIoError,
-    V15Diagnostic, V16ReleaseCandidateReport, MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES,
-    NDX_MANIFEST, NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE,
-    NDX_SOURCE_IO, V16_RELEASE_SCHEMA, V17_PROFILE1_SCHEMA,
+    compile_structured_observable_output_plan_p23, constitutional_conformance_report_g01,
+    diagnostic_from_module_error_v15, distribution_plan_v16, execute_atomic_bundle_p27,
+    execute_dynamic_file_output_p26, execute_dynamic_observable_output_p22,
+    execute_multi_segment_output_p24, execute_observable_output_p21,
+    execute_structured_observable_output_p23, import_trace_from_parents_v15,
+    materialize_file_output_p25, verify_release_candidate_v16, AtomicBundleOutputError, Capability,
+    CapabilitySet, DynamicFileOutputError, DynamicObservableIoError, FileOutputError,
+    MultiSegmentObservableIoError, ObservableIoError, ProductionProfileCertificationError,
+    ReleaseCandidateError, StructuredObservableIoError, V15Diagnostic, V16ReleaseCandidateReport,
+    MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES, NDX_MANIFEST, NDX_MISSING_IMPORT,
+    NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE, NDX_SOURCE_IO, V16_RELEASE_SCHEMA,
+    V17_PROFILE1_SCHEMA,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -96,6 +97,7 @@ Usage:\n\
   nordoi file-write <path|-> [--grant-output-dir <dir>]\n\
   nordoi dynamic-file-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
   nordoi bundle-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
+  nordoi conformance [--json]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -145,6 +147,7 @@ Commands:\n\
   file-write      P2.5 write one bounded UTF-8 file into an explicitly granted output directory with exact FileWrite authority and no overwrite.\n\
   dynamic-file-write P2.6 write P2.4-style 2..8 runtime Int/Bool segments into one create-new file under exact FileWrite authority.\n\
   bundle-write     P2.7 publish 2..8 dynamic files as one bounded atomic bundle under exact per-target FileWrite authorities.\n\
+  conformance      G0.1 report constitutional evidence coverage, full-v1 delivery planning estimate and Future-Native Gate status.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -315,6 +318,18 @@ fn run() -> u8 {
             }
         };
         return run_profile1_certify_v17_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "conformance" {
+        let json = match arguments.len() {
+            1 => false,
+            2 if arguments[1].as_os_str() == OsStr::new("--json") => true,
+            _ => {
+                report_usage_error("conformance expects no argument or --json");
+                return EXIT_USAGE;
+            }
+        };
+        return run_conformance_g01_cli(json);
     }
 
     if command.as_ref() == "bundle-write" {
@@ -4209,6 +4224,28 @@ fn prepare_release_v16_cli(project_root: &Path, json: bool) -> Result<PreparedRe
         report,
         package_bytes,
     })
+}
+
+fn run_conformance_g01_cli(json: bool) -> u8 {
+    let report = match constitutional_conformance_report_g01() {
+        Ok(report) => report,
+        Err(error) => {
+            report_plain_error("conformance", "embedded-governance", &error);
+            return EXIT_FRONTEND;
+        }
+    };
+    let rendered = if json {
+        format!("{}\n", report.render_json())
+    } else {
+        report.render_text()
+    };
+    match write_stdout(rendered.as_bytes()) {
+        Ok(()) => EXIT_OK,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
 }
 
 fn run_profile1_certify_v17_cli(project_root: &Path, json: bool) -> u8 {

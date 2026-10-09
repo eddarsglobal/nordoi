@@ -6,6 +6,7 @@ mod bounded_calls_v10;
 pub mod capability;
 pub mod compiler;
 pub mod conditional_core_v05;
+pub mod conformance_g01;
 pub mod core_functions_v06;
 pub mod dependency;
 pub mod diagnostics_v15;
@@ -99,6 +100,13 @@ pub use compiler::{
     SemanticPureBindingId, SemanticPureComparator, SemanticPureCondition, SemanticPureExpressionOp,
     SemanticRegistry, SemanticTypeId, MAX_SEMANTIC_DECLARATIONS, MAX_SEMANTIC_EFFECT_REQUIREMENTS,
     MAX_SEMANTIC_NAME_BYTES, MAX_SEMANTIC_PATH_SEGMENTS,
+};
+
+pub use conformance_g01::{
+    constitutional_conformance_report_g01, ConformanceError, ConstitutionalConformanceReport,
+    ConstitutionalPrinciple, DeliveryDomain, EvidenceStatus, FutureNativeRule, G01_BASELINE_CI,
+    G01_BASELINE_COMMIT, G01_BASELINE_TAG, G01_DELIVERY_BASIS_POINTS, G01_FUTURE_NATIVE_RULE_COUNT,
+    G01_PRINCIPLE_COUNT, G01_SCHEMA,
 };
 
 pub use acyclic_calls_v11::{

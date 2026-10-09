@@ -30,31 +30,16 @@ Certified commit `e7ce55c24876636b5098f3d954a382087020617b`, exact-SHA CI run `3
 
 Proof set includes P2.4/P2.5 composition, exact `FileWrite(target)` authority, no fabricated `ConsoleWrite`, deterministic input-sensitive receipts, create-new-only materialization, host-path-independent identity, Release Gate PASS, 20/20 focused tests and Linux/macOS/Windows exact-SHA CI.
 
-## P2.7 — Bounded Atomic Multi-File Bundle Output — CANDIDATE
+## P2.7 — Bounded Atomic Multi-File Bundle Output — CERTIFIED
 
-P2.7 composes 2..8 P2.6-style dynamic outputs into one create-new bundle commit unit.
+Certified commit `0a634d6cab52074e18b42d1ffea00ce02cdba359`, exact-SHA CI run `37956122196`, immutable annotated tag `p2.7`.
 
-Target proof set:
+Proof set includes 2..8 dynamic files, exact per-target `FileWrite(bundle/file)` authority, pre-authority global quota proof, in-memory evaluation before staging, private same-root staging, one final directory rename, create-new-only publication, no overwrite, host-path-independent deterministic receipts, handled pre-commit cleanup, explicit non-claims for crash durability/distributed transactions, Release Gate PASS, 20/20 focused tests and Linux/macOS/Windows exact-SHA CI.
 
-- exact `effect FileWrite;` declaration;
-- 2..8 ordinary unique file targets;
-- every file independently satisfies the certified P2.6 2..8-runtime-segment contract;
-- each file remains <= 4096 UTF-8 bytes by P2.6 worst-case proof;
-- global worst-case bundle output <= 16384 UTF-8 bytes before authority;
-- bundle and file names are ordinary relative names with traversal forbidden;
-- exact `FileWrite(bundle/file)` authority required for every target before runtime evaluation;
-- missing or revoked one-target authority fails before any final bundle publication;
-- all dynamic file bytes are computed before filesystem staging;
-- final bundle is create-new only and existing targets are not overwritten;
-- final namespace publication uses one same-root directory rename;
-- handled pre-commit failures remove private staging and leave the final bundle absent;
-- target order is canonicalized lexicographically, eliminating incidental declaration-order identity;
-- canonical receipt excludes host absolute root and staging name;
-- crash durability, hostile concurrent host mutation, distributed transactions and cross-filesystem atomicity remain explicitly unclaimed;
-- no new NAIR opcode, general filesystem primitive, ConsoleWrite, network, time, random or process authority;
-- Profile 1 and P2.1-P2.6 remain unchanged;
-- Release Gate, 20 focused tests and exact-SHA Linux/macOS/Windows CI required before immutable `p2.7` tag.
+P2.7 closes the filesystem-oriented observable-output sequence. The Councils explicitly reject continuing with legacy filesystem feature parity as the primary roadmap.
 
-After P2.7 certification, the Councils recommend a Constitutional Conformance Matrix before opening the next capability family.
+## Post-P2.7 governance transition
+
+The next milestone is `G0.1 — Constitutional Conformance Matrix & Future-Native Gate`. It is outside the P2.x capability sequence and introduces no runtime semantics or authority.
 
 Production Profile 2 remains incremental; no global completion percentage is claimed yet.

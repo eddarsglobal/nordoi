@@ -1,0 +1,7 @@
+id	rule	description
+FNG1	CONSTITUTIONAL_DRIVER	A proposal must cite the constitutional problem or future capability it advances.
+FNG2	NO_FEATURE_PARITY_ONLY	A proposal whose primary purpose is legacy feature parity is rejected.
+FNG3	SIMPLICITY_GAIN	The developer-facing model must reduce or hide complexity where safe.
+FNG4	SECURITY_OR_PROVABILITY_GAIN	The design must preserve or improve safety, authority precision or verifiability.
+FNG5	UNIVERSAL_ARCHITECTURE	Core semantics must not be trapped by one OS, vendor, browser or backend.
+FNG6	CERTIFIED_BOUNDARY_PRESERVATION	Frozen certified boundaries may change only through explicit evidence-backed evolution.

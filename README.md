@@ -1,45 +1,70 @@
-# NORDOI P2.7 — Bounded Atomic Multi-File Bundle Output
+# NORDOI G0.1 — Constitutional Conformance Matrix & Future-Native Gate
 
-Production Profile 1 and P2.1-P2.6 are immutable certified baselines. P2.7 composes multiple P2.6-style dynamic file outputs into one bounded create-new bundle publication while preserving exact capabilities and zero ambient filesystem authority.
+NORDOI G0.1 is an additive governance milestone built on the immutable certified `p2.7` baseline.
+It introduces no new `.noi` syntax, NAIR opcode, NAM semantics, runtime authority or capability.
 
-## Candidate surface
+Its purpose is to prevent two governance failures:
 
-```noi
-module app.main;
+1. confusing a large number of certified low-level invariants with completion of the whole NORDOI mission;
+2. allowing the roadmap to drift into historical feature-parity work that does not advance NORDOI's constitutional future-oriented goals.
 
-effect FileWrite;
+## Two counters, never one
 
-input key_code;
-const bias = 1;
+`nordoi conformance` reports two independent measures:
 
-entry main writes "report-bundle" {
-    "report.txt" emits "input=" + key_code + ", next=" + (key_code + bias);
-    "summary.txt" emits "accepted=" + (key_code >= 40) + ", key=" + key_code;
-};
-```
+- **constitutional evidence coverage** — whether each of C1..C322 has certified evidence in its current explicit scope;
+- **full NORDOI v1 delivery estimate** — a transparent weighted planning model across the complete architecture families.
 
-Run:
+The second value is explicitly a planning estimate, never a certification claim.
 
 ```bash
-nordoi bundle-write examples/p2_7_bundle/report.noi 40 \
-  --grant-output-dir /tmp/nordoi-p27-output
+nordoi conformance
+nordoi conformance --json
 ```
 
-The grant is compiled into exact target capabilities only:
+Expected G0.1 candidate baseline:
 
 ```text
-FileWrite("report-bundle/report.txt")
-FileWrite("report-bundle/summary.txt")
+principles=322
+certified=310
+partial=12
+evidence-coverage=96.27%
+full-v1-delivery-estimate=58.35%
+delivery-estimate-kind=PLANNING_NOT_CERTIFICATION
+future-native-gate=MANDATORY_GOVERNANCE
+runtime-semantics=UNCHANGED
+authority=NONE
 ```
 
-P2.7 validates every target and quota, authorizes all exact capabilities, evaluates all dynamic outputs in memory, prepares them in private same-root staging, then publishes the final bundle with one directory rename. The final namespace is create-new only; overwrite is denied.
+## Future-Native Gate
 
-P2.7 claims no crash durability, cross-filesystem transaction, distributed transaction, hostile concurrent-host mutation resistance, read, append, arbitrary path, network, time, randomness or process authority.
+Every future major capability family must satisfy all six rules:
 
-Bounds: 2..8 files, each P2.6-bounded to 4096 UTF-8 bytes, global worst-case <= 16384 UTF-8 bytes, bundle/file names <= 128 UTF-8 bytes and no traversal.
+- constitutional driver;
+- no feature-parity-only milestone;
+- simplicity gain;
+- security or provability gain;
+- universal architecture;
+- certified-boundary preservation.
 
-Normative candidate design: `docs/NOI_ATOMIC_MULTI_FILE_BUNDLE_OUTPUT_SPEC_P2_7.md`.
-Architecture/research record: `research/ATOMIC_MULTI_FILE_BUNDLE_OUTPUT_INTELLIGENCE_P2_7.md`.
+This explicitly preserves the NORDOI goal of being externally simple while internally sophisticated. A proposal that adds power but needlessly exposes historical complexity to the programmer must be redesigned.
+
+## Machine-readable governance artifacts
+
+- `governance/constitutional_conformance_v1.tsv`
+- `governance/nordoi_v1_delivery_model_v1.tsv`
+- `governance/future_native_gate_v1.tsv`
+
+Normative report: `docs/NORDOI_CONSTITUTIONAL_CONFORMANCE_MATRIX_G0_1.md`.
+Research record: `research/CONSTITUTIONAL_CONFORMANCE_INTELLIGENCE_G0_1.md`.
+
+Certified baseline consumed by G0.1:
+
+```text
+p2.7
+commit 0a634d6cab52074e18b42d1ffea00ce02cdba359
+CI 37956122196
+```
 
 Public certified version output remains intentionally frozen:
 

@@ -1,0 +1,16 @@
+id	title	weight_percent	completion_percent	status	next_action
+governance	Governance / Constitution / Release Law	5	95	CERTIFIED_STRONG	Complete community-scale governance automation and ongoing constitutional audit.
+kernel	Kernel / NAM / atomic runtime	10	90	CERTIFIED_STRONG	Preserve K1.18 stable contracts while future resource/task semantics integrate above them.
+nair	NAIR / canonical IR	7	80	CERTIFIED_STRONG	Extend only for genuinely new canonical machine meaning such as future resources/tasks/compute.
+language	Language surface / frontend / compiler	10	68	PARTIAL	Design the simplest general-purpose surface after semantic laws, avoiding legacy syntax debt.
+runtime	Runtime / state / time / durability	8	88	CERTIFIED_STRONG	Integrate future task/resource semantics without weakening replay/durability guarantees.
+security	Security / effects / capabilities	8	78	CERTIFIED_STRONG	Generalize exact least-authority model to network/device/distributed resource families.
+build	Build / package / diagnostics / release	5	96	CERTIFIED_STRONG	Add ecosystem distribution and signing/supply-chain workflows without weakening reproducibility.
+io	Observable I/O / resources	5	75	CERTIFIED_STRONG	Stop filesystem feature parity; evolve toward a general resource model.
+concurrency	Memory / ownership / structured concurrency	7	45	PARTIAL	Research and certify NORDOI-native tasks, structured concurrency and memory semantics.
+spatial	Unified 2D / 3D / XR	7	45	PARTIAL	Turn certified render foundations into one spatial execution model and multiple backends.
+distributed	Network / distributed execution	7	10	EARLY	Define explicit network authority, failure, identity and distributed execution semantics.
+compute	CPU / GPU / NPU heterogeneous compute	7	5	EARLY	Create proof-driven placement and transfer model without exposing historical GPU boilerplate.
+backends	Universal platform backends	7	18	EARLY	Implement Web, native desktop/mobile, server, embedded/XR backends under one canonical meaning.
+verification	Formal verification / fuzzing / benchmarks	4	35	PARTIAL	Add property tests, fuzzing, model checking, differential testing and reproducible benchmark suites.
+ecosystem	Stdlib / IDE / AI-SI tooling / ecosystem	3	12	EARLY	Build minimal stdlib, LSP/IDE, debugger/profiler and AI/SI assistance around stable semantics.
