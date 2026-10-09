@@ -1,0 +1,10 @@
+id	witness	status	limitation
+R03-V01	bounded_task_lifecycle_state_space	BOUNDED_EXPLORED	One task; selected commands; depth 6; no fairness or scheduling
+R03-V02	bounded_resource_and_authority_state_space	BOUNDED_EXPLORED	One Read resource and one grant; depth 6; no external IO
+R03-V03	bounded_child_scope_state_space	BOUNDED_EXPLORED	One child and no tasks/resources; depth 4
+R03-V04	bounded_cross_domain_state_space	BOUNDED_EXPLORED	Mixed root/child; depth 4; finite action alphabet
+R03-V05	explorer_repeats_identical_counts_for_identical_inputs	TESTED_EXAMPLE_ONLY	Deterministic explored counts are not formal proof of all behaviors
+R03-V06	all_two_task_completion_and_join_orders_keep_canonical_report	TESTED_EXAMPLE_ONLY	Two-task completion permutations on five selected outcome pairs
+R03-V07	cross_domain_identity_cannot_act_as_scope_or_grant	TESTED_EXAMPLE_ONLY	Foreign identifiers only; HostPermit not a production security boundary
+R03-V08	accepted_event_budget_exhaustion_is_atomic	TESTED_EXAMPLE_ONLY	One-event budget; in-memory model only
+R03-V09	r03_remains_test_only_not_a_public_runtime_or_nair_extension	STATIC_CHECK_ONLY	Git tree equality and CI review required before certification
