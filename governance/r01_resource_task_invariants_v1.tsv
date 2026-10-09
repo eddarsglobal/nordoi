@@ -1,0 +1,17 @@
+id	family	invariant	proof_obligation	status
+R01-I01	resource	NO_AMBIENT_AUTHORITY	Resource acquisition requires an explicit capability grant	SPECIFIED_NOT_IMPLEMENTED
+R01-I02	resource	AFFINE_RESOURCE_IDENTITY	A unique resource owner exists at each permitted lifecycle transition	SPECIFIED_NOT_IMPLEMENTED
+R01-I03	resource	EXPLICIT_RELEASE	Release is idempotence-safe by construction or repeat release is rejected	SPECIFIED_NOT_IMPLEMENTED
+R01-I04	resource	NO_USE_AFTER_RELEASE	No operation may use a released handle	SPECIFIED_NOT_IMPLEMENTED
+R01-I05	resource	EFFECT_DECLARATION	Resource operations expose declared effects to validation	SPECIFIED_NOT_IMPLEMENTED
+R01-I06	resource	TRANSACTION_BOUNDARY	Resource effects may not bypass certified atomic publication semantics	SPECIFIED_NOT_IMPLEMENTED
+R01-I07	task	PARENT_OWNED_LIFETIME	Child tasks cannot outlive their explicit owning scope	SPECIFIED_NOT_IMPLEMENTED
+R01-I08	task	CANCELLATION_IS_OBSERVABLE	Cancellation is a typed and observable outcome, not silent success	SPECIFIED_NOT_IMPLEMENTED
+R01-I09	task	FAILURE_PROPAGATION	Failures propagate via an explicitly chosen deterministic scope policy	SPECIFIED_NOT_IMPLEMENTED
+R01-I10	task	BOUNDED_WORK	Work admission is bounded by explicit capacity and budget policy	SPECIFIED_NOT_IMPLEMENTED
+R01-I11	task	DETERMINISTIC_JOIN	Join outcome is independent of nondeterministic host completion order	SPECIFIED_NOT_IMPLEMENTED
+R01-I12	task	NO_LEAKED_CHILDREN	A scope cannot close with unaccounted live children	SPECIFIED_NOT_IMPLEMENTED
+R01-I13	platform	BACKEND_NEUTRAL_MEANING	Canonical meaning is not tied to POSIX threads or browser promises	SPECIFIED_NOT_IMPLEMENTED
+R01-I14	platform	REPLAY_BOUNDARY	Recorded causal effects replay identically under declared replay assumptions	SPECIFIED_NOT_IMPLEMENTED
+R01-I15	platform	NO_NEW_DEFAULT_AUTHORITY	Opting out of resources and tasks creates no new privileged ambient state	SPECIFIED_NOT_IMPLEMENTED
+R01-I16	platform	FROZEN_BOUNDARIES	G0.1 and p2.7 verified source boundaries remain byte identical	STATIC_CHECKED_ONLY

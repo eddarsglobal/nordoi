@@ -1,0 +1,7 @@
+rule	decision	evidence	limitation
+FNG1	PASS_DESIGN	C5,C9,C11,C13,C19 and concurrency,io,distributed,compute roadmap gaps	Constitutional mapping still requires semantic review
+FNG2	PASS_DESIGN	Resource/task semantics specified without POSIX or other legacy API copying	Implementation not yet available
+FNG3	PASS_DESIGN	One lexical scope owns child lifecycle and resources	Surface syntax remains undecided
+FNG4	PASS_DESIGN	Ownership, explicit grants, typed cancellation and bounded work obligations	Proofs not implemented
+FNG5	PASS_DESIGN	Canonical scope, resource and task meaning independent of host backend	No new backend certified
+FNG6	PASS_STATIC	No existing original source files changed in this candidate	Rust release gate not run in generator environment
