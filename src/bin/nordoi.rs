@@ -30,19 +30,20 @@ use nordoi_kernel::{
 };
 use nordoi_kernel::{
     authorize_file_output_p25, certify_production_profile1_v17, check_project_sources_v15,
-    compile_dynamic_file_output_plan_p26, compile_dynamic_observable_output_plan_p22,
-    compile_file_output_plan_p25, compile_multi_segment_output_plan_p24,
-    compile_observable_output_plan_p21, compile_structured_observable_output_plan_p23,
-    diagnostic_from_module_error_v15, distribution_plan_v16, execute_dynamic_file_output_p26,
+    compile_atomic_bundle_plan_p27, compile_dynamic_file_output_plan_p26,
+    compile_dynamic_observable_output_plan_p22, compile_file_output_plan_p25,
+    compile_multi_segment_output_plan_p24, compile_observable_output_plan_p21,
+    compile_structured_observable_output_plan_p23, diagnostic_from_module_error_v15,
+    distribution_plan_v16, execute_atomic_bundle_p27, execute_dynamic_file_output_p26,
     execute_dynamic_observable_output_p22, execute_multi_segment_output_p24,
     execute_observable_output_p21, execute_structured_observable_output_p23,
     import_trace_from_parents_v15, materialize_file_output_p25, verify_release_candidate_v16,
-    Capability, CapabilitySet, DynamicFileOutputError, DynamicObservableIoError, FileOutputError,
-    MultiSegmentObservableIoError, ObservableIoError, ProductionProfileCertificationError,
-    ReleaseCandidateError, StructuredObservableIoError, V15Diagnostic, V16ReleaseCandidateReport,
-    MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES, NDX_MANIFEST, NDX_MISSING_IMPORT,
-    NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE, NDX_SOURCE_IO, V16_RELEASE_SCHEMA,
-    V17_PROFILE1_SCHEMA,
+    AtomicBundleOutputError, Capability, CapabilitySet, DynamicFileOutputError,
+    DynamicObservableIoError, FileOutputError, MultiSegmentObservableIoError, ObservableIoError,
+    ProductionProfileCertificationError, ReleaseCandidateError, StructuredObservableIoError,
+    V15Diagnostic, V16ReleaseCandidateReport, MAX_V16_PROVENANCE_BYTES, MAX_V17_CHECKSUM_BYTES,
+    NDX_MANIFEST, NDX_MISSING_IMPORT, NDX_MODULE_DECLARATION, NDX_MODULE_GRAPH, NDX_SOURCE,
+    NDX_SOURCE_IO, V16_RELEASE_SCHEMA, V17_PROFILE1_SCHEMA,
 };
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
@@ -94,6 +95,7 @@ Usage:\n\
   nordoi multi-console-run <path|-> <key-code> [--grant-console]\n\
   nordoi file-write <path|-> [--grant-output-dir <dir>]\n\
   nordoi dynamic-file-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
+  nordoi bundle-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
   nordoi bindings-plan <path|->\n\
@@ -142,6 +144,7 @@ Commands:\n\
   multi-console-run P2.4 compose 2..8 ordered runtime Int/Bool segments with bounded static UTF-8 text under explicit ConsoleWrite authority.\n\
   file-write      P2.5 write one bounded UTF-8 file into an explicitly granted output directory with exact FileWrite authority and no overwrite.\n\
   dynamic-file-write P2.6 write P2.4-style 2..8 runtime Int/Bool segments into one create-new file under exact FileWrite authority.\n\
+  bundle-write     P2.7 publish 2..8 dynamic files as one bounded atomic bundle under exact per-target FileWrite authorities.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
   bindings-plan Print the C0.9 pure-binding execution plan.\n\
@@ -195,7 +198,8 @@ P2.2 dynamic-console-run reuses certified V0.7 runtime input computation and ren
 P2.3 structured-console-run composes a bounded quoted UTF-8 prefix/suffix with exactly one V0.7 runtime Int/Bool segment after explicit ConsoleWrite authorization; P2.1/P2.2 behavior and Profile 1 encodings remain unchanged.\n\
 P2.4 multi-console-run composes 2..8 ordered P2.3 runtime Int/Bool segments with bounded static UTF-8 separators; one-segment programs remain P2.3, authority is explicit, and all earlier certified boundaries remain unchanged.\n\
 P2.5 file-write adds one bounded create-new file output with an exact FileWrite(target) capability, a host-granted output directory, deterministic receipts, and zero ambient filesystem authority.\n\
-P2.6 dynamic-file-write composes the certified P2.4 multi-segment runtime renderer with the certified P2.5 create-new file boundary; only exact FileWrite(target) authority is host-granted and ConsoleWrite remains absent.\n";
+P2.6 dynamic-file-write composes the certified P2.4 multi-segment runtime renderer with the certified P2.5 create-new file boundary; only exact FileWrite(target) authority is host-granted and ConsoleWrite remains absent.\n\
+P2.7 bundle-write composes 2..8 P2.6-style dynamic files into one bounded bundle; all exact FileWrite(bundle/target) capabilities and runtime outputs are validated before private staging, final publication uses one same-root directory rename, partial final state is forbidden, and crash durability is explicitly unclaimed.\n";
 
 fn main() -> ExitCode {
     ExitCode::from(run())
@@ -311,6 +315,42 @@ fn run() -> u8 {
             }
         };
         return run_profile1_certify_v17_cli(Path::new(&arguments[1]), json);
+    }
+
+    if command.as_ref() == "bundle-write" {
+        let (key_code, output_dir) = match arguments.len() {
+            3 => {
+                let key_code = match arguments[2].to_string_lossy().parse::<u32>() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        report_usage_error(
+                            "bundle-write key-code must be an unsigned 32-bit integer",
+                        );
+                        return EXIT_USAGE;
+                    }
+                };
+                (key_code, None)
+            }
+            5 if arguments[3].as_os_str() == OsStr::new("--grant-output-dir") => {
+                let key_code = match arguments[2].to_string_lossy().parse::<u32>() {
+                    Ok(value) => value,
+                    Err(_) => {
+                        report_usage_error(
+                            "bundle-write key-code must be an unsigned 32-bit integer",
+                        );
+                        return EXIT_USAGE;
+                    }
+                };
+                (key_code, Some(Path::new(&arguments[4])))
+            }
+            _ => {
+                report_usage_error(
+                    "bundle-write expects <path|-> <key-code> [--grant-output-dir <dir>]",
+                );
+                return EXIT_USAGE;
+            }
+        };
+        return run_atomic_bundle_output_p27_cli(&arguments[1], key_code, output_dir);
     }
 
     if command.as_ref() == "dynamic-file-write" {
@@ -4652,6 +4692,98 @@ fn write_atomic_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
             let _ = fs::remove_file(&temp_path);
             Err(error)
         }
+    }
+}
+
+fn run_atomic_bundle_output_p27_cli(path: &OsStr, key_code: u32, output_dir: Option<&Path>) -> u8 {
+    let (name, text) = match load_source(path) {
+        Ok(input) => input,
+        Err(error) => {
+            report_load_error(path, &error);
+            return EXIT_IO;
+        }
+    };
+
+    let source = match SourceText::new(SourceId::new(1), name, text) {
+        Ok(source) => source,
+        Err(error) => {
+            let source_name = if path == OsStr::new("-") {
+                "<stdin>".to_owned()
+            } else {
+                path.to_string_lossy().into_owned()
+            };
+            report_plain_error("source", &source_name, &error);
+            return EXIT_FRONTEND;
+        }
+    };
+
+    let plan = match compile_atomic_bundle_plan_p27(&source) {
+        Ok(plan) => plan,
+        Err(error) => {
+            report_atomic_bundle_output_p27_error(&source, &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let mut authority = CapabilitySet::new();
+    if output_dir.is_some() {
+        for capability in plan.required_capabilities() {
+            authority.allow(capability);
+        }
+    }
+
+    let output_dir = match output_dir {
+        Some(output_dir) => output_dir,
+        None => {
+            let required = plan
+                .required_capabilities()
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| {
+                    Capability::FileWrite(format!("{}/<missing>", plan.bundle_name()))
+                });
+            let error = AtomicBundleOutputError::CapabilityDenied(required);
+            report_atomic_bundle_output_p27_error(&source, &error);
+            return EXIT_RUNTIME;
+        }
+    };
+
+    let receipt = match execute_atomic_bundle_p27(&plan, key_code, &authority, output_dir) {
+        Ok(receipt) => receipt,
+        Err(error) => {
+            report_atomic_bundle_output_p27_error(&source, &error);
+            return if error.is_frontend_failure() {
+                EXIT_FRONTEND
+            } else if error.is_materialization_failure() {
+                EXIT_IO
+            } else {
+                EXIT_RUNTIME
+            };
+        }
+    };
+
+    let stderr = io::stderr();
+    let mut stderr = stderr.lock();
+    if let Err(error) = stderr.write_all(receipt.render_text().as_bytes()) {
+        report_io_error("<stderr>", &error);
+        return EXIT_IO;
+    }
+    if let Err(error) = stderr.flush() {
+        report_io_error("<stderr>", &error);
+        return EXIT_IO;
+    }
+    EXIT_OK
+}
+
+fn report_atomic_bundle_output_p27_error(source: &SourceText, error: &AtomicBundleOutputError) {
+    if error.is_frontend_failure() {
+        report_frontend_error("bundle-write", source, error.primary_span(), error);
+    } else {
+        report_plain_error("bundle-write", source.name(), error);
     }
 }
 

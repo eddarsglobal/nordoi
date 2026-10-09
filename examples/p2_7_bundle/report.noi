@@ -1,0 +1,11 @@
+module app.main;
+
+effect FileWrite;
+
+input key_code;
+const bias = 1;
+
+entry main writes "report-bundle" {
+    "report.txt" emits "input=" + key_code + ", next=" + (key_code + bias);
+    "summary.txt" emits "accepted=" + (key_code >= 40) + ", key=" + key_code;
+};

@@ -33,6 +33,7 @@ pub mod observable_io_p23;
 pub mod observable_io_p24;
 pub mod observable_io_p25;
 pub mod observable_io_p26;
+pub mod observable_io_p27;
 pub mod ownership;
 pub mod production_profile_v17;
 pub mod program_upgrade;
@@ -294,6 +295,12 @@ pub use observable_io_p26::{
     compile_dynamic_file_output_plan_p26, execute_dynamic_file_output_p26,
     execute_dynamic_file_output_source_p26, DynamicFileOutputError, DynamicFileOutputResult,
     P26DynamicFileOutputPlan, P26DynamicFileOutputReceipt, MAX_P26_OUTPUT_BYTES, P26_OUTPUT_SCHEMA,
+};
+pub use observable_io_p27::{
+    compile_atomic_bundle_plan_p27, execute_atomic_bundle_p27, execute_atomic_bundle_source_p27,
+    AtomicBundleOutputError, AtomicBundleOutputResult, P27AtomicBundlePlan, P27AtomicBundleReceipt,
+    P27BundleFilePlan, P27PublishedFileReceipt, MAX_P27_BUNDLE_NAME_BYTES, MAX_P27_FILES,
+    MAX_P27_TOTAL_OUTPUT_BYTES, MIN_P27_FILES, P27_OUTPUT_SCHEMA,
 };
 pub use ownership::{DomainId, OwnershipDomain, OwnershipRegistry};
 pub use production_profile_v17::{
