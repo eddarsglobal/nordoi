@@ -1,0 +1,27 @@
+id	witness	classification	limitation
+R08-H01	generated_three_generation_sequences_match_oracle	GENERATED_DIFFERENTIAL	32 fixed seeds with 160 generated attempted operations; does not exhaust unbounded command traces or concurrent scheduler races
+R08-H02	six_action_words_match_three_generation_oracle	FINITE_EXHAUSTIVE	Only six chosen actions and exactly five operations per word (6^5 = 7,776); not a complete behavior-space proof
+R08-H03	child_must_close_before_parent	BOUNDED_DIFFERENTIAL	One two-scope closure scenario retained for regression; does not alone address the third scope
+R08-H04	child_capacity_is_cumulative_and_grandchild_cannot_spawn	BOUNDED_DIFFERENTIAL	One root-child-grandchild quota scenario; cumulative budgets do not model memory allocations or process limits
+R08-H05	grants_are_not_ambient_between_parent_and_child	BOUNDED_DIFFERENTIAL	One root-child read permission fixture; does not establish native operating-system isolation
+R08-H06	resource_cannot_cross_scope_even_with_local_grant	BOUNDED_DIFFERENTIAL	Single resource/grant held by a parent in a bounded cross-scope negative test
+R08-H07	two_resources_per_scope_are_bounded_and_not_recycled	BOUNDED_DIFFERENTIAL	Two-resource quota sample; does not model arbitrary resource quantities or memory safety
+R08-H08	revocation_denies_use_but_does_not_block_release_or_closure	BOUNDED_DIFFERENTIAL	One child revocation/cleanup sample, no actual external effects or host process behavior
+R08-H09	two_tasks_per_scope_have_sorted_reports_and_failure_priority	BOUNDED_DIFFERENTIAL	Four task reports over a root-child hierarchy, not arbitrary task graphs
+R08-H10	child_failure_dominates_parent_cancellation	BOUNDED_DIFFERENTIAL	One root cancellation versus child failure example, no physical task cancellation
+R08-H11	outstanding_checks_have_child_resource_task_order	BOUNDED_DIFFERENTIAL	One child/resource/task blocker precedence script; not the full set of tree states
+R08-H12	revoked_effect_and_resource_kind_remain_scope_exact	BOUNDED_DIFFERENTIAL	Read/Write modeled effects and one revoked grant only; no cryptographic grant identity or OS I/O
+R08-H13	external_io_and_foreign_identifiers_fail_closed	BOUNDED_DIFFERENTIAL	One synthetic foreign-domain witness and unsupported external I/O cases only
+R08-H14	cross_scope_completion_and_join_orders_have_canonical_reports	FINITE_INTERLEAVINGS	Exactly six legal orders of two task finish/join pairs; no real thread interleaving is measured
+R08-H15	accepted_event_budget_is_global_and_failed_events_cost_zero	BOUNDED_DIFFERENTIAL	Only one global event budget of two accepted operations, with no long-term resource guarantees
+R08-H16	identical_scripts_replay_independent_predictions	DETERMINISM_EXAMPLE	Determinism of selected Rust test fixtures; not durability or cross-architecture correctness
+R08-H17	synthetic_oracle_mutation_is_detected_but_not_reported_as_model_defect	SYNTHETIC_MUTATION	An intentionally corrupted expected answer, not a newly found defect in the resource/task model
+R08-H18	r08_is_test_only_with_no_public_runtime_or_nair_change	STATIC_BOUNDARY	Textual boundary check for src/lib.rs and Cargo.toml only, not a whole-program isolation proof
+R08-H19	grandchild_must_close_before_ancestors	BOUNDED_DIFFERENTIAL	One leaf-first close scenario across root-child-grandchild; not arbitrary recursive trees
+R08-H20	grandchild_grants_are_not_inherited_from_ancestors	BOUNDED_DIFFERENTIAL	Two ancestor grants and one leaf grant for the Read effect; no ambient or OS privilege theorem
+R08-H21	grandchild_resource_cannot_cross_parent_boundary	BOUNDED_DIFFERENTIAL	One leaf resource versus parent with scope-exact grants, modeled transitions only
+R08-H22	grandchild_failure_propagates_to_root	BOUNDED_DIFFERENTIAL	One canceled root task, one successful middle task, and one failing leaf task
+R08-H23	grandchild_cancellation_propagates_to_root_without_failure	BOUNDED_DIFFERENTIAL	One leaf task canceled and joined, with no other tasks or resource effects
+R08-H24	ninety_three_generation_interleavings_are_canonical	FINITE_INTERLEAVINGS	All 90 linear extensions of exactly three finish-before-join pairs, with one task per generation; no scheduler races
+R08-H25	three_generation_capacity_is_cumulative_even_after_closure	BOUNDED_DIFFERENTIAL	One cumulative child quota script over a fixed three-scope chain only
+R08-H26	three_generation_blockers_have_hierarchical_precedence	BOUNDED_DIFFERENTIAL	One hierarchy blocker order with one root task and one leaf resource; no full precedence proof
