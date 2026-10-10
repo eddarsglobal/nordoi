@@ -1,0 +1,21 @@
+id	witness	classification	limitation
+R11-P01	certified_r010_baseline_identity_is_explicit	STATIC_BOUNDARY	The hash is a declared reference in the test file; actual tag target is validated separately by Git boundary checks.
+R11-P02	native_readiness_registry_has_twelve_gates	GATE_REGISTRY	Checks only a finite hand-curated set of twelve named preproduction areas, not an exhaustive security threat model.
+R11-P03	native_gate_identifiers_are_unique_and_ordered	GATE_REGISTRY	Checks sequential IDs in an embedded TSV file; it does not establish globally unique identifiers for future registries.
+R11-P04	every_gate_contains_acceptance_and_limitation	GATE_REGISTRY	Checks nonempty documented criteria; does not establish their practical sufficiency or objective accuracy.
+R11-P05	all_canonical_gates_are_explicitly_unmet	BLOCKED_DEFAULT	Records current incomplete production readiness, not the completion of any native implementation work.
+R11-P06	research_witnesses_are_not_native_evidence	EVIDENCE_SEPARATION	Checks the declaration of a research-only evidence label; cannot prove absence of hidden implementation elsewhere.
+R11-P07	native_advisory_denies_by_default	BLOCKED_DEFAULT	An in-memory policy test only; does not authorize or block any actual release process outside these test fixtures.
+R11-P08	governance_approval_alone_cannot_bypass_gates	NEGATIVE_POLICY	Synthetic approval input has no cryptographic authentication or organization-wide decision authority.
+R11-P09	green_ci_alone_cannot_bypass_gates	NEGATIVE_POLICY	Synthetic green CI input does not query remote GitHub Actions or attest to any executable native scheduler.
+R11-P10	missing_gate_must_fail_closed	NEGATIVE_POLICY	Tests omission of one canonical entry, not all possible corrupted or malicious registry states.
+R11-P11	duplicate_gate_must_fail_closed	NEGATIVE_POLICY	Tests one constructed duplicate gate; cannot establish correctness for every future registry schema.
+R11-P12	unrecognized_status_cannot_be_interpreted_as_verified	NEGATIVE_POLICY	Checks one malformed status string in the embedded fixture, not arbitrary parser or file-system exploit input.
+R11-P13	blank_acceptance_criterion_cannot_be_verified	NEGATIVE_POLICY	Tests an empty criterion field in memory, not content quality of a nonempty acceptance specification.
+R11-P14	evidence_scope_missing_prevents_review	NEGATIVE_POLICY	Checks an evidence-scope string mismatch, not provenance, cryptographic signing or source authenticity.
+R11-P15	synthetic_completion_without_approval_stays_blocked	SYNTHETIC_POLICY	All verified statuses are deliberately forged only within a unit test; they are not production evidence.
+R11-P16	synthetic_completion_with_approval_stays_review_only	SYNTHETIC_POLICY	Review eligibility from synthetic inputs is not a deployment authorization or a verified real security guarantee.
+R11-P17	one_unmet_gate_blocks_synthetic_complete_candidate	NEGATIVE_POLICY	One simulated missing requirement blocks policy advice but not a genuine hosted production deployment.
+R11-P18	permuted_gate_order_fails_closed	DETERMINISM_EXAMPLE	A synthetic swapped input must reject as invalid; no proof is made about concurrent execution ordering.
+R11-P19	frozen_reference_is_still_pure_and_replayable	DIRECT_REFERENCE_SMOKE	Checks a single empty-scope model close and replay; it does not exercise real native threading or resource cleanup.
+R11-P20	no_native_authority_is_exported_by_r011	ISOLATION_INDICATOR	Checks selected module-name strings in Rust library and manifest; this is not a full binary or dependency audit.
