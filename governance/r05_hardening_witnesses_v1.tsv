@@ -1,0 +1,15 @@
+id	witness	classification	limitation
+R05-H01	ninety_valid_three_task_interleavings_have_same_closure_report	EXHAUSTIVE_WITHIN_PROFILE	90 linearizations of 3 fixed tasks and fixed outcomes only; not arbitrary concurrency
+R05-H02	nested_scope_failure_dominates_cancellation_for_both_close_orders	BOUNDED_ADVERSARIAL	Two sibling closure orders under a fixed 3-level scope tree; no general liveness proof
+R05-H03	cross_scope_grants_do_not_transfer_resource_authority	BOUNDED_ADVERSARIAL	One parent-child model with Read grants; no untrusted native Rust isolation
+R05-H04	revocation_denies_future_use_but_cannot_block_cleanup	BOUNDED_ADVERSARIAL	One Read resource and one revocation; no OS capability enforcement
+R05-H05	released_handle_cannot_reanimate_or_double_release	BOUNDED_ADVERSARIAL	One released resource; in-memory reference behavior only
+R05-H06	resource_and_task_budgets_are_cumulative_not_reusable	BOUNDED_ADVERSARIAL	Cumulative limits 1 task and 1 resource; not quantitative runtime resource measurement
+R05-H07	event_budget_zero_one_and_two_fail_closed_without_partial_logs	BOUNDED_ADVERSARIAL	Event budgets zero through two only; not unbounded admission behavior
+R05-H08	cancellation_then_failure_requires_join_and_reports_failure	BOUNDED_ADVERSARIAL	One cancelled-then-failed task; not a global failure scheduling policy
+R05-H09	invalid_task_phase_edges_do_not_mutate_state	BOUNDED_ADVERSARIAL	One task lifecycle with selected illegal edges; not the complete state graph
+R05-H10	foreign_scope_ids_and_host_permits_are_rejected_atomically	BOUNDED_ADVERSARIAL	One foreign domain permit and scope; no cryptographic identity verification
+R05-H11	synthetic_oracle_mutation_is_detected_without_claiming_real_defect	SYNTHETIC_MUTATION	Artificially corrupted copies of report; not a real implementation defect
+R05-H12	real_model_negative_trace_shrinks_to_minimal_rejection	NEGATIVE_TRACE_SHRINK	Reduces an expected unsupported ExternalIo operation; not a discovered fault
+R05-H13	identical_scripts_produce_identical_model_state_and_receipts	DETERMINISM_EXAMPLE	Two repeated in-process runs; no cross-compiler or durable byte representation
+R05-H14	r05_remains_test_only_without_runtime_or_nair_exports	STATIC_CHECK_ONLY	Static include guards and no exported module; does not prove production system isolation
