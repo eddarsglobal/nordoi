@@ -1,0 +1,19 @@
+id	witness	classification	limitation
+R07-C01	finite_generated_sequences_conform_to_independent_oracle	GENERATED_DIFFERENTIAL	32 deterministic seeds and 128 attempted commands each; not full state-space coverage or a stochastic security proof
+R07-C02	finite_action_words_cover_two_scope_oracle	FINITE_EXHAUSTIVE	Only the specified five-symbol alphabet and exactly five-step finite words; excludes most legal command combinations
+R07-C03	child_must_close_before_parent	BOUNDED_DIFFERENTIAL	One child and root, both without tasks/resources; closure hierarchy is not generalized to arbitrary depth
+R07-C04	child_capacity_is_cumulative_and_child_has_no_grandchild_budget	BOUNDED_DIFFERENTIAL	One root child budget and no grandchild admission; does not validate a general recursive scope tree
+R07-C05	grants_are_not_ambient_between_parent_and_child	BOUNDED_DIFFERENTIAL	Read effect only in one root-child scenario; no real OS or cryptographic privilege boundary is exercised
+R07-C06	resource_cannot_cross_scope_even_with_local_grant	BOUNDED_DIFFERENTIAL	One root resource with two scope-exact grants; cannot prove isolation under real concurrent execution
+R07-C07	two_resources_per_scope_are_bounded_and_not_recycled	BOUNDED_DIFFERENTIAL	Only two cumulative resources per scope under a fixed script; no memory usage or performance measurement
+R07-C08	revocation_denies_use_but_does_not_block_release_or_closure	BOUNDED_DIFFERENTIAL	Read-only resource and single child cleanup; does not model host-side I/O or irreversible effects
+R07-C09	two_tasks_per_scope_have_sorted_reports_and_failure_priority	BOUNDED_DIFFERENTIAL	Four tasks in one fixed root-child schedule; not an exhaustive scheduler or task-graph proof
+R07-C10	child_failure_dominates_parent_cancellation	BOUNDED_DIFFERENTIAL	One cancelled root task and one failed child task; no real cancellation interrupts or thread safety
+R07-C11	outstanding_checks_have_child_resource_task_order	BOUNDED_DIFFERENTIAL	One hierarchy with resource and task blockers; other precedence combinations are not exhaustively covered
+R07-C12	revoked_effect_and_resource_kind_remain_scope_exact	BOUNDED_DIFFERENTIAL	Read and Write modeled effects only; granting does not perform external operations or enforce native Rust security
+R07-C13	external_io_and_foreign_identifiers_fail_closed	BOUNDED_DIFFERENTIAL	One foreign-domain fixture and UnsupportedEffect denial; no cryptographic nonforgeability claim
+R07-C14	cross_scope_completion_and_join_orders_have_canonical_reports	FINITE_INTERLEAVINGS	All six linear extensions of two finish/join pairs only; no real parallel scheduling, timing or race coverage
+R07-C15	accepted_event_budget_is_global_and_failed_events_cost_zero	BOUNDED_DIFFERENTIAL	One two-event budget scenario; no unbounded resource cost guarantee is established
+R07-C16	identical_scripts_replay_independent_predictions	DETERMINISM_EXAMPLE	Fixed deterministic inputs on one runtime; no cross-architecture semantic proof or signed replay log
+R07-C17	synthetic_oracle_mutation_is_detected_but_not_reported_as_model_defect	SYNTHETIC_MUTATION	Intentionally modified expected result only; this is not a vulnerability in the R0.2 model
+R07-C18	r07_is_test_only_with_no_public_runtime_or_nair_change	STATIC_BOUNDARY	Textual export checks only; complete production authority isolation remains outside this verification
