@@ -1,0 +1,13 @@
+id	witness	classification	limitation
+R04-A01	fixed_seed_corpus_replays_and_rejects_atomically	GENERATED_BOUNDED	16 fixed seeds x 96 operations each; selected alphabet; up to 48 accepted events; not exhaustive
+R04-A02	identical_seed_reproduces_full_trace_and_snapshots	METAMORPHIC_EXAMPLE	Deterministic in-process representation; debug snapshots are not stable durable encoding
+R04-A03	distinct_seeds_change_generated_trace	METAMORPHIC_EXAMPLE	Two selected seeds only; divergence is not randomness-quality proof
+R04-A04	deterministic_reducer_minimizes_synthetic_counterexample	SYNTHETIC_SHRINK	Synthetic predicate only; no real R0.2 counterexample found or reduced
+R04-A05	reducer_is_idempotent_and_preserves_failure	SYNTHETIC_SHRINK	Deletion-minimal on one synthetic example, not globally minimal general counterexamples
+R04-A06	revocation_cannot_block_release_or_closure	ADVERSARIAL_EXAMPLE	Single model resource and Read grant; no external I/O
+R04-A07	cancellation_failure_precedence_is_explicit	ADVERSARIAL_EXAMPLE	One admitted task and one failure code
+R04-A08	child_close_permutation_preserves_canonical_report	METAMORPHIC_EXAMPLE	Two children, two selected outcomes and two closure permutations
+R04-A09	foreign_domain_identity_is_rejected_atomically	ADVERSARIAL_EXAMPLE	One foreign scope identifier, not an untrusted Rust memory safety boundary
+R04-A10	host_permit_is_not_an_ambient_guest_grant	ADVERSARIAL_EXAMPLE	Trusted model witness simulation; not cryptographic or cross-process authentication
+R04-A11	event_budget_zero_denies_without_state_mutation	ADVERSARIAL_EXAMPLE	Zero event budget in-memory; no OS resource measurement
+R04-A12	r04_is_test_only_and_requires_no_external_runtime	STATIC_CHECK_ONLY	Requires git diff, manifest verification and CI; not a runtime security proof
