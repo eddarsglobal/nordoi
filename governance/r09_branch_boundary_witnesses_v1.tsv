@@ -1,0 +1,24 @@
+id	witness	classification	limitation
+R09-B01	generated_sibling_tree_matches_independent_oracle	GENERATED_DIFFERENTIAL	40 deterministic seeds and 160 attempted commands each: covers only a bounded five-scope fixture, not true concurrency or arbitrary command histories.
+R09-B02	finite_seven_action_words_match_independent_oracle	FINITE_EXHAUSTIVE	Exactly 7^5 five-step words over seven chosen actions; other operations, deeper words, and unbounded state graphs are excluded.
+R09-B03	root_has_exactly_two_sibling_child_slots	BOUNDED_DIFFERENTIAL	Root quota of two child declarations under one fixture only; does not prove arbitrary scheduling or dynamic tree allocation.
+R09-B04	closing_first_sibling_does_not_replenish_child_quota	BOUNDED_DIFFERENTIAL	One closed sibling and a third attempted child only; no claim about reclamation of host resources outside this reference model.
+R09-B05	siblings_each_own_one_nonrecyclable_leaf_slot	BOUNDED_DIFFERENTIAL	Two siblings each with one leaf, and only two leaf-spawn denial cases; no unbounded scope hierarchy has been verified.
+R09-B06	closing_root_requires_both_sibling_branches	BOUNDED_DIFFERENTIAL	Root with exactly two children and a small ordered close script; no cancellation or crash during actual OS closure is modeled.
+R09-B07	leaf_must_close_before_its_own_branch	BOUNDED_DIFFERENTIAL	A single first-branch leaf and second sibling; demonstrates close ordering in one fixed hierarchical scenario.
+R09-B08	sibling_grants_are_not_ambient	BOUNDED_DIFFERENTIAL	One Read effect and one pair of sibling grants; does not cover every effect or real host entitlement representation.
+R09-B09	sibling_resources_reject_foreign_use_and_release	BOUNDED_DIFFERENTIAL	One Read resource held in first child and accessed from second; not a memory isolation or OS handle penetration test.
+R09-B10	cousin_resources_and_grants_are_scope_exact	BOUNDED_DIFFERENTIAL	Two leaves, one per branch, with a Read resource; does not establish isolation across physical processes or FFI.
+R09-B11	ancestor_grant_does_not_authorize_leaf_acquisition	BOUNDED_DIFFERENTIAL	One ancestor grant and descendant attempt; proves only the documented model-denial for the chosen Read operation.
+R09-B12	revocation_on_one_branch_does_not_revoke_other_branch	BOUNDED_DIFFERENTIAL	One local revocation and one unaffected sibling Read grant; does not model external effects already in flight.
+R09-B13	revoked_branch_authority_cannot_block_cleanup	BOUNDED_DIFFERENTIAL	Cleanup from a revoked Read grant in one child only; not a general resource finalizer or crash-recovery guarantee.
+R09-B14	local_resource_quota_is_never_recycled_or_shared	BOUNDED_DIFFERENTIAL	Two acquired resources on first branch and one on second; quotas are model counters, not physical allocator budgets.
+R09-B15	failure_in_one_sibling_dominates_cancellation_in_other	BOUNDED_DIFFERENTIAL	One failing child task and one cancelled sibling task; no real preemption or asynchronous task timing is involved.
+R09-B16	cancellations_from_both_leaf_branches_propagate_upwards	BOUNDED_DIFFERENTIAL	Two cancelled grandchild tasks and ordered closure; external cancellation protocols remain entirely unmodeled.
+R09-B17	root_child_reports_are_sorted_even_when_close_order_is_reversed	BOUNDED_DIFFERENTIAL	Two empty child reports closed in reverse order; checks identity sorting but not arbitrary report serialization stability.
+R09-B18	blockers_remain_ordered_across_sibling_tree	BOUNDED_DIFFERENTIAL	One root task and one sibling resource block closure; does not exhaust all combinations of simultaneous blockers.
+R09-B19	malformed_cross_branch_transitions_are_atomic	BOUNDED_DIFFERENTIAL	Selected foreign, unknown, unsupported and unauthorized transitions; atomicity is checked on the bounded Rust state model.
+R09-B20	all_four_task_finish_join_orders_have_canonical_reports	FINITE_INTERLEAVINGS	Exactly 2,520 legal topological orders of four finish-before-join pairs; no OS threads, races or scheduler progress claims.
+R09-B21	repeated_branch_scripts_are_byte_deterministic_as_results	DETERMINISM_EXAMPLE	Identical scripts run twice in one process; no cross-platform binary reproducibility or persistent audit guarantee.
+R09-B22	synthetic_oracle_mutation_detection_is_only_a_test_of_the_harness	SYNTHETIC_MUTATION	A deliberately forged expected result tests mismatch detection and is not evidence of a defect in the frozen R0.2 model.
+R09-B23	r09_is_test_only_and_cannot_export_host_authority	STATIC_BOUNDARY	Only textual absence of module exports in lib.rs and Cargo.toml is inspected; not a proof of whole-program confinement.
