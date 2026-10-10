@@ -1,0 +1,16 @@
+id	witness	classification	limitation
+R06-C01	deterministic_generated_corpus_matches_independent_oracle	GENERATED_DIFFERENTIAL	32 fixed seeds and 96 attempted commands each; only a single root task/resource profile
+R06-C02	finite_five_action_sequences_match_independent_oracle	FINITE_EXHAUSTIVE	All 3125 length-five words over five chosen symbols only; not the whole command language
+R06-C03	read_permission_is_not_equivalent_to_effect_declaration	BOUNDED_DIFFERENTIAL	One root scope and one Read grant; independent authorization is not security isolation
+R06-C04	host_grants_can_be_revoked_without_revoking_cleanup	BOUNDED_DIFFERENTIAL	One resource with revocation; does not model host operating-system permissions
+R06-C05	reissued_host_grant_allows_use_but_not_resource_reacquisition	BOUNDED_DIFFERENTIAL	Two host grants and a single resource budget; other capability types are excluded
+R06-C06	success_path_and_closed_scope_have_an_independent_report	BOUNDED_DIFFERENTIAL	One successful task and one root closure; no child scopes or distributed lifecycle
+R06-C07	requested_cancellation_can_finish_as_failure	BOUNDED_DIFFERENTIAL	One admitted task with cancellation and failure; no real cancellation propagation
+R06-C08	acknowledged_cancellation_reports_cancelled	BOUNDED_DIFFERENTIAL	One running task acknowledging cancellation; no scheduler or timing guarantees
+R06-C09	both_budget_zero_cases_deny_creation_without_partial_state	BOUNDED_DIFFERENTIAL	One zero task/resource budget scenario; no performance or memory accounting
+R06-C10	unsupported_effect_is_denied_before_authority_creation	BOUNDED_DIFFERENTIAL	ExternalIo rejected by declaration; not a guarantee about real host side effects
+R06-C11	foreign_domain_handles_do_not_provide_scope_resource_or_task_authority	BOUNDED_DIFFERENTIAL	One forged-by-other-domain fixture; no crypto unforgeability of native Rust IDs
+R06-C12	event_budget_does_not_hide_wrong_host_witness_denial	BOUNDED_DIFFERENTIAL	One-event limit and foreign host permit; no unbounded resource admission proof
+R06-C13	identical_oracle_inputs_are_reproducible_without_platform_randomness	DETERMINISM_EXAMPLE	Same Rust host and fixed PRNG repeated; no cross-toolchain byte equivalence proof
+R06-C14	synthetic_oracle_mutation_is_detected_not_a_real_bug	SYNTHETIC_MUTATION	Intentionally altered expected report only; no implementation vulnerability discovered
+R06-C15	r06_remains_test_only_and_does_not_export_new_authority	STATIC_BOUNDARY	Textual export checks only; cannot independently establish production sandbox security
