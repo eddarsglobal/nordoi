@@ -68,15 +68,17 @@ fn digest_hex(digest: &[u8; 32]) -> String {
 }
 
 fn tabular<'a>(text: &'a str, header: &str, columns: usize) -> Option<Vec<Vec<&'a str>>> {
-    if text.contains('\r') {
-        return None;
-    }
+    // str::lines() strips ordinary CRLF record terminators on Windows.
+    // Embedded carriage returns remain malformed and must fail closed.
     let mut lines = text.lines();
     if lines.next()? != header {
         return None;
     }
     let mut result = Vec::new();
     for line in lines {
+        if line.contains('\r') {
+            return None;
+        }
         let fields: Vec<&str> = line.split('\t').collect();
         if fields.len() != columns || fields.iter().any(|v| v.trim().is_empty()) {
             return None;
@@ -378,6 +380,16 @@ fn canonical_pack_root_is_frozen() {
 #[test]
 fn canonical_manifest_has_twelve_rows() {
     assert_eq!(tabular(R16, M16, 17).unwrap().len(), 12);
+    // Both LF and Git's Windows CRLF checkout must parse identically.
+    let crlf = R16.replace("\r\n", "\n").replace('\n', "\r\n");
+    assert_eq!(tabular(&crlf, M16, 17).unwrap().len(), 12);
+    let registry_crlf = R17.replace("\r\n", "\n").replace('\n', "\r\n");
+    assert_eq!(tabular(&registry_crlf, M17, 15).unwrap().len(), 12);
+    // An embedded CR inside a field is still invalid.
+    let malformed = R16
+        .replace("\r\n", "\n")
+        .replacen("R16-B01", "R16-\rB01", 1);
+    assert!(tabular(&malformed, M16, 17).is_none());
 }
 #[test]
 fn canonical_registry_has_twelve_absent_rows() {
