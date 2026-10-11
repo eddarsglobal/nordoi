@@ -365,14 +365,16 @@ fn malformed_header_is_rejected() {
 }
 #[test]
 fn windows_crlf_is_accepted_but_embedded_cr_rejected() {
-    let crlf = ATTEMPTS.replace('\n', "\r\n");
+    let lf = normalized_lf(ATTEMPTS).expect("frozen public fixture must have valid line endings");
+    let crlf = lf.replace('\n', "\r\n");
     assert_eq!(expected_bytes(&crlf), expected_bytes(ATTEMPTS));
     let injected = ATTEMPTS.replacen("CLEAN_MOCK", "CLEAN\r_MOCK", 1);
     assert!(parse_rows(&injected).is_none());
 }
 #[test]
 fn canonical_admission_transcript_is_byte_stable() {
-    let crlf = ATTEMPTS.replace('\n', "\r\n");
+    let lf = normalized_lf(ATTEMPTS).expect("frozen public fixture must have valid line endings");
+    let crlf = lf.replace('\n', "\r\n");
     assert_eq!(expected_bytes(ATTEMPTS), expected_bytes(&crlf));
 }
 #[test]
