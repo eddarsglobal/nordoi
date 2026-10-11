@@ -1,0 +1,14 @@
+[package]
+name = "nordoi-native-effect-p03"
+version = "0.3.0"
+edition = "2021"
+license = "MIT"
+description = "Opt-in signed durable kernel EffectBackend adapter (research candidate)"
+publish = false
+
+[dependencies]
+nordoi_kernel = { path = "../.." }
+nordoi-native-trust-p01 = { path = "../native-trust-p01" }
+
+[dev-dependencies]
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["std"] }

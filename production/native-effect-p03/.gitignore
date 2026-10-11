@@ -1,0 +1,3 @@
+# Root NORDOI ignores Cargo.lock recursively. Keep this crate's locked build reproducible.
+!/Cargo.lock
+/target/
