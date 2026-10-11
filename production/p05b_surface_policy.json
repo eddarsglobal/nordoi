@@ -1,0 +1,29 @@
+{
+  "schema": "nordoi-production-p05b-surface-policy-v1",
+  "certified_base_sha": "5da685370ed9bfb5f791554a2ea8442de2fa2ba6",
+  "branch": "production/p0.1",
+  "research_tag_sha": "0428e74a0cd69b40a9fe12e9ae0806cbbeb03fd5",
+  "frozen_historical_paths": [
+    "src/effect_dispatch",
+    "src/effect_fencing",
+    "src/effect_persistence",
+    "src/effect_retry",
+    "src/effect_audit",
+    "src/observable_io_p21.rs",
+    "src/observable_io_p22.rs",
+    "src/observable_io_p23.rs",
+    "src/observable_io_p24.rs",
+    "src/observable_io_p25.rs",
+    "src/observable_io_p26.rs",
+    "src/observable_io_p27.rs"
+  ],
+  "protected_crate_path": "production/native-effect-p03",
+  "facade_file": "production/native-effect-p03/src/enforced.rs",
+  "allowed_facade_methods": [
+    "new", "pending_effect_count", "acquire", "recover",
+    "cycle_to", "dispatch_next", "release"
+  ],
+  "allowed_submodules": ["production", "enforced"],
+  "kernel_wide_mandatory_enforcement_certified": false,
+  "production_deployment_authorized": false
+}
