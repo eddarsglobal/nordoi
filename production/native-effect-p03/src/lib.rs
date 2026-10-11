@@ -7,6 +7,9 @@
 /// P0.4 durable host-side delivery ledger (opt-in; does not seal all kernel call sites).
 pub mod production;
 
+/// P0.5A explicitly selected fenced host execution profile (not kernel-wide).
+pub mod enforced;
+
 use nordoi_kernel::{
     Effect, EffectBackend, EffectBackendError, EffectBackendReceipt, EffectDispatchRequest,
     QueuedEffectIntent,
