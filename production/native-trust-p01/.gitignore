@@ -1,0 +1,4 @@
+# Root NORDOI ignores all Cargo.lock files, but this independent crate is
+# production-track code and must commit its resolved dependency lock.
+!/Cargo.lock
+/target/

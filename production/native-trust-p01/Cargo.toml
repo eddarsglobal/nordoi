@@ -1,0 +1,11 @@
+[package]
+name = "nordoi-native-trust-p01"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "NORDOI production-track P0.1 real Ed25519 trust admission prototype"
+publish = false
+
+[dependencies]
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["std"] }
+sha2 = { version = "=0.10.9", default-features = false, features = ["std"] }
