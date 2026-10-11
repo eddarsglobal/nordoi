@@ -4,6 +4,9 @@
 //! leaves an in-doubt consumed sequence, NOT an exactly-once external effect guarantee.
 //! Use only for test/research until kernel-wide routing, rollback anchoring and audits exist.
 
+/// P0.4 durable host-side delivery ledger (opt-in; does not seal all kernel call sites).
+pub mod production;
+
 use nordoi_kernel::{
     Effect, EffectBackend, EffectBackendError, EffectBackendReceipt, EffectDispatchRequest,
     QueuedEffectIntent,
