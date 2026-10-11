@@ -308,3 +308,6 @@ impl TrustGate {
         Ok(())
     }
 }
+
+/// Production-track P0.2 experimental crash/restart trust journal; NOT a production authorization boundary.
+pub mod durable;
