@@ -18,6 +18,26 @@ const BOOT_DOMAIN: &[u8] = b"NORDOI:P0.2:BOOTSTRAP:V1\0";
 const MAX_FRAME: usize = 512;
 const MAX_JOURNAL_BYTES: u64 = 16 * 1024 * 1024;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct TrustJournalWitness {
+    bytes: u64,
+    digest: [u8; 32],
+}
+
+impl TrustJournalWitness {
+    pub const fn from_parts(bytes: u64, digest: [u8; 32]) -> Self {
+        Self { bytes, digest }
+    }
+
+    pub const fn bytes(self) -> u64 {
+        self.bytes
+    }
+
+    pub const fn digest(self) -> [u8; 32] {
+        self.digest
+    }
+}
+
 #[derive(Debug)]
 pub enum DurableError {
     Crypto(GateError),
@@ -263,6 +283,7 @@ pub struct DurableTrustGate {
     gate: TrustGate,
     digest: [u8; 32],
     size: u64,
+    witnesses: BTreeMap<u64, [u8; 32]>,
     poisoned: bool,
 }
 impl DurableTrustGate {
@@ -289,12 +310,17 @@ impl DurableTrustGate {
         file.write_all(&boot)?;
         file.sync_all()?;
         sync_parent(path)?;
+        let size = (MAGIC.len() + 32) as u64;
+        let digest = initial_digest(&boot);
+        let mut witnesses = BTreeMap::new();
+        witnesses.insert(size, digest);
         Ok(Self {
             _lock: lock,
             file,
             gate,
-            digest: initial_digest(&boot),
-            size: (MAGIC.len() + 32) as u64,
+            digest,
+            size,
+            witnesses,
             poisoned: false,
         })
     }
@@ -320,6 +346,9 @@ impl DurableTrustGate {
             return Err(DurableError::BootstrapMismatch);
         }
         let mut prev = initial_digest(&expected_boot);
+        let mut position = (MAGIC.len() + 32) as u64;
+        let mut witnesses = BTreeMap::new();
+        witnesses.insert(position, prev);
         let mut remainder = &bytes[MAGIC.len() + 32..];
         while !remainder.is_empty() {
             let n = u32::from_be_bytes(
@@ -339,6 +368,13 @@ impl DurableTrustGate {
             let e = decode(frame)?;
             replay(&mut gate, &e)?;
             prev = expected;
+            position = position
+                .checked_add(4 + n as u64 + 32)
+                .ok_or(DurableError::Corrupt)?;
+            witnesses.insert(position, prev);
+        }
+        if position != bytes.len() as u64 {
+            return Err(DurableError::Corrupt);
         }
         Ok(Self {
             _lock: lock,
@@ -346,6 +382,7 @@ impl DurableTrustGate {
             gate,
             digest: prev,
             size: bytes.len() as u64,
+            witnesses,
             poisoned: false,
         })
     }
@@ -355,6 +392,21 @@ impl DurableTrustGate {
     pub fn journal_bytes(&self) -> u64 {
         self.size
     }
+
+    pub fn journal_witness(&self) -> TrustJournalWitness {
+        TrustJournalWitness::from_parts(self.size, self.digest)
+    }
+
+    pub fn contains_journal_witness(
+        &self,
+        witness: TrustJournalWitness,
+    ) -> Result<bool, DurableError> {
+        if self.poisoned {
+            return Err(DurableError::Poisoned);
+        }
+        Ok(self.witnesses.get(&witness.bytes) == Some(&witness.digest))
+    }
+
     fn append(&mut self, e: &SignedEnvelope) -> Result<(), DurableError> {
         if self.poisoned {
             return Err(DurableError::Poisoned);
@@ -378,6 +430,7 @@ impl DurableTrustGate {
         }
         self.digest = digest;
         self.size += increment;
+        self.witnesses.insert(self.size, self.digest);
         Ok(())
     }
     pub fn verify_execution(

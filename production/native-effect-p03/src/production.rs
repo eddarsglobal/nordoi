@@ -12,7 +12,10 @@ use nordoi_kernel::{
     Effect, EffectBackend, EffectBackendError, EffectBackendReceipt, EffectDispatchRequest,
     QueuedEffectIntent,
 };
-use nordoi_native_trust_p01::sha256_payload;
+use nordoi_native_trust_p01::{
+    durable::{DurableError, TrustJournalWitness},
+    sha256_payload,
+};
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -22,6 +25,26 @@ const MAGIC: &[u8] = b"NORDOI:P0.4:DELIVERY-STATE:V1\n";
 const RECORD_BODY: usize = 1 + 24 + 32;
 const RECORD_BYTES: usize = RECORD_BODY + 32;
 const MAX_LEDGER_BYTES: u64 = 16 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DeliveryLedgerWitness {
+    bytes: u64,
+    digest: [u8; 32],
+}
+
+impl DeliveryLedgerWitness {
+    pub const fn from_parts(bytes: u64, digest: [u8; 32]) -> Self {
+        Self { bytes, digest }
+    }
+
+    pub const fn bytes(self) -> u64 {
+        self.bytes
+    }
+
+    pub const fn digest(self) -> [u8; 32] {
+        self.digest
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum DeliveryState {
@@ -128,6 +151,7 @@ struct DeliveryLedger {
     last: [u8; 32],
     size: u64,
     entries: BTreeMap<[u8; 24], ([u8; 32], DeliveryState)>,
+    witnesses: BTreeMap<u64, [u8; 32]>,
     poisoned: bool,
 }
 impl DeliveryLedger {
@@ -150,12 +174,17 @@ impl DeliveryLedger {
         file.write_all(MAGIC)?;
         file.sync_all()?;
         sync_parent(path)?;
+        let size = MAGIC.len() as u64;
+        let last = sha256_payload(MAGIC);
+        let mut witnesses = BTreeMap::new();
+        witnesses.insert(size, last);
         Ok(Self {
             _lock: lock,
             file,
-            last: sha256_payload(MAGIC),
-            size: MAGIC.len() as u64,
+            last,
+            size,
             entries: BTreeMap::new(),
+            witnesses,
             poisoned: false,
         })
     }
@@ -177,6 +206,9 @@ impl DeliveryLedger {
         }
         let mut entries = BTreeMap::new();
         let mut previous = sha256_payload(MAGIC);
+        let mut position = MAGIC.len() as u64;
+        let mut witnesses = BTreeMap::new();
+        witnesses.insert(position, previous);
         for record in records.as_chunks::<RECORD_BYTES>().0 {
             let body = &record[..RECORD_BODY];
             let expected = digest(&previous, body);
@@ -204,6 +236,13 @@ impl DeliveryLedger {
                 _ => return Err(LedgerError::Corrupt),
             }
             previous = expected;
+            position = position
+                .checked_add(RECORD_BYTES as u64)
+                .ok_or(LedgerError::Corrupt)?;
+            witnesses.insert(position, previous);
+        }
+        if position != data.len() as u64 {
+            return Err(LedgerError::Corrupt);
         }
         Ok(Self {
             _lock: lock,
@@ -211,6 +250,7 @@ impl DeliveryLedger {
             last: previous,
             size: data.len() as u64,
             entries,
+            witnesses,
             poisoned: false,
         })
     }
@@ -242,6 +282,7 @@ impl DeliveryLedger {
         }
         self.last = next;
         self.size += RECORD_BYTES as u64;
+        self.witnesses.insert(self.size, self.last);
         Ok(())
     }
     fn reserve(&mut self, id: [u8; 24], binding: [u8; 32]) -> Result<(), LedgerError> {
@@ -267,6 +308,17 @@ impl DeliveryLedger {
     }
     fn status(&self, id: &[u8; 24]) -> Option<DeliveryState> {
         self.entries.get(id).map(|entry| entry.1)
+    }
+
+    fn witness(&self) -> DeliveryLedgerWitness {
+        DeliveryLedgerWitness::from_parts(self.size, self.last)
+    }
+
+    fn contains_witness(&self, witness: DeliveryLedgerWitness) -> Result<bool, LedgerError> {
+        if self.poisoned {
+            return Err(LedgerError::Poisoned);
+        }
+        Ok(self.witnesses.get(&witness.bytes) == Some(&witness.digest))
     }
 }
 
@@ -294,6 +346,28 @@ impl<B, S> ProductionEffectBackend<B, S> {
     }
     pub fn status(&self, request: &EffectDispatchRequest) -> Option<DeliveryState> {
         key(request).ok().and_then(|id| self.ledger.status(&id))
+    }
+
+    pub fn trust_witness(&self) -> TrustJournalWitness {
+        self.inner.trust.journal_witness()
+    }
+
+    pub fn contains_trust_witness(
+        &self,
+        witness: TrustJournalWitness,
+    ) -> Result<bool, DurableError> {
+        self.inner.trust.contains_journal_witness(witness)
+    }
+
+    pub fn delivery_witness(&self) -> DeliveryLedgerWitness {
+        self.ledger.witness()
+    }
+
+    pub fn contains_delivery_witness(
+        &self,
+        witness: DeliveryLedgerWitness,
+    ) -> Result<bool, LedgerError> {
+        self.ledger.contains_witness(witness)
     }
 }
 impl<B: EffectBackend, S: SignedEnvelopeSource> EffectBackend for ProductionEffectBackend<B, S> {
