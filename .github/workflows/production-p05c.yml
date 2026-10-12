@@ -1,0 +1,76 @@
+name: NORDOI Production P0.5C Closed Build Graph Gate
+
+on:
+  push:
+    branches: [production/p0.1]
+  pull_request:
+    branches: [production/p0.1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  format-clippy:
+    name: P0.5C Format & Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Build-graph policy
+        run: python3 scripts/production_p05c_graph_check.py --repo "$PWD"
+      - name: Format
+        run: cargo fmt --manifest-path production/native-effect-profile-p05c/Cargo.toml -- --check
+      - name: Clippy
+        run: cargo clippy --locked --manifest-path production/native-effect-profile-p05c/Cargo.toml --all-targets -- -D warnings
+      - name: Negative compile and mutation tests
+        run: python3 scripts/production_p05c_negative_compile.py
+
+  check:
+    name: P0.5C Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build-graph policy
+        run: python3 scripts/production_p05c_graph_check.py --repo "$PWD"
+      - name: Cargo check
+        run: cargo check --locked --manifest-path production/native-effect-profile-p05c/Cargo.toml --all-targets
+
+  tests:
+    name: P0.5C Tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build-graph policy
+        shell: bash
+        run: python3 scripts/production_p05c_graph_check.py --repo "$PWD"
+      - name: Cargo check before offline probes
+        run: cargo check --locked --manifest-path production/native-effect-profile-p05c/Cargo.toml --all-targets
+      - name: Negative compile and mutation tests
+        shell: bash
+        run: python3 scripts/production_p05c_negative_compile.py
+      - name: Cargo tests
+        run: cargo test --locked --manifest-path production/native-effect-profile-p05c/Cargo.toml --all-targets

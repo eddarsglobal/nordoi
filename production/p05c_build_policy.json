@@ -1,0 +1,26 @@
+{
+  "schema": "nordoi-production-p05c-build-policy-v1",
+  "branch": "production/p0.1",
+  "certified_base_sha": "24fb905b341d31296403f02040d44eeba13109ce",
+  "research_tag_sha": "0428e74a0cd69b40a9fe12e9ae0806cbbeb03fd5",
+  "profile_crate_path": "production/native-effect-profile-p05c",
+  "profile_package_name": "nordoi-production-profile-p05c",
+  "profile_version": "0.5.0",
+  "required_direct_dependency": {
+    "name": "nordoi-native-effect-p03",
+    "path": "../native-effect-p03"
+  },
+  "required_public_reexport": "pub use nordoi_native_effect_p03::enforced::FencedProductionEffects;",
+  "profile_id": "NORDOI:P0.5C:FENCED-PRODUCTION-PROFILE:V1",
+  "forbidden_profile_tokens": [
+    "GuardedEffectBackend",
+    "ProductionEffectBackend",
+    "DurableTrustGate",
+    "nordoi_kernel",
+    "nordoi_native_trust_p01",
+    "EffectBackend",
+    "canonical_dispatch_bytes"
+  ],
+  "kernel_wide_mandatory_enforcement_certified": false,
+  "production_deployment_authorized": false
+}

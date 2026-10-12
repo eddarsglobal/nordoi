@@ -1,0 +1,3 @@
+# Root NORDOI ignores Cargo.lock recursively. Keep this production profile locked.
+!/Cargo.lock
+/target/

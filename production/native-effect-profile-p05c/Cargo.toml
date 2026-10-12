@@ -1,0 +1,10 @@
+[package]
+name = "nordoi-production-profile-p05c"
+version = "0.5.0"
+edition = "2021"
+license = "MIT"
+description = "Closed build-graph boundary for the explicitly selected NORDOI fenced production effect profile"
+publish = false
+
+[dependencies]
+nordoi-native-effect-p03 = { path = "../native-effect-p03" }
