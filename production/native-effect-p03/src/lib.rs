@@ -107,6 +107,35 @@ impl<B, S> GuardedEffectBackend<B, S> {
     }
 }
 
+impl<B: EffectBackend, S: SignedEnvelopeSource> GuardedEffectBackend<B, S> {
+    pub(crate) fn admit_with_context(
+        &mut self,
+        request: &EffectDispatchRequest,
+    ) -> Result<(), EffectBackendError> {
+        if !self.supports(&request.queued.intent.effect) {
+            return Err(EffectBackendError::permanent("P0.3 backend unsupported"));
+        }
+        let binding = canonical_dispatch_bytes(request)
+            .map_err(|_| EffectBackendError::permanent("P0.3 invalid delivery context"))?;
+        let envelope = self
+            .source
+            .take(request)
+            .ok_or_else(|| EffectBackendError::permanent("P0.3 missing signed authorization"))?;
+        // P0.2 fsyncs the signed admission before P0.6B is allowed to cross
+        // the per-dispatch anchor barrier or attempt the external effect.
+        self.trust
+            .verify_execution(&envelope, CAPABILITY, RESOURCE, &binding)
+            .map_err(|_| EffectBackendError::permanent("P0.3 signature/admission rejected"))?;
+        Ok(())
+    }
+
+    pub(crate) fn execute_admitted_with_context(
+        &mut self,
+        request: &EffectDispatchRequest,
+    ) -> Result<EffectBackendReceipt, EffectBackendError> {
+        self.backend.execute_with_context(request)
+    }
+}
 impl<B: EffectBackend, S: SignedEnvelopeSource> EffectBackend for GuardedEffectBackend<B, S> {
     fn supports(&self, effect: &Effect) -> bool {
         !matches!(
@@ -128,20 +157,7 @@ impl<B: EffectBackend, S: SignedEnvelopeSource> EffectBackend for GuardedEffectB
         &mut self,
         request: &EffectDispatchRequest,
     ) -> Result<EffectBackendReceipt, EffectBackendError> {
-        if !self.supports(&request.queued.intent.effect) {
-            return Err(EffectBackendError::permanent("P0.3 backend unsupported"));
-        }
-        let binding = canonical_dispatch_bytes(request)
-            .map_err(|_| EffectBackendError::permanent("P0.3 invalid delivery context"))?;
-        let envelope = self
-            .source
-            .take(request)
-            .ok_or_else(|| EffectBackendError::permanent("P0.3 missing signed authorization"))?;
-        // P0.2 commits the signed operation to disk before a side effect is attempted.
-        // On subsequent backend failure do NOT roll back or reissue the signed sequence.
-        self.trust
-            .verify_execution(&envelope, CAPABILITY, RESOURCE, &binding)
-            .map_err(|_| EffectBackendError::permanent("P0.3 signature/admission rejected"))?;
-        self.backend.execute_with_context(request)
+        self.admit_with_context(request)?;
+        self.execute_admitted_with_context(request)
     }
 }

@@ -12,6 +12,7 @@ use nordoi_kernel::{
     EventLoopCycleReport, EventLoopResult, FencedEffectJournalStore, GovernedEffectDispatcher,
     GovernedFencedEffectJournal, InputBatch, LogicalTime,
 };
+use nordoi_rollback_anchor_p06::{AnchorOpenMode, MonotonicAnchor, RecoveryError};
 
 /// Narrow host-owned profile: the event loop and backend cannot be removed
 /// or replaced through this facade's public interface.
@@ -28,18 +29,21 @@ pub struct FencedProductionEffects<Store, Backend, Source> {
 }
 
 impl<Store, Backend, Source> FencedProductionEffects<Store, Backend, Source> {
-    pub fn new(
+    pub fn new<A: MonotonicAnchor + 'static>(
         event_loop: AtomicEventLoop,
         journal: GovernedFencedEffectJournal<Store>,
         dispatcher: GovernedEffectDispatcher,
-        backend: ProductionEffectBackend<Backend, Source>,
-    ) -> Self {
-        Self {
+        mut backend: ProductionEffectBackend<Backend, Source>,
+        anchor: A,
+        anchor_mode: AnchorOpenMode,
+    ) -> Result<Self, RecoveryError> {
+        backend.attach_anchor(anchor, anchor_mode)?;
+        Ok(Self {
             event_loop,
             journal,
             dispatcher,
             backend,
-        }
+        })
     }
 
     pub fn pending_effect_count(&self) -> usize {

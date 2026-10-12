@@ -16,6 +16,10 @@ use nordoi_native_trust_p01::{
     durable::{DurableError, TrustJournalWitness},
     sha256_payload,
 };
+use nordoi_rollback_anchor_p06::{
+    initialize_production_anchor, verify_production_recovery, AnchorOpenMode, ChainWitness,
+    MonotonicAnchor, ProductionWitnessSource, RecoveryError,
+};
 use std::collections::BTreeMap;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
@@ -328,6 +332,7 @@ impl DeliveryLedger {
 pub struct ProductionEffectBackend<B, S> {
     inner: GuardedEffectBackend<B, S>,
     ledger: DeliveryLedger,
+    anchor: Option<Box<dyn MonotonicAnchor>>,
 }
 impl<B, S> ProductionEffectBackend<B, S> {
     /// Initialize a brand new local ledger (never truncate an existing one).
@@ -335,6 +340,7 @@ impl<B, S> ProductionEffectBackend<B, S> {
         Ok(Self {
             inner,
             ledger: DeliveryLedger::initialize(path)?,
+            anchor: None,
         })
     }
     /// On restart, verify the ENTIRE ledger; never auto-release IN_DOUBT.
@@ -342,6 +348,7 @@ impl<B, S> ProductionEffectBackend<B, S> {
         Ok(Self {
             inner,
             ledger: DeliveryLedger::open(path)?,
+            anchor: None,
         })
     }
     pub fn status(&self, request: &EffectDispatchRequest) -> Option<DeliveryState> {
@@ -369,7 +376,68 @@ impl<B, S> ProductionEffectBackend<B, S> {
     ) -> Result<bool, LedgerError> {
         self.ledger.contains_witness(witness)
     }
+
+    pub(crate) fn attach_anchor<A: MonotonicAnchor + 'static>(
+        &mut self,
+        mut anchor: A,
+        mode: AnchorOpenMode,
+    ) -> Result<(), RecoveryError> {
+        match mode {
+            AnchorOpenMode::Initialize => {
+                initialize_production_anchor(&mut anchor, self)?;
+            }
+            AnchorOpenMode::Recover => {
+                verify_production_recovery(&mut anchor, self)?;
+            }
+        }
+        self.anchor = Some(Box::new(anchor));
+        Ok(())
+    }
+
+    fn anchor_barrier(&mut self) -> Result<(), EffectBackendError> {
+        let Some(mut anchor) = self.anchor.take() else {
+            // Direct P0.4 use retains its certified historical scope. The selected
+            // P0.5A/P0.5C facade always installs an anchor in its constructor.
+            return Ok(());
+        };
+        let result = verify_production_recovery(&mut *anchor, &*self);
+        self.anchor = Some(anchor);
+        result
+            .map(|_| ())
+            .map_err(|_| EffectBackendError::permanent("P0.6B monotonic anchor barrier rejected"))
+    }
 }
+
+impl<B, S> ProductionWitnessSource for ProductionEffectBackend<B, S> {
+    type Error = ();
+
+    fn trust_witness(&self) -> ChainWitness {
+        let witness = ProductionEffectBackend::trust_witness(self);
+        ChainWitness::from_parts(witness.bytes(), witness.digest())
+    }
+
+    fn contains_trust_witness(&self, witness: ChainWitness) -> Result<bool, Self::Error> {
+        ProductionEffectBackend::contains_trust_witness(
+            self,
+            TrustJournalWitness::from_parts(witness.position(), witness.digest()),
+        )
+        .map_err(|_| ())
+    }
+
+    fn delivery_witness(&self) -> ChainWitness {
+        let witness = ProductionEffectBackend::delivery_witness(self);
+        ChainWitness::from_parts(witness.bytes(), witness.digest())
+    }
+
+    fn contains_delivery_witness(&self, witness: ChainWitness) -> Result<bool, Self::Error> {
+        ProductionEffectBackend::contains_delivery_witness(
+            self,
+            DeliveryLedgerWitness::from_parts(witness.position(), witness.digest()),
+        )
+        .map_err(|_| ())
+    }
+}
+
 impl<B: EffectBackend, S: SignedEnvelopeSource> EffectBackend for ProductionEffectBackend<B, S> {
     fn supports(&self, effect: &Effect) -> bool {
         self.inner.supports(effect)
@@ -399,12 +467,26 @@ impl<B: EffectBackend, S: SignedEnvelopeSource> EffectBackend for ProductionEffe
         self.ledger.reserve(delivery, binding_hash).map_err(|_| {
             EffectBackendError::permanent("P0.4 duplicate/in-doubt/journal unavailable")
         })?;
-        let receipt = self.inner.execute_with_context(request)?;
+
+        // P0.3 performs admission separately so the signed P0.2 transition is
+        // fsynced before the P0.6B pre-effect anchor barrier.
+        self.inner.admit_with_context(request)?;
+        self.anchor_barrier()?;
+
+        // No external backend call is allowed before the anchor has durably
+        // caught up to both the P0.2 admission and P0.4 reservation witnesses.
+        let receipt = self.inner.execute_admitted_with_context(request)?;
+
         self.ledger
             .acknowledged(&delivery, &binding_hash)
             .map_err(|_| {
                 EffectBackendError::permanent("P0.4 acknowledgement journal failed; IN_DOUBT")
             })?;
+
+        // Anchor the local ACK as a second monotonic transition. If this fails,
+        // the caller receives an error but the delivery identity is already
+        // locally acknowledged and cannot be automatically executed again.
+        self.anchor_barrier()?;
         Ok(receipt)
     }
 }

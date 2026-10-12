@@ -9,6 +9,7 @@ publish = false
 [dependencies]
 nordoi_kernel = { path = "../.." }
 nordoi-native-trust-p01 = { path = "../native-trust-p01" }
+nordoi-rollback-anchor-p06 = { path = "../native-rollback-p06" }
 
 [dev-dependencies]
 ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["std"] }

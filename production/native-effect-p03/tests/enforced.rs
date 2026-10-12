@@ -14,6 +14,9 @@ use nordoi_native_effect_p03::{
     production::ProductionEffectBackend, GuardedEffectBackend, SignedEnvelopeSource,
 };
 use nordoi_native_trust_p01::{durable::DurableTrustGate, sha256_payload, Intent, SignedEnvelope};
+use nordoi_rollback_anchor_p06::{
+    AnchorOpenMode, AnchorStoreError, MonotonicAnchor, ProductionAnchorRecord,
+};
 use std::{
     cell::{Cell, RefCell},
     fs,
@@ -72,6 +75,34 @@ impl SignedEnvelopeSource for SigningSource {
             .sign(&envelope.signing_bytes().ok()?)
             .to_bytes();
         Some(envelope)
+    }
+}
+
+#[derive(Default)]
+struct MemoryAnchor {
+    record: Option<ProductionAnchorRecord>,
+}
+impl MonotonicAnchor for MemoryAnchor {
+    fn read(&mut self) -> Result<Option<ProductionAnchorRecord>, AnchorStoreError> {
+        Ok(self.record)
+    }
+    fn compare_and_advance(
+        &mut self,
+        expected: Option<ProductionAnchorRecord>,
+        next: ProductionAnchorRecord,
+    ) -> Result<(), AnchorStoreError> {
+        if self.record != expected {
+            return Err(AnchorStoreError::Conflict);
+        }
+        match expected {
+            None if next.generation() != 1 => return Err(AnchorStoreError::Conflict),
+            Some(previous) if next.generation() <= previous.generation() => {
+                return Err(AnchorStoreError::Conflict)
+            }
+            _ => {}
+        }
+        self.record = Some(next);
+        Ok(())
     }
 }
 
@@ -226,7 +257,10 @@ fn fixture(enabled: bool) -> (TempFile, TempFile, Profile, Rc<Cell<u32>>, Memory
         journal,
         GovernedEffectDispatcher::new(authority),
         durable,
-    );
+        MemoryAnchor::default(),
+        AnchorOpenMode::Initialize,
+    )
+    .unwrap();
     (trust_file, delivery_file, profile, hits, store)
 }
 

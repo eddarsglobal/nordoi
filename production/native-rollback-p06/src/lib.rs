@@ -91,6 +91,11 @@ pub trait MonotonicAnchor {
         next: ProductionAnchorRecord,
     ) -> Result<(), AnchorStoreError>;
 }
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AnchorOpenMode {
+    Initialize,
+    Recover,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RecoveryError {
@@ -165,7 +170,7 @@ fn current_record<W: ProductionWitnessSource>(
     )
 }
 
-fn confirm<A: MonotonicAnchor>(
+fn confirm<A: MonotonicAnchor + ?Sized>(
     anchor: &mut A,
     expected: ProductionAnchorRecord,
 ) -> Result<ProductionAnchorRecord, RecoveryError> {
@@ -205,7 +210,7 @@ pub fn verify_production_recovery<A, W>(
     source: &W,
 ) -> Result<ProductionAnchorRecord, RecoveryError>
 where
-    A: MonotonicAnchor,
+    A: MonotonicAnchor + ?Sized,
     W: ProductionWitnessSource,
 {
     let anchored = anchor.read()?.ok_or(RecoveryError::MissingAnchor)?;
