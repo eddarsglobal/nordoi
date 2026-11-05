@@ -1,0 +1,12 @@
+[package]
+name = "nordoi-remote-anchor-p06c"
+version = "0.6.1"
+edition = "2021"
+license = "MIT"
+description = "NORDOI P0.6C authenticated remote monotonic-anchor client backend"
+publish = false
+
+[dependencies]
+nordoi-rollback-anchor-p06 = { path = "../native-rollback-p06" }
+ed25519-dalek = { version = "=2.2.0", default-features = false, features = ["std"] }
+getrandom = "=0.3.4"
