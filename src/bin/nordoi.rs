@@ -111,7 +111,7 @@ Usage:\n\
   nordoi result-run <path|->\n\
   nordoi plan <path|->\n\
   nordoi lower <path|->\n\
-  nordoi run <path|->\n\
+  nordoi run <path|-> [--grant-console]\n\
   nordoi --help\n\
   nordoi --version\n\
 \n\
@@ -524,6 +524,15 @@ fn run() -> u8 {
             }
         };
         return run_dynamic_console_output_p22_cli(&arguments[1], key_code, grant_console);
+    }
+
+    // G0.2 R2: explicit opt-in reuses the existing P2.1 authority gate.
+    // Plain `run` still takes its original zero-work V0.1 execution path.
+    if command.as_ref() == "run"
+        && arguments.len() == 3
+        && arguments[2].as_os_str() == OsStr::new("--grant-console")
+    {
+        return run_console_output_p21_cli(&arguments[1], true);
     }
 
     if command.as_ref() == "console-run" {
