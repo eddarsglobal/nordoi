@@ -9,9 +9,8 @@ fn prototype_keeps_explicit_source_effect_and_cli_grant_separate() {
     assert!(LESSON.contains("effect ConsoleWrite;"));
     assert!(LESSON.contains("Declaration is not permission."));
     assert!(LESSON.contains("A permission is not a declaration."));
-    assert!(LESSON.contains(
-        "cargo run --bin nordoi -- run examples/p2_1_console/hello.noi --grant-console"
-    ));
+    assert!(LESSON
+        .contains("cargo run --bin nordoi -- run examples/p2_1_console/hello.noi --grant-console"));
     assert!(LESSON.contains("V0.1 HALT-only"));
     assert!(LESSON.contains("P2.2–P2.7"));
     assert!(LESSON.contains("NOT_AUTHORIZED"));
