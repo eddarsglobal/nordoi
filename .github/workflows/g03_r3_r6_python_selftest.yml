@@ -1,0 +1,34 @@
+name: NORDOI G0.3 R3-R6 Python diagnostic audit selftest
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r3_r6_first_error_audit.py'
+      - '.github/workflows/g03_r3_r6_python_selftest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python-audit-selftest:
+    name: Python diagnostic selftest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Compile Python syntax only
+        run: python -m py_compile research/g03_r3_r6_first_error_audit.py
+      - name: Validate synthetic fixtures; no compiler build
+        run: python -B research/g03_r3_r6_first_error_audit.py selftest
+      - name: Declare scope
+        shell: bash
+        run: |
+          echo 'MAC_REAL_DIAGNOSTIC_AUDIT=NOT_EXECUTED_IN_CI'
+          echo 'LANGUAGE_SYNTAX_CHANGES=NONE'
+          echo 'PRODUCTION=NOT_AUTHORIZED'
