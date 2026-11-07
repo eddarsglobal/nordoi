@@ -61,9 +61,17 @@ def read_r8(path):
         blob = p.read_bytes()
     except OSError as exc:
         raise Blocked('pinned tool unreadable') from exc
-    git_sha = hashlib.sha1(b'blob ' + str(len(blob)).encode('ascii') + b'\0' + blob).hexdigest()
-    if git_sha != R8_GIT_BLOB:
-        raise Blocked('R8 Git blob pin mismatch')
+    def git_sha256_free_object_hash(data):
+        return hashlib.sha1(b'blob ' + str(len(data)).encode('ascii') + b'\0' + data).hexdigest()
+    if git_sha256_free_object_hash(blob) != R8_GIT_BLOB:
+        # Windows Git checkout can turn LF into CRLF. Verify the canonical Git
+        # contents EXACTLY before executing; never accept arbitrary rewrites.
+        if b'\r\n' not in blob:
+            raise Blocked('R8 Git blob pin mismatch')
+        canonical = blob.replace(b'\r\n', b'\n')
+        if b'\r' in canonical or git_sha256_free_object_hash(canonical) != R8_GIT_BLOB:
+            raise Blocked('R8 Git blob pin mismatch')
+        blob = canonical
     # This exact, reviewed file is executable Python. NEVER execute an unpinned file.
     module = types.ModuleType('nordoi_g03_r3_r8_pinned')
     module.__file__ = str(p)
