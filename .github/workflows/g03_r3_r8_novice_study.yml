@@ -1,0 +1,20 @@
+name: NORDOI G0.3 R3-R8 novice study synthetic gates
+on:
+  pull_request:
+    paths:
+      - 'research/G03_R3_R8_NOVICE_AB_PROTOCOL.md'
+      - 'research/g03_r3_r8_novice_study.py'
+      - '.github/workflows/g03_r3_r8_novice_study.yml'
+  workflow_dispatch:
+jobs:
+  synthetic-selftest:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Python syntax and protocol gates (synthetic only)
+        run: |
+          python -B research/g03_r3_r8_novice_study.py selftest
