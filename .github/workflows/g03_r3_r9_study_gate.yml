@@ -1,0 +1,25 @@
+name: NORDOI G0.3 R3-R9 study integrity synthetic gates
+on:
+  pull_request:
+    paths:
+      - 'research/G03_R3_R9_STUDY_INTEGRITY_AND_ANALYSIS.md'
+      - 'research/g03_r3_r9_study_gate.py'
+      - '.github/workflows/g03_r3_r9_study_gate.yml'
+  workflow_dispatch:
+
+jobs:
+  synthetic-integrity:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+    matrix:
+      os: [macos-latest, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout exact R3-R8 helper (public candidate only)
+        uses: actions/checkout@v4
+        with:
+          ref: aacad6626ae6e792a75c05e6f2fc5e233543bc58
+          path: r8-reference
+      - name: Verify R3-R9 gates with synthetic test data only
+        run: python -B research/g03_r3_r9_study_gate.py selftest --r8-tool r8-reference/research/g03_r3_r8_novice_study.py
