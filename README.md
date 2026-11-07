@@ -1,5 +1,19 @@
 # NORDOI G0.1 — Constitutional Conformance Matrix & Future-Native Gate
 
+## Start here — run your first NORDOI program
+
+**First time?** Read the [official first-use quickstart](docs/NORDOI_G02_FIRST_USE_QUICKSTART.md). With Rust/Cargo installed, run this existing P2.1 example from the repository root:
+
+```sh
+cargo run --bin nordoi -- run examples/p2_1_console/hello.noi --grant-console
+```
+
+The source declaration `effect ConsoleWrite;` describes the program's intended effect. The CLI flag `--grant-console` separately provides **explicit permission**; declaring an effect is not a grant.
+
+**Already compiled NORDOI?** See the [optional build-once, run-directly tutorial](docs/NORDOI_G03_R3_R1_BUILD_ONCE_TUTORIAL_CANDIDATE.md). It requires a successful initial build; it is a **non-normative alternative**, not a replacement beginner guide. No improvement in human learning or NORDOI engine speed has been established.
+
+---
+
 NORDOI G0.1 is an additive governance milestone built on the immutable certified `p2.7` baseline.
 It introduces no new `.noi` syntax, NAIR opcode, NAM semantics, runtime authority or capability.
 
