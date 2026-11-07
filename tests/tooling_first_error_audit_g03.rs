@@ -95,7 +95,11 @@ fn usage_error_returns_help_on_stderr_and_never_program_stdout() {
 #[test]
 fn missing_file_and_invalid_utf8_are_different_input_failure_stages() {
     let missing = invoke(
-        &["run", "NORDOI_R3_R6_MISSING_DIRECTORY/hello.noi", "--grant-console"],
+        &[
+            "run",
+            "NORDOI_R3_R6_MISSING_DIRECTORY/hello.noi",
+            "--grant-console",
+        ],
         None,
     );
     assert_eq!(missing.status.code(), Some(3));
