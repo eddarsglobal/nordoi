@@ -1,8 +1,7 @@
 //! G0.3 R3-R1: documentation-only build-once onboarding hypothesis.
 //! This checks text contract fidelity, not novice learning or performance.
 
-const TUTORIAL: &str =
-    include_str!("../docs/NORDOI_G03_R3_R1_BUILD_ONCE_TUTORIAL_CANDIDATE.md");
+const TUTORIAL: &str = include_str!("../docs/NORDOI_G03_R3_R1_BUILD_ONCE_TUTORIAL_CANDIDATE.md");
 const OFFICIAL: &str = include_str!("../docs/NORDOI_G02_FIRST_USE_QUICKSTART.md");
 const HELLO: &str = include_str!("../examples/p2_1_console/hello.noi");
 
@@ -28,7 +27,6 @@ fn tutorial_preserves_authority_and_research_boundaries() {
     assert!(TUTORIAL.contains("P2.2–P2.7"));
     assert!(TUTORIAL.contains("original R2 study cards A/B remain frozen"));
     assert!(TUTORIAL.contains("NON-NORMATIVE DOCUMENTATION EXPERIMENT"));
-    assert!(OFFICIAL.contains(
-        "cargo run --bin nordoi -- run examples/p2_1_console/hello.noi --grant-console"
-    ));
+    assert!(OFFICIAL
+        .contains("cargo run --bin nordoi -- run examples/p2_1_console/hello.noi --grant-console"));
 }
