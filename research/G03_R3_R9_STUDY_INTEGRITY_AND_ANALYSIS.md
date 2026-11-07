@@ -63,4 +63,4 @@ The `analyze` command does not certify participants, independence or superior re
 
 ## Exit criteria
 
-`R3_R9_TECHNICAL=PASS` only if pinned-source selftests and Mac material integrity pass. `R3_R9_HUMAN=NOT_COMPLETED` until **actual** consenting independent participants and separately evaluated responses exist. `PEDAGOGICAL_SUPERIORITY=NOT_AUTHORIZED`; `PR= DRAFT_UNMERGED`; `PRODUCTION=NOT_AUTHORIZED`.
+`R3_R9_TECHNICAL=PASS` only if pinned-source selftests and Mac material integrity pass. `R3_R9_HUMAN=NOT_COMPLETED` until **actual** consenting independent participants and separately evaluated responses exist. `PEDAGOGICAL_SUPERIORITY=NOT_AUTHORIZED`; `PR=DRAFT_UNMERGED`; `PRODUCTION=NOT_AUTHORIZED`.
