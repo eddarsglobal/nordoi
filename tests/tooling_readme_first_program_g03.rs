@@ -3,12 +3,13 @@
 
 const README: &str = include_str!("../README.md");
 const OFFICIAL: &str = include_str!("../docs/NORDOI_G02_FIRST_USE_QUICKSTART.md");
-const OPTIONAL: &str =
-    include_str!("../docs/NORDOI_G03_R3_R1_BUILD_ONCE_TUTORIAL_CANDIDATE.md");
+const OPTIONAL: &str = include_str!("../docs/NORDOI_G03_R3_R1_BUILD_ONCE_TUTORIAL_CANDIDATE.md");
 
 #[test]
 fn start_here_links_are_real_and_official_guide_comes_first() {
-    let start = README.find("## Start here — run your first NORDOI program").unwrap();
+    let start = README
+        .find("## Start here — run your first NORDOI program")
+        .unwrap();
     let official = README
         .find("[official first-use quickstart](docs/NORDOI_G02_FIRST_USE_QUICKSTART.md)")
         .unwrap();
