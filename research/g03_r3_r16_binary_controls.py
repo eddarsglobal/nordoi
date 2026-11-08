@@ -115,6 +115,26 @@ def security_probe(runner,root,security_rs):
     return {"sha256":sha256(exe),"bytes":exe.stat().st_size,
             "contract":"PASS"}
 
+def code_section_fingerprint(exe):
+    # A fingerprint of Mach-O __TEXT,__text bytes as dumped by otool.
+    # Whole-section equality/difference does NOT prove require() equality.
+    otool=shutil.which("otool")
+    if not otool:
+        return {"status":"OTOOL_UNAVAILABLE","interpretation":"NOT_ESTABLISHED"}
+    p=subprocess.run([otool,"-t",str(exe)],stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,timeout=120)
+    if p.returncode or not p.stdout or len(p.stdout)>25_000_000:
+        raise Blocked("Mach-O text-section inspection failed")
+    lines=p.stdout.splitlines()
+    if len(lines)<3 or b"(__TEXT,__text)" not in p.stdout:
+        raise Blocked("unexpected otool output")
+    # Ignore the executable path printed as the first line.
+    normalized=b"\n".join(lines[1:])
+    return {"status":"CODE_SECTION_FINGERPRINT_ONLY",
+        "otool_text_sha256":hashlib.sha256(normalized).hexdigest(),
+        "dump_bytes":len(p.stdout),
+        "interpretation":"NOT_FUNCTION_LEVEL_EQUIVALENCE"}
+
 def file_identity(exe):
     p=Path(exe)
     return {"sha256":sha256(p),"bytes":p.stat().st_size}
@@ -223,6 +243,7 @@ def measure(r13_tool,security_rs,output,iterations,blocks):
             contract=security_probe(runner,build_root,security_rs)
             binaries[name]=exe
             artifacts[name]={"executable":file_identity(exe),
+                "text_section":code_section_fingerprint(exe),
                 "build_seconds":build_seconds,
                 "security_test":contract}
             if artifacts[name]["executable"]["sha256"]!=binary_hash:
