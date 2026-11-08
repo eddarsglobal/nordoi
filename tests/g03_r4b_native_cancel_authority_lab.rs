@@ -176,11 +176,7 @@ fn execute(plans: &[PurePlan], cancel_index: Option<usize>) -> Result<Outcome, L
         }
         let results = handles
             .into_iter()
-            .map(|handle| {
-                handle
-                    .join()
-                    .unwrap_or(WorkerOutcome::Failed(ERROR_PANIC))
-            })
+            .map(|handle| handle.join().unwrap_or(WorkerOutcome::Failed(ERROR_PANIC)))
             .collect::<Vec<_>>();
         (results, error)
     });
@@ -260,7 +256,10 @@ fn commit_owner(
     for (&atom, &value) in atoms.iter().zip(values) {
         tx.set(kernel, atom, value).map_err(CommitFault::Kernel)?;
     }
-    Ok(kernel.commit(tx).map_err(CommitFault::Kernel)?.changed_atoms)
+    Ok(kernel
+        .commit(tx)
+        .map_err(CommitFault::Kernel)?
+        .changed_atoms)
 }
 
 #[test]
@@ -350,7 +349,10 @@ fn worker_failure_or_panic_blocks_every_nam_write() {
 #[test]
 fn checked_overflow_is_failure_not_success() {
     let result = execute(&[PurePlan::Add(i64::MAX, 1)], None).unwrap();
-    assert_eq!(result.report.tasks[0].1, TaskOutcome::Failed(ERROR_OVERFLOW));
+    assert_eq!(
+        result.report.tasks[0].1,
+        TaskOutcome::Failed(ERROR_OVERFLOW)
+    );
     assert_eq!(result.report.outcome, ScopeOutcome::Failed);
 }
 
@@ -395,7 +397,10 @@ fn mismatched_targets_are_rejected_before_any_mutation() {
     let result = execute(&[PurePlan::Add(1, 2)], None).unwrap();
     let mut kernel = AtomicKernel::new();
     let atom = kernel.create_atom(0_i64);
-    assert_eq!(commit_owner(&mut kernel, &[atom, atom], &result), Err(CommitFault::Arity));
+    assert_eq!(
+        commit_owner(&mut kernel, &[atom, atom], &result),
+        Err(CommitFault::Arity)
+    );
     assert_eq!(kernel.version(atom), Ok(0));
 }
 
@@ -436,7 +441,11 @@ fn console_authority_remains_default_denied_after_native_threads() {
 fn reference_rejects_late_or_duplicate_cancellation_without_state_changes() {
     let (mut model, _) = Model::bootstrap(
         47,
-        ScopeBudget { tasks: 2, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: 2,
+            resources: 0,
+            children: 0,
+        },
         32,
     );
     let root = model.root();
@@ -472,7 +481,11 @@ fn reference_rejects_late_or_duplicate_cancellation_without_state_changes() {
 fn reference_scope_cannot_close_until_join() {
     let (mut model, _) = Model::bootstrap(
         48,
-        ScopeBudget { tasks: 1, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: 1,
+            resources: 0,
+            children: 0,
+        },
         32,
     );
     let root = model.root();
@@ -502,27 +515,46 @@ fn reference_scope_cannot_close_until_join() {
 fn model_grant_revocation_rejects_use_but_never_authorizes_host_io() {
     let (mut model, host) = Model::bootstrap(
         49,
-        ScopeBudget { tasks: 0, resources: 1, children: 0 },
+        ScopeBudget {
+            tasks: 0,
+            resources: 1,
+            children: 0,
+        },
         32,
     );
     let root = model.root();
     model
-        .apply(Command::DeclareEffect { scope: root, effect: ResourceEffect::Read })
+        .apply(Command::DeclareEffect {
+            scope: root,
+            effect: ResourceEffect::Read,
+        })
         .unwrap();
     let grant = model.host_grant(&host, root, ResourceEffect::Read).unwrap();
-    let resource = match model
-        .apply(Command::Acquire { scope: root, grant, effect: ResourceEffect::Read })
-    {
+    let resource = match model.apply(Command::Acquire {
+        scope: root,
+        grant,
+        effect: ResourceEffect::Read,
+    }) {
         Ok(Receipt::Resource(resource)) => resource,
         unexpected => panic!("unexpected acquire {unexpected:?}"),
     };
     model
-        .apply(Command::Use { scope: root, resource, grant, effect: ResourceEffect::Read })
+        .apply(Command::Use {
+            scope: root,
+            resource,
+            grant,
+            effect: ResourceEffect::Read,
+        })
         .unwrap();
     model.apply(Command::RevokeGrant { grant }).unwrap();
     let before = model.clone();
     assert_eq!(
-        model.apply(Command::Use { scope: root, resource, grant, effect: ResourceEffect::Read }),
+        model.apply(Command::Use {
+            scope: root,
+            resource,
+            grant,
+            effect: ResourceEffect::Read
+        }),
         Err(ModelError::RevokedGrant)
     );
     assert_eq!(model, before);
@@ -530,7 +562,12 @@ fn model_grant_revocation_rejects_use_but_never_authorizes_host_io() {
         model.host_grant(&host, root, ResourceEffect::ExternalIo),
         Err(ModelError::UnsupportedEffect)
     );
-    model.apply(Command::Release { scope: root, resource }).unwrap();
+    model
+        .apply(Command::Release {
+            scope: root,
+            resource,
+        })
+        .unwrap();
     assert!(matches!(
         model.apply(Command::Close { scope: root }),
         Ok(Receipt::Closed(_))
