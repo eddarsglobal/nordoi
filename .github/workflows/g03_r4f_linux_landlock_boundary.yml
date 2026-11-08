@@ -35,3 +35,19 @@ jobs:
         run: cargo test --offline --release --test g03_r4f_linux_landlock_boundary_lab
       - name: Formatting
         run: cargo fmt --all -- --check
+  macos-rust-1-98-compatibility:
+    # Owner's Intel Mac found a Clippy assertion-on-constant error unseen on CI.
+    # This job pins the owner's compiler version; macos-latest might be ARM.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - name: Rust 1.98 strict Clippy across all targets
+        run: cargo clippy --offline --all-targets -- -D warnings
+      - name: Rust 1.98 R4F unsupported Landlock behavior
+        run: cargo test --offline --release --test g03_r4f_linux_landlock_boundary_lab
+      - name: Rust 1.98 formatting check
+        run: cargo fmt --all -- --check
