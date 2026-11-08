@@ -53,7 +53,8 @@ mod macos {
                 .create_new(true)
                 .open(self.sentinel())
                 .expect("create parent-owned sentinel");
-            file.write_all(b"R4G_PARENT_ONLY\n").expect("write sentinel");
+            file.write_all(b"R4G_PARENT_ONLY\n")
+                .expect("write sentinel");
         }
         pub fn verify(&self) {
             assert_eq!(fs::read(self.sentinel()).unwrap(), b"R4G_PARENT_ONLY\n");
@@ -106,9 +107,7 @@ mod macos {
         let sentinel = PathBuf::from(env::var_os("NORDOI_R4G_SENTINEL").expect("test sentinel"));
         let create = PathBuf::from(env::var_os("NORDOI_R4G_CREATE").expect("test create"));
         let (read, write, creation) = observe(&sentinel, &create);
-        eprintln!(
-            "{FRAME_PREFIX}{CORRELATION}|READ={read}|WRITE={write}|CREATE={creation}"
-        );
+        eprintln!("{FRAME_PREFIX}{CORRELATION}|READ={read}|WRITE={write}|CREATE={creation}");
     }
 
     #[derive(Debug)]
@@ -144,7 +143,13 @@ mod macos {
             Command::new(executable)
         };
         let mut child = command
-            .args(["--exact", "r4g_child_entry", "--ignored", "--nocapture", "--test-threads=1"])
+            .args([
+                "--exact",
+                "r4g_child_entry",
+                "--ignored",
+                "--nocapture",
+                "--test-threads=1",
+            ])
             .env("NORDOI_R4G_CHILD", "FIXED_TEST_ONLY")
             .env("NORDOI_R4G_SENTINEL", scratch.sentinel())
             .env("NORDOI_R4G_CREATE", scratch.creation_target())
@@ -166,23 +171,41 @@ mod macos {
         let (result, transcript) = reader.join().expect("bounded stderr reader joins");
         result.expect("child transcript must be UTF-8");
         let truncated = transcript.len() as u64 > MAX_CHILD_STDERR;
-        Witness { exit_ok, timed_out, truncated, transcript }
+        Witness {
+            exit_ok,
+            timed_out,
+            truncated,
+            transcript,
+        }
     }
 
     /// We assert exact measured conditions, NOT a synthetic success constant.
     pub fn expect(w: &Witness, allowed: bool) {
         assert!(w.exit_ok, "fixed child must exit cleanly: {}", w.transcript);
-        assert!(!w.timed_out && !w.truncated, "child deadline/byte limit enforced");
-        let frames: Vec<&str> = w.transcript.lines()
+        assert!(
+            !w.timed_out && !w.truncated,
+            "child deadline/byte limit enforced"
+        );
+        let frames: Vec<&str> = w
+            .transcript
+            .lines()
             .filter(|line| line.starts_with(FRAME_PREFIX))
             .collect();
-        assert_eq!(frames.len(), 1, "one actual child observation required: {}", w.transcript);
+        assert_eq!(
+            frames.len(),
+            1,
+            "one actual child observation required: {}",
+            w.transcript
+        );
         let expect = if allowed {
             format!("{FRAME_PREFIX}{CORRELATION}|READ=true|WRITE=true|CREATE=true")
         } else {
             format!("{FRAME_PREFIX}{CORRELATION}|READ=false|WRITE=false|CREATE=false")
         };
-        assert_eq!(frames[0], expect, "real OS operation observations must match");
+        assert_eq!(
+            frames[0], expect,
+            "real OS operation observations must match"
+        );
     }
 
     pub fn probe_once() {
@@ -232,7 +255,10 @@ fn macos_parent_retains_native_file_access_after_child_sandbox() {
     scratch.prepare();
     macos::expect(&macos::run(&scratch, false), true);
     macos::expect(&macos::run(&scratch, true), false);
-    let mut parent = OpenOptions::new().append(true).open(scratch.sentinel()).unwrap();
+    let mut parent = OpenOptions::new()
+        .append(true)
+        .open(scratch.sentinel())
+        .unwrap();
     parent.write_all(b"PARENT_CAN_APPEND\n").unwrap();
     assert_eq!(
         std::fs::read(scratch.sentinel()).unwrap(),
@@ -261,7 +287,8 @@ fn macos_forged_duplicate_timeout_and_truncated_reports_are_rejected() {
         exit_ok: true,
         timed_out: true,
         truncated: false,
-        transcript: "R4G|PROBE|r4g-owner-controlled-test-v1|READ=false|WRITE=false|CREATE=false".into(),
+        transcript: "R4G|PROBE|r4g-owner-controlled-test-v1|READ=false|WRITE=false|CREATE=false"
+            .into(),
     };
     assert!(catch_unwind(AssertUnwindSafe(|| macos::expect(&fabricated, false))).is_err());
 }
@@ -272,7 +299,11 @@ fn non_macos_must_not_claim_seatbelt_and_external_io_stays_denied() {
     assert_ne!(std::env::consts::OS, "macos");
     let (mut model, permit) = Model::bootstrap(
         0x47,
-        ScopeBudget { tasks: 0, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
         16,
     );
     let root = model.root();
@@ -286,7 +317,11 @@ fn non_macos_must_not_claim_seatbelt_and_external_io_stays_denied() {
 fn resource_reference_model_does_not_grant_external_io_implicitly() {
     let (mut model, host) = Model::bootstrap(
         0x47_2026,
-        ScopeBudget { tasks: 0, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
         16,
     );
     let scope = model.root();
