@@ -1,4 +1,4 @@
-//! G0.3 R3-R12 — in-process, engineering-only diagnostic probe.
+//! G0.3 R3-R13 — paired in-process, engineering-only diagnostic probe.
 //! Measures API call boundaries, not instruction cycle cost or language superiority.
 //! No dependencies; never changes NORDOI's parser, NAIR encoding, or authority.
 use std::hint::black_box;
@@ -65,7 +65,7 @@ fn probe_case(name: &str, iterations: u64) -> Result<u128, &'static str> {
         }
     }
     let ns = start.elapsed().as_nanos();
-    if name == "noop_set" || name == "noop_transaction" || name == "denied_capability" || name == "nair_execute_with_validation" {
+    if name == "noop_set" || name == "noop_transaction" || name == "denied_capability" || name == "nair_validate" || name == "nair_execute_with_validation" {
         if k.version(src).map_err(|_| "missing atom")? != 0 || k.pending_work() != 0 {return Err("unexpected state mutation")}
     } else if k.version(src).map_err(|_| "missing atom")? != iterations || k.pending_work() != 0 {
         return Err("state-version / flush invariant failed");
@@ -159,7 +159,7 @@ fn main() {
         _ => Err("usage: nordoi_atomic_probe_r312 selftest | measure <iterations> <blocks>"),
     };
     if let Err(reason) = result {
-        eprintln!("G03_R3_R12_BLOCKED={}", reason);
+        eprintln!("G03_R3_R13_BLOCKED={}", reason);
         std::process::exit(2);
     }
 }
