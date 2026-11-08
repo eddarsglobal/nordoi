@@ -80,11 +80,25 @@ int main(int argc, char **argv) {
         pub fn create_target(&self) -> PathBuf {
             self.dir.join("child-create-probe.txt")
         }
+        fn control_bundle(&self) -> PathBuf {
+            self.dir.join("R4HControl.app")
+        }
+        fn isolated_bundle(&self) -> PathBuf {
+            self.dir.join("R4HEntitled.app")
+        }
         pub fn control(&self) -> PathBuf {
-            self.dir.join("r4h-control")
+            self.control_bundle().join("Contents/MacOS/r4h-helper")
         }
         pub fn isolated(&self) -> PathBuf {
-            self.dir.join("r4h-entitled")
+            self.isolated_bundle().join("Contents/MacOS/r4h-helper")
+        }
+        fn create_bundle(&self, bundle: &Path, identifier: &str) {
+            let contents = bundle.join("Contents");
+            fs::create_dir_all(contents.join("MacOS")).expect("create new fixture app bundle");
+            let plist = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n                 <plist version=\"1.0\"><dict>                 <key>CFBundleIdentifier</key><string>{identifier}</string>                 <key>CFBundleExecutable</key><string>r4h-helper</string>                 <key>CFBundlePackageType</key><string>APPL</string>                 <key>CFBundleVersion</key><string>1</string>                 <key>CFBundleShortVersionString</key><string>0.1</string>                 <key>LSBackgroundOnly</key><true/>                 </dict></plist>\n"
+            );
+            fs::write(contents.join("Info.plist"), plist).expect("write minimal test app manifest");
         }
         pub fn entitlements(&self) -> PathBuf {
             self.dir.join("r4h.entitlements")
@@ -103,6 +117,8 @@ int main(int argc, char **argv) {
                 .expect("write fresh sentinel");
             fs::write(self.source(), HELPER_C).expect("write self-contained C test source");
             fs::write(self.entitlements(), ENTITLEMENTS).expect("write minimal entitlement plist");
+            self.create_bundle(&self.control_bundle(), "org.eddarsglobal.nordoi.r4h.control");
+            self.create_bundle(&self.isolated_bundle(), "org.eddarsglobal.nordoi.r4h.entitled");
 
             let compiler = Command::new("/usr/bin/cc")
                 .args(["-x", "c", "-std=c11", "-O2", "-o"])
@@ -120,20 +136,14 @@ int main(int argc, char **argv) {
 
             // Sign BOTH binaries with ad-hoc signing. Only one receives the
             // app-sandbox entitlement, so signing alone cannot explain denial.
-            Self::sign(&self.control(), None);
-            Self::sign(&self.isolated(), Some(&self.entitlements()));
+            Self::sign(&self.control_bundle(), None);
+            Self::sign(&self.isolated_bundle(), Some(&self.entitlements()));
             self.verify_signed_entitlement();
             self.verify_sentinel();
         }
         fn sign(binary: &Path, entitlement: Option<&Path>) {
             let mut cmd = Command::new("/usr/bin/codesign");
-            cmd.args([
-                "--force",
-                "--sign",
-                "-",
-                "--identifier",
-                "org.eddarsglobal.nordoi.r4h.fixture",
-            ]);
+            cmd.args(["--force", "--sign", "-"]);
             if let Some(entitlement) = entitlement {
                 cmd.arg("--entitlements").arg(entitlement);
             }
@@ -155,19 +165,27 @@ int main(int argc, char **argv) {
         }
         pub fn verify_signed_entitlement(&self) {
             assert!(
+                Self::verify_signature(&self.control_bundle()),
+                "signed positive-control app bundle"
+            );
+            assert!(
+                Self::verify_signature(&self.isolated_bundle()),
+                "signed entitled app bundle"
+            );
+            assert!(
                 Self::verify_signature(&self.control()),
-                "signed positive-control identity"
+                "signed positive-control Mach-O"
             );
             assert!(
                 Self::verify_signature(&self.isolated()),
-                "signed App Sandbox helper identity"
+                "signed entitled Mach-O"
             );
 
             let signed = Command::new("/usr/bin/codesign")
                 .args(["--display", "--entitlements", ":-"])
-                .arg(self.isolated())
+                .arg(self.isolated_bundle())
                 .output()
-                .expect("extract entitlements from signed Mach-O");
+                .expect("extract entitlements from signed app bundle");
             let actual = format!(
                 "{}{}",
                 String::from_utf8_lossy(&signed.stdout),
@@ -184,9 +202,9 @@ int main(int argc, char **argv) {
 
             let control = Command::new("/usr/bin/codesign")
                 .args(["--display", "--entitlements", ":-"])
-                .arg(self.control())
+                .arg(self.control_bundle())
                 .output()
-                .expect("inspect unentitled control");
+                .expect("inspect unentitled signed control app");
             let info = format!(
                 "{}{}",
                 String::from_utf8_lossy(&control.stdout),
