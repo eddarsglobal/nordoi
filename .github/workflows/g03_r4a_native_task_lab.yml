@@ -1,0 +1,26 @@
+name: NORDOI G0.3 R4A native structured task lab
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4a_structured_native_lab.rs'
+      - 'research/G03_R4A_NATIVE_TASK_LAB.md'
+      - '.github/workflows/g03_r4a_native_task_lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bounded-native-lab:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Targeted real scoped native threads plus existing R0.2 model
+        run: cargo test --offline --release --test g03_r4a_structured_native_lab
+      - name: Formatting and zero warnings for test-only lab
+        run: cargo fmt --all -- --check
