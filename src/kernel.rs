@@ -130,8 +130,9 @@ impl AtomicKernel {
     }
 
     fn apply_single(&mut self, id: AtomId, next: Value) -> AtomicResult<bool> {
-        self.ensure_exists(id)?;
-
+        // self.get(id)? below already rejects UnknownAtom. A second
+        // ensure_exists HashMap probe here is redundant on every write.
+        // Ownership is still checked in set_owned before this function.
         // Preserve the No Work Without Effect law: an identical write exits
         // before dependency traversal, mutation, versioning or scheduling.
         if self.get(id)? == &next {
