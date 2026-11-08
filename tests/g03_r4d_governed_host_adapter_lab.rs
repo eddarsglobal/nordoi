@@ -287,7 +287,11 @@ impl HostAdapter {
         s.model
             .apply(Command::Release { scope, resource })
             .map_err(Denial::Model)?;
-        let report = match s.model.apply(Command::Close { scope }).map_err(Denial::Model)? {
+        let report = match s
+            .model
+            .apply(Command::Close { scope })
+            .map_err(Denial::Model)?
+        {
             Receipt::Closed(report) => report,
             _ => return Err(Denial::Incomplete),
         };
