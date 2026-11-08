@@ -1,0 +1,26 @@
+name: NORDOI G0.3 R4B cooperative native cancellation lab
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4b_native_cancel_authority_lab.rs'
+      - 'research/G03_R4B_NATIVE_CANCEL_AUTHORITY_LAB.md'
+      - '.github/workflows/g03_r4b_native_cancel_lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-cancel-boundary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Real native cancellation checkpoint plus R0.2 and NAM contracts
+        run: cargo test --offline --release --test g03_r4b_native_cancel_authority_lab
+      - name: Formatting gate
+        run: cargo fmt --all -- --check
