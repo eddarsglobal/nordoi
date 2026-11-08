@@ -112,7 +112,7 @@ fn execute(plans: &[PurePlan], cancel_index: Option<usize>) -> Result<Outcome, L
     }
 
     let (mut model, _host) = Model::bootstrap(
-        0x2026_1108_4B,
+        0x0020_2611_084B,
         ScopeBudget {
             tasks: MAX_TASKS,
             resources: 0,
