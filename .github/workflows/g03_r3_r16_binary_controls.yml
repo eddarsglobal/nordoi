@@ -1,0 +1,30 @@
+name: NORDOI G0.3 R3-R16 independent-binary safety gates
+
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r3_r16_binary_controls.py'
+      - 'research/g03_r3_r16_security_probe.rs'
+      - 'research/G03_R3_R16_INDEPENDENT_REBUILDS.md'
+      - '.github/workflows/g03_r3_r16_binary_controls.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  binary-control-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python syntax and synthetic negative tests
+        run: python -B research/g03_r3_r16_binary_controls.py selftest
+      - name: Offline release library and real Rust security smoke
+        run: python -B research/g03_r3_r16_binary_controls.py smoke --source . --security-rust research/g03_r3_r16_security_probe.rs
