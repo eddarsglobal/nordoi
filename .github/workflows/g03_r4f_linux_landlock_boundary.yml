@@ -1,0 +1,53 @@
+name: NORDOI G0.3 R4F Linux kernel Landlock filesystem boundary
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4f_linux_landlock_boundary_lab.rs'
+      - 'research/G03_R4F_LINUX_LANDLOCK_BOUNDARY_LAB.md'
+      - '.github/workflows/g03_r4f_linux_landlock_boundary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux-landlock-kernel-enforcement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Linux kernel MUST enforce real filesystem denial
+        run: cargo test --offline --release --test g03_r4f_linux_landlock_boundary_lab -- --nocapture
+      - name: Formatting
+        run: cargo fmt --all -- --check
+  portable-fail-closed:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - name: Linux Landlock NOT supported here — require truthful denial
+        run: cargo test --offline --release --test g03_r4f_linux_landlock_boundary_lab
+      - name: Formatting
+        run: cargo fmt --all -- --check
+  macos-rust-1-98-compatibility:
+    # Owner's Intel Mac found a Clippy assertion-on-constant error unseen on CI.
+    # This job pins the owner's compiler version; macos-latest might be ARM.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - name: Rust 1.98 strict Clippy across all targets
+        run: cargo clippy --offline --all-targets -- -D warnings
+      - name: Rust 1.98 R4F unsupported Landlock behavior
+        run: cargo test --offline --release --test g03_r4f_linux_landlock_boundary_lab
+      - name: Rust 1.98 formatting check
+        run: cargo fmt --all -- --check
