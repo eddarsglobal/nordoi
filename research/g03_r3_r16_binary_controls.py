@@ -26,7 +26,7 @@ R13_PROBE_SHA = "be6bbd0b74ca8ff12035ee2e8529961285767251f26074d2ce1b4663d723204
 SECURITY_BLOB = "4080350aab5c3b2f377f7c22bca54d49c50e6df7"
 BASE_KERNEL_SHA256 = "dcb0689dc86cd2646a5f4ffb3c8b0c5eaa72c59e0cdea1307aeba2e86f8de7e2"
 BRANCH = "candidate/g03-r3-r13-eliminate-redundant-atom-check-20261108"
-SCHEMA = "NORDOI-G03-R3-R16-INDEPENDENT-CONTROLS-v1"
+SCHEMA = "NORDOI-G03-R3-R16-FIX1-INDEPENDENT-CONTROLS-v1"
 CASES = ("noop_set", "changed_set_flush", "denied_capability")
 PAIRS = ("AA", "BB", "AB")
 
@@ -91,6 +91,29 @@ def summarize(rows, iterations):
         "median_abs_delta_ns_op":round(statistics.median(abs(x) for x in d),4),
         "max_abs_delta_ns_op":round(max(abs(x) for x in d),4),
     }
+
+def group_permutation(block, phase):
+    if type(block) is not int or type(phase) is not int or block < 0:
+        raise Blocked("group permutation input invalid")
+    return [PAIRS[(block + phase + j) % len(PAIRS)]
+            for j in range(len(PAIRS))]
+
+def validate_group_balance(orders, blocks):
+    if blocks <= 0 or blocks % len(PAIRS):
+        raise Blocked("group balance requires blocks multiple of 3")
+    for case in CASES:
+        counts={pair:[0]*len(PAIRS) for pair in PAIRS}
+        for block in range(blocks):
+            key=case+"_"+str(block+1)
+            permutation=orders.get(key)
+            if not isinstance(permutation,list) or set(permutation)!=set(PAIRS) or len(permutation)!=len(PAIRS):
+                raise Blocked("group permutation incomplete")
+            for index,pair in enumerate(permutation):
+                counts[pair][index]+=1
+        if any(count!=blocks//len(PAIRS)
+               for positions in counts.values() for count in positions):
+            raise Blocked("group position bias detected")
+    return True
 
 def pair_once(runner,left,right,case,iterations,right_first):
     order = (("right",right),("left",left)) if right_first else (
@@ -161,6 +184,18 @@ def selftest():
     else:
         raise AssertionError("negative duration accepted")
     assert git_blob(b"123") == "d800886d9c86731ae5c4a62b0b77c437015e00d2"
+    balanced={case+"_"+str(block+1):group_permutation(block,0)
+        for case in CASES for block in range(12)}
+    assert validate_group_balance(balanced,12)
+    invalid=dict(balanced)
+    invalid["denied_capability_2"]=list(invalid["denied_capability_1"])
+    try:
+        validate_group_balance(invalid,12)
+    except Blocked:
+        pass
+    else:
+        raise AssertionError("fixed per-case group position was accepted")
+    print("G03_R3_R16_GROUP_ORDER_SELFTEST=PASS")
     print("G03_R3_R16_SELFTEST=SYNTHETIC_PASS")
     print("REAL_MAC_BENCHMARK=NOT_RUN_IN_SELFTEST")
     print("PRODUCTION=NOT_AUTHORIZED")
@@ -200,7 +235,7 @@ def shell_checked(argv,timeout=900):
 def measure(r13_tool,security_rs,output,iterations,blocks):
     if platform.system()!="Darwin" or platform.machine()!="x86_64":
         raise Blocked("real benchmark requires Mac Intel")
-    if not 5000<=iterations<=150000 or not 8<=blocks<=24 or blocks%2:
+    if not 5000<=iterations<=150000 or not 12<=blocks<=24 or blocks%6:
         raise Blocked("out of bounds benchmark")
     if any(shutil.which(x) is None for x in ("git","cargo","rustc")):
         raise Blocked("git/Rust missing")
@@ -267,13 +302,15 @@ def measure(r13_tool,security_rs,output,iterations,blocks):
                 rng.shuffle(order)
                 schedules[case][pair]=order
         group_orders={}
+        group_phases={case:rng.randrange(len(PAIRS)) for case in CASES}
         for block in range(blocks):
             for offset in range(len(CASES)):
                 case=CASES[(block+offset)%len(CASES)]
                 order=list(PAIRS)
-                # Each pair occupies first/middle/last position equally.
-                shift=(block+offset)%len(PAIRS)
-                order=order[shift:]+order[:shift]
+                # FIX1: per-case group position must rotate across blocks.
+                # Using (block+offset)%3 held positions fixed for each case,
+                # because case=(block+offset)%3. Avoid that confound.
+                order=group_permutation(block,group_phases[case])
                 group_orders[case+"_"+str(block+1)]=order
                 for pair in order:
                     left,right=pair_map[pair]
@@ -281,6 +318,7 @@ def measure(r13_tool,security_rs,output,iterations,blocks):
                         case,iterations,schedules[case][pair][block])
                     row["block"]=block+1
                     cases[case][pair].append(row)
+        validate_group_balance(group_orders,blocks)
         summaries={}
         for case in CASES:
             summaries[case]={pair:summarize(cases[case][pair],iterations)
@@ -301,6 +339,7 @@ def measure(r13_tool,security_rs,output,iterations,blocks):
             "compiler":{"rustc":runner.run(["rustc","--version"]).decode().strip(),
                         "cargo":runner.run(["cargo","--version"]).decode().strip()},
             "cases":summaries,"raw":cases,"group_orders":group_orders,
+            "group_position_balance":"EACH_PAIR_EACH_POSITION_EQUAL",
             "iterations":iterations,"blocks":blocks,
             "control_method":"INDEPENDENT_BASELINE_AND_CANDIDATE_RELEASE_BUILDS",
             "workload":"R13_PINNED_EXTERNAL_RUST_API_PROBE",
@@ -313,6 +352,7 @@ def measure(r13_tool,security_rs,output,iterations,blocks):
     print("G03_R3_R16_INDEPENDENT_BUILDS=4_PASS")
     print("SOURCE_GUARD=PASS")
     print("ORDER_BALANCE=HALF_FIRST_PER_CASE_AND_COMPARISON")
+    print("GROUP_POSITION_BALANCE="+str(blocks//len(PAIRS))+"_PER_POSITION_PER_CASE")
     print("BASELINE_BINARY_HASH_EQUAL="+str(binary_pair_hashes["baseline_two_builds_equal"]).upper())
     print("CANDIDATE_BINARY_HASH_EQUAL="+str(binary_pair_hashes["candidate_two_builds_equal"]).upper())
     for case in CASES:
