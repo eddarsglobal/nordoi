@@ -11,7 +11,10 @@
 mod reference;
 
 use nordoi_kernel::{AtomId, AtomicError, AtomicKernel, Capability, Value};
-use reference::{Command, Model, ModelError, Receipt, ScopeBudget, ScopeOutcome, ScopeReport, TaskId, TaskOutcome};
+use reference::{
+    Command, Model, ModelError, Receipt, ScopeBudget, ScopeOutcome, ScopeReport, TaskId,
+    TaskOutcome,
+};
 use std::thread;
 
 const MAX_TASKS: usize = 4;
@@ -70,20 +73,29 @@ fn execute(programs: &[PureProgram]) -> Result<LabResult, LabError> {
     }
     let (mut model, _host_permit) = Model::bootstrap(
         0x2026_1108,
-        ScopeBudget { tasks: MAX_TASKS, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: MAX_TASKS,
+            resources: 0,
+            children: 0,
+        },
         64,
     );
     let root = model.root();
     let mut ids: Vec<TaskId> = Vec::with_capacity(programs.len());
     for _ in programs {
-        let id = match model.apply(Command::DeclareTask { scope: root })
+        let id = match model
+            .apply(Command::DeclareTask { scope: root })
             .map_err(LabError::Reference)?
         {
             Receipt::Task(id) => id,
             other => panic!("unexpected reference DeclareTask receipt: {other:?}"),
         };
-        model.apply(Command::Admit { task: id }).map_err(LabError::Reference)?;
-        model.apply(Command::Start { task: id }).map_err(LabError::Reference)?;
+        model
+            .apply(Command::Admit { task: id })
+            .map_err(LabError::Reference)?;
+        model
+            .apply(Command::Start { task: id })
+            .map_err(LabError::Reference)?;
         ids.push(id);
     }
 
@@ -95,10 +107,13 @@ fn execute(programs: &[PureProgram]) -> Result<LabResult, LabError> {
             .copied()
             .map(|program| scope.spawn(move || compute(program)))
             .collect();
-        workers.into_iter().map(|handle| match handle.join() {
-            Ok(result) => result,
-            Err(_) => Err(ERROR_PANIC),
-        }).collect()
+        workers
+            .into_iter()
+            .map(|handle| match handle.join() {
+                Ok(result) => result,
+                Err(_) => Err(ERROR_PANIC),
+            })
+            .collect()
     });
 
     let mut values = Vec::with_capacity(outcomes.len());
@@ -115,9 +130,12 @@ fn execute(programs: &[PureProgram]) -> Result<LabResult, LabError> {
             }
         };
         model.apply(terminal).map_err(LabError::Reference)?;
-        model.apply(Command::Join { task: id }).map_err(LabError::Reference)?;
+        model
+            .apply(Command::Join { task: id })
+            .map_err(LabError::Reference)?;
     }
-    let report = match model.apply(Command::Close { scope: root })
+    let report = match model
+        .apply(Command::Close { scope: root })
         .map_err(LabError::Reference)?
     {
         Receipt::Closed(report) => report,
@@ -140,7 +158,10 @@ fn commit_successful(
     target_atoms: &[AtomId],
     outcome: &LabResult,
 ) -> Result<usize, CommitError> {
-    let values = outcome.values.as_ref().ok_or(CommitError::IncompleteScope)?;
+    let values = outcome
+        .values
+        .as_ref()
+        .ok_or(CommitError::IncompleteScope)?;
     if outcome.report.outcome != ScopeOutcome::Succeeded || !outcome.replay_verified {
         return Err(CommitError::IncompleteScope);
     }
@@ -150,7 +171,9 @@ fn commit_successful(
     if values.is_empty() {
         return Ok(0); // truly zero work in the zero-task case
     }
-    let mut tx = kernel.begin_transaction(kernel.root_domain()).map_err(CommitError::Kernel)?;
+    let mut tx = kernel
+        .begin_transaction(kernel.root_domain())
+        .map_err(CommitError::Kernel)?;
     for (&atom, &value) in target_atoms.iter().zip(values) {
         tx.set(kernel, atom, value).map_err(CommitError::Kernel)?;
     }
@@ -175,7 +198,8 @@ fn two_real_threads_join_then_single_atomic_nam_commit() {
     let result = execute(&[
         PureProgram::YieldThenAdd(3, 5),
         PureProgram::CheckedMul(3, 4),
-    ]).unwrap();
+    ])
+    .unwrap();
     assert_eq!(result.launched_workers, 2);
     assert_eq!(result.values, Some(vec![8, 12]));
     assert_eq!(result.report.outcome, ScopeOutcome::Succeeded);
@@ -184,7 +208,7 @@ fn two_real_threads_join_then_single_atomic_nam_commit() {
     let mut kernel = AtomicKernel::new();
     let a = kernel.create_atom(0_i64);
     let b = kernel.create_atom(0_i64);
-    assert_eq!(commit_successful(&mut kernel, &[a,b], &result), Ok(2));
+    assert_eq!(commit_successful(&mut kernel, &[a, b], &result), Ok(2));
     assert_eq!(kernel.get(a), Ok(&Value::Int(8)));
     assert_eq!(kernel.get(b), Ok(&Value::Int(12)));
     assert_eq!(kernel.version(a), Ok(1));
@@ -193,15 +217,17 @@ fn two_real_threads_join_then_single_atomic_nam_commit() {
 
 #[test]
 fn child_failure_disallows_any_nam_mutation() {
-    let result = execute(&[PureProgram::CheckedAdd(3,5), PureProgram::Fail(7)]).unwrap();
+    let result = execute(&[PureProgram::CheckedAdd(3, 5), PureProgram::Fail(7)]).unwrap();
     assert_eq!(result.report.outcome, ScopeOutcome::Failed);
     assert_eq!(result.report.tasks[1].1, TaskOutcome::Failed(7));
     assert_eq!(result.values, None);
     let mut kernel = AtomicKernel::new();
     let a = kernel.create_atom(0_i64);
     let b = kernel.create_atom(0_i64);
-    assert_eq!(commit_successful(&mut kernel, &[a,b], &result),
-        Err(CommitError::IncompleteScope));
+    assert_eq!(
+        commit_successful(&mut kernel, &[a, b], &result),
+        Err(CommitError::IncompleteScope)
+    );
     assert_eq!(kernel.version(a), Ok(0));
     assert_eq!(kernel.version(b), Ok(0));
     assert_eq!(kernel.pending_work(), 0);
@@ -214,75 +240,88 @@ fn native_child_panic_is_joined_and_blocks_nam_commit() {
     assert_eq!(result.report.tasks[0].1, TaskOutcome::Failed(ERROR_PANIC));
     assert_eq!(result.values, None);
     assert_eq!(result.launched_workers, 1);
-    let mut kernel=AtomicKernel::new();
-    let a=kernel.create_atom(0_i64);
-    assert_eq!(commit_successful(&mut kernel,&[a],&result),
-        Err(CommitError::IncompleteScope));
-    assert_eq!(kernel.pending_work(),0);
+    let mut kernel = AtomicKernel::new();
+    let a = kernel.create_atom(0_i64);
+    assert_eq!(
+        commit_successful(&mut kernel, &[a], &result),
+        Err(CommitError::IncompleteScope)
+    );
+    assert_eq!(kernel.pending_work(), 0);
 }
 
 #[test]
 fn task_quota_rejected_before_any_thread_spawn() {
-    let programs=[PureProgram::CheckedAdd(0,1);MAX_TASKS+1];
-    assert!(matches!(execute(&programs),Err(LabError::TooManyTasks)));
+    let programs = [PureProgram::CheckedAdd(0, 1); MAX_TASKS + 1];
+    assert!(matches!(execute(&programs), Err(LabError::TooManyTasks)));
 }
 
 #[test]
 fn overflow_cannot_commit_and_scope_reports_failure() {
-    let result=execute(&[PureProgram::CheckedAdd(i64::MAX,1)]).unwrap();
-    assert_eq!(result.report.outcome,ScopeOutcome::Failed);
-    assert_eq!(result.report.tasks[0].1,TaskOutcome::Failed(ERROR_OVERFLOW));
+    let result = execute(&[PureProgram::CheckedAdd(i64::MAX, 1)]).unwrap();
+    assert_eq!(result.report.outcome, ScopeOutcome::Failed);
+    assert_eq!(
+        result.report.tasks[0].1,
+        TaskOutcome::Failed(ERROR_OVERFLOW)
+    );
     assert!(result.replay_verified);
 }
 
 #[test]
 fn wrong_target_count_fails_without_mutating_nam() {
-    let result=execute(&[PureProgram::CheckedAdd(2,2)]).unwrap();
-    let mut kernel=AtomicKernel::new();
-    let a=kernel.create_atom(0_i64);
-    assert_eq!(commit_successful(&mut kernel,&[a,a],&result),
-        Err(CommitError::ArityMismatch));
-    assert_eq!(kernel.version(a),Ok(0));
+    let result = execute(&[PureProgram::CheckedAdd(2, 2)]).unwrap();
+    let mut kernel = AtomicKernel::new();
+    let a = kernel.create_atom(0_i64);
+    assert_eq!(
+        commit_successful(&mut kernel, &[a, a], &result),
+        Err(CommitError::ArityMismatch)
+    );
+    assert_eq!(kernel.version(a), Ok(0));
 }
 
 #[test]
 fn nam_ownership_denial_prevents_partial_multi_atom_commit() {
-    let result=execute(&[
-        PureProgram::CheckedAdd(1,2),
-        PureProgram::CheckedAdd(3,4),
-    ]).unwrap();
-    let mut kernel=AtomicKernel::new();
-    let a=kernel.create_atom(0_i64);
-    let foreign=kernel.create_domain("foreign").unwrap();
-    let b=kernel.create_atom_owned(foreign,0_i64).unwrap();
+    let result = execute(&[PureProgram::CheckedAdd(1, 2), PureProgram::CheckedAdd(3, 4)]).unwrap();
+    let mut kernel = AtomicKernel::new();
+    let a = kernel.create_atom(0_i64);
+    let foreign = kernel.create_domain("foreign").unwrap();
+    let b = kernel.create_atom_owned(foreign, 0_i64).unwrap();
     assert!(matches!(
-        commit_successful(&mut kernel,&[a,b],&result),
-        Err(CommitError::Kernel(AtomicError::OwnershipViolation{..}))
+        commit_successful(&mut kernel, &[a, b], &result),
+        Err(CommitError::Kernel(AtomicError::OwnershipViolation { .. }))
     ));
-    assert_eq!(kernel.get(a),Ok(&Value::Int(0)));
-    assert_eq!(kernel.get(b),Ok(&Value::Int(0)));
-    assert_eq!(kernel.version(a),Ok(0));
-    assert_eq!(kernel.version(b),Ok(0));
-    assert_eq!(kernel.pending_work(),0);
+    assert_eq!(kernel.get(a), Ok(&Value::Int(0)));
+    assert_eq!(kernel.get(b), Ok(&Value::Int(0)));
+    assert_eq!(kernel.version(a), Ok(0));
+    assert_eq!(kernel.version(b), Ok(0));
+    assert_eq!(kernel.pending_work(), 0);
 }
 
 #[test]
 fn no_amplified_ambient_host_authority_in_parent() {
-    let mut kernel=AtomicKernel::new();
-    let cap=Capability::ConsoleWrite;
-    assert_eq!(kernel.require(&cap),Err(AtomicError::CapabilityDenied(cap.clone())));
-    let outcome=execute(&[PureProgram::CheckedMul(2,3)]).unwrap();
-    let target=kernel.create_atom(0_i64);
-    assert_eq!(commit_successful(&mut kernel,&[target],&outcome),Ok(1));
-    assert_eq!(kernel.require(&cap),Err(AtomicError::CapabilityDenied(cap)));
+    let mut kernel = AtomicKernel::new();
+    let cap = Capability::ConsoleWrite;
+    assert_eq!(
+        kernel.require(&cap),
+        Err(AtomicError::CapabilityDenied(cap.clone()))
+    );
+    let outcome = execute(&[PureProgram::CheckedMul(2, 3)]).unwrap();
+    let target = kernel.create_atom(0_i64);
+    assert_eq!(commit_successful(&mut kernel, &[target], &outcome), Ok(1));
+    assert_eq!(
+        kernel.require(&cap),
+        Err(AtomicError::CapabilityDenied(cap))
+    );
 }
 
 #[test]
 fn completed_reference_report_is_stable_across_repeated_native_runs() {
-    let programs=[PureProgram::YieldThenAdd(20,22),PureProgram::CheckedMul(3,3)];
-    let a=execute(&programs).unwrap();
-    let b=execute(&programs).unwrap();
-    assert_eq!(a.report,b.report);
-    assert_eq!(a.values,b.values);
-    assert!(a.replay_verified&&b.replay_verified);
+    let programs = [
+        PureProgram::YieldThenAdd(20, 22),
+        PureProgram::CheckedMul(3, 3),
+    ];
+    let a = execute(&programs).unwrap();
+    let b = execute(&programs).unwrap();
+    assert_eq!(a.report, b.report);
+    assert_eq!(a.values, b.values);
+    assert!(a.replay_verified && b.replay_verified);
 }
