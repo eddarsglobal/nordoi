@@ -170,8 +170,11 @@ def smoke(source,security_rs):
     source=Path(source).resolve()
     safety=Path(security_rs).resolve()
     pinned_file(safety,SECURITY_BLOB,12000)
-    if sha256(source/"src"/"kernel.rs") != BASE_KERNEL_SHA256:
-        raise Blocked("CI source kernel differs from frozen main")
+    # Verify canonical committed bytes, not platform-translated checkout CRLF.
+    git_kernel=subprocess.run(["git","show","HEAD:src/kernel.rs"],
+        cwd=str(source),stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=60)
+    if git_kernel.returncode or hashlib.sha256(git_kernel.stdout).hexdigest()!=BASE_KERNEL_SHA256:
+        raise Blocked("CI committed source kernel differs from frozen main")
     with tempfile.TemporaryDirectory(prefix="NORDOI_R316_CI_") as folder:
         root=Path(folder)
         env=dict(os.environ,CARGO_NET_OFFLINE="true",
