@@ -117,8 +117,14 @@ int main(int argc, char **argv) {
                 .expect("write fresh sentinel");
             fs::write(self.source(), HELPER_C).expect("write self-contained C test source");
             fs::write(self.entitlements(), ENTITLEMENTS).expect("write minimal entitlement plist");
-            self.create_bundle(&self.control_bundle(), "org.eddarsglobal.nordoi.r4h.control");
-            self.create_bundle(&self.isolated_bundle(), "org.eddarsglobal.nordoi.r4h.entitled");
+            self.create_bundle(
+                &self.control_bundle(),
+                "org.eddarsglobal.nordoi.r4h.control",
+            );
+            self.create_bundle(
+                &self.isolated_bundle(),
+                "org.eddarsglobal.nordoi.r4h.entitled",
+            );
 
             let compiler = Command::new("/usr/bin/cc")
                 .args(["-x", "c", "-std=c11", "-O2", "-o"])
