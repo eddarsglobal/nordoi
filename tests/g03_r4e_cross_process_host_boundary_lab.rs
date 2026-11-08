@@ -9,7 +9,7 @@
 #[path = "../src/resource_task_r02.rs"]
 mod reference;
 
-use nordoi_kernel::{AtomicKernel, Value};
+use nordoi_kernel::AtomicKernel;
 use reference::{
     Command, GrantId, Model, ModelError, Receipt, ResourceEffect, ResourceId, ScopeBudget,
     ScopeOutcome, ScopeReport, TaskId,
@@ -252,11 +252,7 @@ fn run_child(scenario: Scenario, model: &mut Model, task: TaskId) -> ProcessWitn
         },
     );
     reader.join().expect("join bounded reader after child exit");
-    frames.extend(
-        receiver
-            .try_iter()
-            .filter(|frame| frame != "R4E|EOF"),
-    );
+    frames.extend(receiver.try_iter().filter(|frame| frame != "R4E|EOF"));
     ProcessWitness {
         frames,
         exit_ok: status.success(),
@@ -340,10 +336,8 @@ fn execute(scenario: Scenario, grant_write: bool) -> RunEvidence {
         && !scenario.is_cancel()
         && child.frames == correct
         && grant_write;
-    let acknowledged_cancel = child.exit_ok
-        && !child.killed
-        && scenario == Scenario::Cancel
-        && child.frames == cancelled;
+    let acknowledged_cancel =
+        child.exit_ok && !child.killed && scenario == Scenario::Cancel && child.frames == cancelled;
     if success {
         model.apply(Command::Succeed { task }).unwrap();
     } else if acknowledged_cancel {
