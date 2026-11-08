@@ -1,4 +1,7 @@
-//! G0.3 R4C — owner-hosted *real file handle* boundary, research only.
+//! G0.3 R4C — owner-hosted *real file handle* boundary, research only.        .apply(Command::Join { task: parent.task })
+        .unwrap();
+    parent
+        .model
 //!
 //! Every native I/O operation is confined to a disposable test directory.
 //! Guest workers receive NO File, path, NAM, R0.2 grant, or host permit.
@@ -9,10 +12,10 @@
 #[path = "../src/resource_task_r02.rs"]
 mod reference;
 
-use nordoi_kernel::{AtomicKernel, Value};
+use nordoi_kernel::AtomicKernel;
 use reference::{
-    Command, GrantId, Model, ModelError, Receipt, ResourceEffect, ResourceId,
-    ScopeBudget, ScopeId, ScopeOutcome, ScopeReport, TaskId, TaskOutcome,
+    Command, GrantId, Model, ModelError, Receipt, ResourceEffect, ResourceId, ScopeBudget, ScopeId,
+    ScopeOutcome, ScopeReport, TaskId, TaskOutcome,
 };
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -30,9 +33,8 @@ struct Scratch {
 impl Scratch {
     fn new() -> Self {
         let ticket = NEXT_TMP.fetch_add(1, Ordering::Relaxed);
-        let path = std::env::temp_dir().join(format!(
-            "nordoi-r4c-test-{}-{ticket}", std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("nordoi-r4c-test-{}-{ticket}", std::process::id()));
         fs::create_dir(&path).expect("fresh private test directory");
         Self { path }
     }
@@ -200,9 +202,7 @@ impl Parent {
             TaskOutcome::Cancelled => Command::AcknowledgeCancel { task: self.task },
         };
         self.model.apply(step).unwrap();
-        self.model
-            .apply(Command::Join { task: self.task })
-            .unwrap();
+        self.model.apply(Command::Join { task: self.task }).unwrap();
         if terminal == TaskOutcome::Succeeded {
             let token = self.host.token();
             self.model
@@ -224,7 +224,11 @@ impl Parent {
                 resource: self.resource,
             })
             .unwrap();
-        let report = match self.model.apply(Command::Close { scope: self.scope }).unwrap() {
+        let report = match self
+            .model
+            .apply(Command::Close { scope: self.scope })
+            .unwrap()
+        {
             Receipt::Closed(report) => report,
             unexpected => panic!("unexpected scope close receipt {unexpected:?}"),
         };
@@ -260,13 +264,13 @@ fn race(mode: Race) -> (ScopeReport, String, u64, bool) {
     let (at_checkpoint_tx, at_checkpoint_rx) = mpsc::sync_channel::<()>(0);
     let worker = thread::scope(|scope| {
         let flag = Arc::clone(&cancelled);
-        let release = Arc::clone(&release);
+        let worker_release = Arc::clone(&release);
         let handle = scope.spawn(move || match mode {
             Race::Fail => Worker::Failed,
             Race::Panic => panic!("R4C deliberate child panic in test-only host-file lab"),
             Race::CancelBeforeRelease | Race::CompleteBeforeLateCancel => {
                 at_checkpoint_tx.send(()).unwrap();
-                release.wait();
+                worker_release.wait();
                 if flag.load(Ordering::Acquire) {
                     Worker::Cancelled
                 } else {
@@ -274,7 +278,10 @@ fn race(mode: Race) -> (ScopeReport, String, u64, bool) {
                 }
             }
         });
-        if matches!(mode, Race::CancelBeforeRelease | Race::CompleteBeforeLateCancel) {
+        if matches!(
+            mode,
+            Race::CancelBeforeRelease | Race::CompleteBeforeLateCancel
+        ) {
             at_checkpoint_rx.recv().unwrap();
             if matches!(mode, Race::CancelBeforeRelease) {
                 parent
@@ -293,9 +300,14 @@ fn race(mode: Race) -> (ScopeReport, String, u64, bool) {
         Worker::Failed => TaskOutcome::Failed(PANIC_CODE),
     };
     let late_cancel_blocked = if matches!(mode, Race::CompleteBeforeLateCancel) {
-        parent.model.apply(Command::Succeed { task: parent.task }).unwrap();
+        parent
+            .model
+            .apply(Command::Succeed { task: parent.task })
+            .unwrap();
         let previous = parent.model.clone();
-        let denied = parent.model.apply(Command::RequestCancel { task: parent.task })
+        let denied = parent
+            .model
+            .apply(Command::RequestCancel { task: parent.task })
             == Err(ModelError::InvalidTransition);
         assert_eq!(parent.model, previous);
         // Parent::close will apply the terminal transition: avoid doing it
@@ -310,7 +322,7 @@ fn race(mode: Race) -> (ScopeReport, String, u64, bool) {
 }
 
 fn run_late_cancel_close(mut parent: Parent) -> ScopeReport {
-    parent.model.apply(Command::Join { task: parent.task }).unwrap();
+
     parent
         .model
         .apply(Command::Use {
@@ -325,9 +337,18 @@ fn run_late_cancel_close(mut parent: Parent) -> ScopeReport {
     parent.host.cleanup_on_abort();
     parent
         .model
-        .apply(Command::Release { scope: parent.scope, resource: parent.resource })
+        .apply(Command::Release {
+            scope: parent.scope,
+            resource: parent.resource,
+        })
         .unwrap();
-    let report = match parent.model.apply(Command::Close { scope: parent.scope }).unwrap() {
+    let report = match parent
+        .model
+        .apply(Command::Close {
+            scope: parent.scope,
+        })
+        .unwrap()
+    {
         Receipt::Closed(report) => report,
         _ => panic!("unexpected close"),
     };
@@ -376,12 +397,18 @@ fn cross_scope_lease_cannot_access_native_file() {
     let mut p = Parent::new();
     let (foreign_model, _) = Model::bootstrap(
         90,
-        ScopeBudget { tasks: 0, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
         0,
     );
     let token = p.host.token();
-    assert_eq!(p.host.write(foreign_model.root(), token, b"UNAUTHORIZED"),
-               Err(HostError::WrongScope));
+    assert_eq!(
+        p.host.write(foreign_model.root(), token, b"UNAUTHORIZED"),
+        Err(HostError::WrongScope)
+    );
     assert_eq!(fs::read(p.scratch.file()).unwrap(), b"");
 }
 
@@ -390,7 +417,10 @@ fn forged_lease_nonce_is_rejected_before_os_io() {
     let mut p = Parent::new();
     let mut token = p.host.token();
     token.nonce ^= 1;
-    assert_eq!(p.host.write(p.scope, token, b"FORGED"), Err(HostError::InvalidLease));
+    assert_eq!(
+        p.host.write(p.scope, token, b"FORGED"),
+        Err(HostError::InvalidLease)
+    );
     assert_eq!(fs::read(p.scratch.file()).unwrap(), b"");
 }
 
@@ -398,7 +428,9 @@ fn forged_lease_nonce_is_rejected_before_os_io() {
 fn test_host_revocation_blocks_further_file_writes() {
     let mut p = Parent::new();
     let token = p.host.token();
-    p.model.apply(Command::RevokeGrant { grant: p.grant }).unwrap();
+    p.model
+        .apply(Command::RevokeGrant { grant: p.grant })
+        .unwrap();
     p.host.revoke();
     assert_eq!(
         p.model.apply(Command::Use {
@@ -409,7 +441,10 @@ fn test_host_revocation_blocks_further_file_writes() {
         }),
         Err(ModelError::RevokedGrant)
     );
-    assert_eq!(p.host.write(p.scope, token, b"REVOKED"), Err(HostError::Revoked));
+    assert_eq!(
+        p.host.write(p.scope, token, b"REVOKED"),
+        Err(HostError::Revoked)
+    );
     assert!(fs::read(p.scratch.file()).unwrap().is_empty());
 }
 
@@ -419,8 +454,10 @@ fn native_resource_close_is_idempotence_denied() {
     let token = p.host.token();
     assert_eq!(p.host.close(p.scope, token), Ok(()));
     assert_eq!(p.host.close(p.scope, token), Err(HostError::AlreadyClosed));
-    assert_eq!(p.host.write(p.scope, token, b"AFTER_CLOSE"),
-               Err(HostError::AlreadyClosed));
+    assert_eq!(
+        p.host.write(p.scope, token, b"AFTER_CLOSE"),
+        Err(HostError::AlreadyClosed)
+    );
 }
 
 #[test]
@@ -430,7 +467,12 @@ fn model_scope_close_denied_with_live_resource_and_unjoined_task() {
         p.model.apply(Command::Close { scope: p.scope }),
         Err(ModelError::OutstandingResources)
     );
-    p.model.apply(Command::Release { scope: p.scope, resource: p.resource }).unwrap();
+    p.model
+        .apply(Command::Release {
+            scope: p.scope,
+            resource: p.resource,
+        })
+        .unwrap();
     assert_eq!(
         p.model.apply(Command::Close { scope: p.scope }),
         Err(ModelError::OutstandingTasks)
@@ -440,11 +482,19 @@ fn model_scope_close_denied_with_live_resource_and_unjoined_task() {
 #[test]
 fn no_implicit_external_io_grant_in_reference_model() {
     let (mut model, permit) = Model::bootstrap(
-        85, ScopeBudget { tasks: 0, resources: 0, children: 0 }, 16
+        85,
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
+        16,
     );
     let root = model.root();
-    assert_eq!(model.host_grant(&permit, root, ResourceEffect::ExternalIo),
-               Err(ModelError::UnsupportedEffect));
+    assert_eq!(
+        model.host_grant(&permit, root, ResourceEffect::ExternalIo),
+        Err(ModelError::UnsupportedEffect)
+    );
     assert_eq!(model.event_count(), 0);
 }
 
@@ -456,7 +506,7 @@ fn abort_cleanup_removes_disposable_file_after_native_handle_close() {
         path = p.scratch.file();
         assert!(path.exists());
         p.host.cleanup_on_abort();
-        assert_eq!(p.host.file.is_none(), true);
+        assert!(p.host.file.is_none());
     }
     assert!(!path.exists());
 }
@@ -466,11 +516,25 @@ fn fresh_directory_refuses_replacing_existing_native_file() {
     let scratch = Scratch::new();
     let _first = HostFile::create(
         &scratch,
-        Model::bootstrap(8, ScopeBudget { tasks: 0, resources: 0, children: 0 }, 0).0.root(),
+        Model::bootstrap(
+            8,
+            ScopeBudget {
+                tasks: 0,
+                resources: 0,
+                children: 0,
+            },
+            0,
+        )
+        .0
+        .root(),
     );
     assert_eq!(
-        OpenOptions::new().write(true).create_new(true).open(scratch.file())
-            .unwrap_err().kind(),
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(scratch.file())
+            .unwrap_err()
+            .kind(),
         std::io::ErrorKind::AlreadyExists
     );
 }
