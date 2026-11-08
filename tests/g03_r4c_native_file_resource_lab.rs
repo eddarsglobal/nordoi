@@ -1,7 +1,4 @@
-//! G0.3 R4C — owner-hosted *real file handle* boundary, research only.        .apply(Command::Join { task: parent.task })
-        .unwrap();
-    parent
-        .model
+//! G0.3 R4C — owner-hosted *real file handle* boundary, research only.
 //!
 //! Every native I/O operation is confined to a disposable test directory.
 //! Guest workers receive NO File, path, NAM, R0.2 grant, or host permit.
@@ -322,7 +319,10 @@ fn race(mode: Race) -> (ScopeReport, String, u64, bool) {
 }
 
 fn run_late_cancel_close(mut parent: Parent) -> ScopeReport {
-
+    parent
+        .model
+        .apply(Command::Join { task: parent.task })
+        .unwrap();
     parent
         .model
         .apply(Command::Use {
