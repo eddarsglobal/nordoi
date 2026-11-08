@@ -1,0 +1,29 @@
+name: NORDOI G0.3 R3-R15 placebo control synthetic gate
+
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r3_r15_placebo_control.py'
+      - 'research/G03_R3_R15_PLACEBO_ENGINEERING.md'
+      - '.github/workflows/g03_r3_r15_placebo.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  placebo-synthetic:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Syntax validation
+        run: python -B -m py_compile research/g03_r3_r15_placebo_control.py
+      - name: A/A and A/B synthetic selftest (no real performance claim)
+        run: python -B research/g03_r3_r15_placebo_control.py selftest
