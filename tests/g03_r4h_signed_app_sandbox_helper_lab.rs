@@ -280,6 +280,7 @@ fn parent_still_reads_and_appends_after_sandboxed_child() {
 #[cfg(target_os = "macos")]
 #[test]
 fn damaged_code_signature_is_detected_and_must_not_be_trusted() {
+    use std::fs::OpenOptions;
     use std::io::{Seek, SeekFrom, Write};
     let scratch = macos::Scratch::new();
     scratch.prepare();
