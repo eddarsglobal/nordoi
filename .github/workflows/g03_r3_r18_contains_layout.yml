@@ -1,0 +1,30 @@
+name: NORDOI G0.3 R3-R18 contains code-layout safety gate
+
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r3_r18_contains_call_layout.py'
+      - 'research/g03_r3_r18_require_witness.rs'
+      - 'research/G03_R3_R18_CONTAINS_LAYOUT.md'
+      - '.github/workflows/g03_r3_r18_contains_layout.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contains-audit-synthetic-and-security:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python synthetic parser and branch-normalization selftest
+        run: python -B research/g03_r3_r18_contains_call_layout.py selftest
+      - name: Real Rust offline release witness security smoke
+        run: python -B research/g03_r3_r18_contains_call_layout.py smoke --source .
