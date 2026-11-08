@@ -280,6 +280,9 @@ fn linux_kernel_landlock_denies_actual_child_read_write_and_create() {
 #[cfg(target_os = "linux")]
 #[test]
 fn linux_parent_remains_unconfined_while_child_is_fs_restricted() {
+    use std::fs::OpenOptions;
+    use std::io::Write;
+
     let scratch = live::Scratch::new();
     scratch.put_sentinel();
     let witness = live::run(&scratch);
