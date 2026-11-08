@@ -1,0 +1,73 @@
+{
+  "schema": "NORDOI-G03-R3-R21-ENGINEERING-DECISION-v1",
+  "date_utc": "2026-11-08",
+  "subject": "G0.3 R3-R13 atomic write redundant existence lookup removal",
+  "scope": "ENGINEERING_RECOMMENDATION_ONLY",
+  "decision": "ACCEPT_WITH_CONTROLS_FOR_OWNER_MERGE_DECISION",
+  "baseline": {
+    "sha": "98da03b2ea1efcf665d205189284aa8b66fda5d3",
+    "kernel_sha256": "dcb0689dc86cd2646a5f4ffb3c8b0c5eaa72c59e0cdea1307aeba2e86f8de7e2"
+  },
+  "candidate": {
+    "sha": "a1ae15326eaa837f8994a75fa7cfbe2eccc44976",
+    "kernel_sha256": "35194549eee9d6798de2c9afb091a668c2d491a40c548693ee6e87a3aa29aba0",
+    "pr": 40,
+    "pr_state_at_review": "DRAFT_OPEN_UNMERGED"
+  },
+  "r20_owner_mac": {
+    "report_sha256": "b2aa841c9109cd23be5967fa534426cdf05541b9665c91240db752bbb17057d5",
+    "schema": "NORDOI-G03-R3-R20-INTEGRATION-READINESS-v1",
+    "decision": "READY_FOR_GOVERNED_MERGE_DECISION_WITH_PERFORMANCE_EXCEPTION",
+    "original_tests_passed": 2496,
+    "candidate_tests_passed": 2499,
+    "security_contract": "PASS_BOTH",
+    "tracked_common_files_identical": 659,
+    "candidate_added_paths": 5,
+    "candidate_removed_paths": 0,
+    "single_source_delta": "EXACT_DUPLICATE_EXISTENCE_LOOKUP_ONLY"
+  },
+  "r20_github_ci": {
+    "governed_readiness_run": 42475969873,
+    "general_gate_run": 42475970206,
+    "conclusion_at_review": "SUCCESS",
+    "governed_matrix": [
+      "ubuntu-latest",
+      "macos-latest",
+      "windows-latest"
+    ]
+  },
+  "historical_mac_intel_performance": {
+    "origin": "R3-R16 FIX1, not rerun in R3-R20/R3-R21",
+    "noop_set_gain_percent": 23.1812,
+    "changed_set_flush_gain_percent": 3.9061,
+    "denied_capability_gain_percent": -1.3758,
+    "denied_capability_delta_ns_per_op": -0.17,
+    "denied_capability_candidate_faster_blocks": "2/12",
+    "denied_capability_exception": "OPEN_EXPLICIT",
+    "latency_root_cause": "NOT_ESTABLISHED"
+  },
+  "codegen_review": {
+    "require_textually_equivalent_after_local_branch_rebase": true,
+    "witness_textually_equivalent_after_local_branch_rebase": true,
+    "contains_textually_equivalent_after_memcmp_stub_relocation": true,
+    "machine_byte_identity": "NOT_ESTABLISHED",
+    "layout_causes_slowdown": "NOT_PROVEN"
+  },
+  "governance": {
+    "public_language_changes": "NONE",
+    "permission_policy_changes": "NONE",
+    "kernel_changes_by_r21": "NONE",
+    "merge_authorization": "NONE",
+    "owner_merge_approval": "NOT_GIVEN",
+    "production": "NOT_AUTHORIZED",
+    "external_human_evaluator_or_signature": "NOT_REQUIRED",
+    "owner_action": "EXPLICIT_SEPARATE_AUTHORIZATION_REQUIRED_FOR_ANY_MERGE",
+    "pr40_allowed_only_if_heads_still_pinned": true
+  },
+  "residual_risk": {
+    "classification": "MEASURED_MINOR_DENIED_CAPABILITY_PERFORMANCE_REGRESSION",
+    "assessment": "ACCEPTABLE_FOR_GOVERNED_REVIEW_NOT_AUTOMATIC_MERGE",
+    "mitigation": "Disclose pre-merge; revalidate code/CI at merge time; monitor targeted denial path after authorized integration; revert on proven material regression",
+    "deferred_owner_tradeoff_approval": true
+  }
+}
