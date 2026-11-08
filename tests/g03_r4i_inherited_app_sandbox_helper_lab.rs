@@ -248,14 +248,23 @@ int main(int argc, char **argv) {
                 .arg(path)
                 .output()
                 .expect("inspect actual signed entitlements");
-            assert!(res.status.success(), "signed entitlements must be inspectable");
+            assert!(
+                res.status.success(),
+                "signed entitlements must be inspectable"
+            );
             String::from_utf8_lossy(&res.stdout).into_owned()
         }
         pub fn check_signing(&self) {
             assert!(Self::verified(&self.app()), "parent bundle signature");
             assert!(Self::verified(&self.parent()), "signed main Mach-O");
-            assert!(Self::verified(&self.inherited_helper()), "signed child Mach-O");
-            assert!(Self::verified(&self.control()), "signed unsandboxed control");
+            assert!(
+                Self::verified(&self.inherited_helper()),
+                "signed child Mach-O"
+            );
+            assert!(
+                Self::verified(&self.control()),
+                "signed unsandboxed control"
+            );
             let app = Self::keys(&self.app());
             let helper = Self::keys(&self.inherited_helper());
             let control = Self::keys(&self.control());
@@ -360,8 +369,7 @@ int main(int argc, char **argv) {
     pub fn expect_control(w: &Receipt) {
         assert!(w.success && !w.timeout, "same-UID baseline must succeed");
         assert_eq!(
-            w.stdout,
-            "R4I|HELPER|READ=1|WRITE=1|CREATE=1\n",
+            w.stdout, "R4I|HELPER|READ=1|WRITE=1|CREATE=1\n",
             "unrestricted control must truly access all three file operations"
         );
     }
@@ -376,8 +384,7 @@ int main(int argc, char **argv) {
             "OS receipt size must remain bounded"
         );
         assert_eq!(
-            w.stdout,
-            "R4I|PARENT|READ=0|WRITE=0|CREATE=0\nR4I|HELPER|READ=0|WRITE=0|CREATE=0\n",
+            w.stdout, "R4I|PARENT|READ=0|WRITE=0|CREATE=0\nR4I|HELPER|READ=0|WRITE=0|CREATE=0\n",
             "both actual OS processes must be blocked from direct file operations"
         );
     }
@@ -420,7 +427,10 @@ fn macos_parent_remains_separate_from_unsandboxed_rust_test_driver() {
     let lab = macos::Lab::new();
     lab.prepare();
     macos::expect_inherited(&macos::parent_and_child(&lab));
-    let mut file = OpenOptions::new().append(true).open(lab.sentinel()).unwrap();
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open(lab.sentinel())
+        .unwrap();
     file.write_all(b"PARENT_DRIVER_CAN_APPEND\n").unwrap();
     assert_eq!(
         std::fs::read(lab.sentinel()).unwrap(),
