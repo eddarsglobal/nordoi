@@ -24,7 +24,7 @@ CAND_SHA = "a1ae15326eaa837f8994a75fa7cfbe2eccc44976"
 BRANCH = "candidate/g03-r3-r13-eliminate-redundant-atom-check-20261108"
 R13_BLOB = "dac0109959e10a15764ff54a4da91bf190deff59"
 R17_RUST_BLOB = "599f2353777e86de4a85ce6ba4e1cbc951a4249f"
-SCHEMA = "NORDOI-G03-R3-R17-FUNCTION-CODE-AUDIT-v1"
+SCHEMA = "NORDOI-G03-R3-R17-FIX1-FUNCTION-CODE-AUDIT-v1"
 WITNESS = "nordoi_r17_require_witness"
 RECEIPT = b"G03_R3_R17_REQUIRE_WITNESS=PASS\nPRODUCTION=NOT_AUTHORIZED\n"
 BASE_KERNEL_SHA256 = "dcb0689dc86cd2646a5f4ffb3c8b0c5eaa72c59e0cdea1307aeba2e86f8de7e2"
@@ -177,6 +177,14 @@ def verify_source(runner,base,cand):
             raise Blocked("unrelated tracked source change")
     return guard
 
+def build_dir(root,label):
+    # FIX1: never reuse the checked-out "candidate" source directory as
+    # an output/build directory for the candidate witness binary.
+    if label not in ("baseline","candidate"):
+        raise Blocked("invalid build role")
+    root=Path(root)
+    return root/"builds"/label
+
 def private_output(path, report):
     p=Path(path)
     if p.exists() or p.is_symlink() or not p.parent.is_dir():
@@ -220,6 +228,25 @@ def selftest():
         pass
     else:
         raise AssertionError("missing instructions passed")
+    with tempfile.TemporaryDirectory(prefix="NORDOI_R317_FIX1_DIRTEST_") as tmp:
+        root=Path(tmp)
+        (root/"candidate").mkdir()
+        (root/"base").mkdir()
+        b=build_dir(root,"baseline")
+        c=build_dir(root,"candidate")
+        assert b!=c and b!=root/"base" and c!=root/"candidate"
+        assert c.parent==b.parent==root/"builds"
+        b.parent.mkdir()
+        b.mkdir()
+        c.mkdir()
+        assert (root/"candidate").is_dir()
+        try:
+            build_dir(root,"unknown")
+        except Blocked:
+            pass
+        else:
+            raise AssertionError("unexpected build role accepted")
+    print("G03_R3_R17_FIX1_BUILD_DIRECTORY_SELFTEST=PASS")
     print("G03_R3_R17_SELFTEST=SYNTHETIC_PASS")
     print("REAL_MAC_MACHINE_CODE=NOT_INSPECTED_IN_SELFTEST")
     print("PRODUCTION=NOT_AUTHORIZED")
@@ -258,8 +285,9 @@ def measure(r13tool,rust_source,out):
         runner.clone(cand,BRANCH,CAND_SHA)
         guard=verify_source(runner,base,cand)
         results={}
+        (root/"builds").mkdir()
         for label,source in (("baseline",base),("candidate",cand)):
-            work=root/label
+            work=build_dir(root,label)
             work.mkdir()
             pinned=work/"r17_witness.rs"
             pinned.write_bytes(rust)
@@ -293,6 +321,7 @@ def measure(r13tool,rust_source,out):
             "original_repo_modified":False
         }
         private_output(out,report)
+    print("G03_R3_R17_FIX1_BUILD_DIRECTORIES=ISOLATED")
     print("G03_R3_R17_MAC_MACHINE_CODE_AUDIT=PASS")
     print("G03_R3_R17_REQUIRE_SECURITY=2_OF_2_PASS")
     print("SOURCE_GUARD=PASS")
