@@ -52,19 +52,27 @@ def sha256(payload):
 def git_blob(payload):
     return hashlib.sha1(b"blob "+str(len(payload)).encode("ascii")+b"\0"+payload).hexdigest()
 
+def patch_exact(base,cand):
+    if base.count(OLD)!=1 or base.replace(OLD,NEW)!=cand:
+        raise Blocked("candidate kernel change outside exact single-lookup replacement")
+    return True
+
 def verify_kernel(base, cand):
     if sha256(base)!=BASE_KERNEL_HASH or sha256(cand)!=CAND_KERNEL_HASH:
         raise Blocked("frozen kernel content changed")
-    if base.count(OLD)!=1 or base.replace(OLD,NEW)!=cand:
-        raise Blocked("candidate kernel change outside exact single-lookup replacement")
+    patch_exact(base,cand)
     return {"source_delta":"EXACT_DUPLICATE_EXISTENCE_LOOKUP_ONLY",
             "baseline_sha256":sha256(base),"candidate_sha256":sha256(cand)}
+
+def require_expected_inventory(old,new):
+    if old-new or new-old!=NEW_FILES or "src/kernel.rs" not in (old&new):
+        raise Blocked("tracked file inventory outside exact R3-R13 candidate PR")
+    return True
 
 def tracked_inventory(base, cand):
     old=set(subprocess_checked(["git","ls-files","-z"],cwd=base).decode().split("\0"))-{""}
     new=set(subprocess_checked(["git","ls-files","-z"],cwd=cand).decode().split("\0"))-{""}
-    if old-new or new-old!=NEW_FILES or "src/kernel.rs" not in (old&new):
-        raise Blocked("tracked file inventory outside exact R3-R13 candidate PR")
+    require_expected_inventory(old,new)
     for item in sorted(old&new-{"src/kernel.rs"}):
         if (base/item).read_bytes()!=(cand/item).read_bytes():
             raise Blocked("non-kernel shared tracked file differs: "+item)
@@ -164,15 +172,22 @@ def save_private(destination,report):
         raise Blocked("report is not private")
 
 def selftest():
-    import unittest.mock
     sample=b"header\n"+OLD+b"\nfooter\n"
-    # Exact source SHA pins: synthetic tests validate the semantic pattern,
-    # real SHA pins are tested in the real two-revision gate.
-    assert sample.count(OLD)==1 and sample.replace(OLD,NEW).count(OLD)==0
+    # Real source SHA pins are enforced in two-revision check().
+    assert patch_exact(sample,sample.replace(OLD,NEW))
+    for bad in (sample,sample.replace(OLD,NEW)+b"\nEXTRA\n"):
+        try:patch_exact(sample,bad)
+        except Blocked:pass
+        else:raise AssertionError("non-exact patch accepted")
     assert sha256(sample)!=sha256(sample.replace(OLD,NEW))
     assert git_blob(b"123")=="d800886d9c86731ae5c4a62b0b77c437015e00d2"
-    expected=NEW_FILES|{"src/kernel.rs"}
-    assert "src/kernel.rs" in expected and len(NEW_FILES)==5
+    old={"src/kernel.rs","Cargo.toml"}
+    good=old|NEW_FILES
+    assert require_expected_inventory(old,good)
+    for bad in (good|{"src/extra.rs"},old|{"src/kernel.rs"}):
+        try:require_expected_inventory(old,bad)
+        except Blocked:pass
+        else:raise AssertionError("unauthorized tracked inventory accepted")
     assert len(TEST_LINE.findall("test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured;"))==1
     assert not TEST_LINE.findall("error: test failed")
     with tempfile.TemporaryDirectory(prefix="NORDOI_R320_NEGATIVE_") as d:
@@ -185,6 +200,9 @@ def selftest():
         assert (cand/"src"/"kernel.rs").read_bytes()!=sample
         (cand/"src"/"kernel.rs").write_bytes(sample.replace(OLD,NEW)+b"\nTAMPERED\n")
         assert (cand/"src"/"kernel.rs").read_bytes()!=sample.replace(OLD,NEW)
+        try:patch_exact(sample,(cand/"src"/"kernel.rs").read_bytes())
+        except Blocked:pass
+        else:raise AssertionError("tampered candidate passed")
         report=root/"report.json"
         save_private(report,{"synthetic":True})
         try:save_private(report,{})
