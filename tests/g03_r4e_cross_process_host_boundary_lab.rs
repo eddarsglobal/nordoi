@@ -11,8 +11,8 @@ mod reference;
 
 use nordoi_kernel::{AtomicKernel, Value};
 use reference::{
-    Command, Model, ModelError, Receipt, ResourceEffect, ResourceId, ScopeBudget, ScopeOutcome,
-    ScopeReport, TaskId,
+    Command, GrantId, Model, ModelError, Receipt, ResourceEffect, ResourceId, ScopeBudget,
+    ScopeOutcome, ScopeReport, TaskId,
 };
 use std::env;
 use std::fs::{self, File, OpenOptions};
@@ -287,7 +287,7 @@ fn execute(scenario: Scenario, grant_write: bool) -> RunEvidence {
         64,
     );
     let scope = model.root();
-    let resource: Option<ResourceId> = if grant_write {
+    let (resource, grant): (Option<ResourceId>, Option<GrantId>) = if grant_write {
         model
             .apply(Command::DeclareEffect {
                 scope,
@@ -297,21 +297,20 @@ fn execute(scenario: Scenario, grant_write: bool) -> RunEvidence {
         let grant = model
             .host_grant(&permit, scope, ResourceEffect::Write)
             .unwrap();
-        Some(
-            match model
-                .apply(Command::Acquire {
-                    scope,
-                    grant,
-                    effect: ResourceEffect::Write,
-                })
-                .unwrap()
-            {
-                Receipt::Resource(id) => id,
-                other => panic!("unexpected modeled resource {other:?}"),
-            },
-        )
+        let resource = match model
+            .apply(Command::Acquire {
+                scope,
+                grant,
+                effect: ResourceEffect::Write,
+            })
+            .unwrap()
+        {
+            Receipt::Resource(id) => id,
+            other => panic!("unexpected modeled resource {other:?}"),
+        };
+        (Some(resource), Some(grant))
     } else {
-        None
+        (None, None)
     };
     let task = match model.apply(Command::DeclareTask { scope }).unwrap() {
         Receipt::Task(id) => id,
@@ -361,9 +360,7 @@ fn execute(scenario: Scenario, grant_write: bool) -> RunEvidence {
     if success {
         // This is a deliberately narrow model-to-host fixture convention;
         // R0.2 ExternalIo grants are still unsupported.
-        let grant = model
-            .grant_for(scope, ResourceEffect::Write)
-            .expect("modeled trusted-grant lookup in test");
+        let grant = grant.expect("parent-owned modeled grant");
         model
             .apply(Command::Use {
                 scope,
