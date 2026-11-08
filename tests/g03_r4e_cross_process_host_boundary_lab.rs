@@ -83,7 +83,7 @@ fn r4e_child_entry() {
     BufReader::new(io::stdin().lock())
         .read_line(&mut line)
         .expect("single parent command");
-    let command = line.trim_end_matches(|c| c == '\n' || c == '\r');
+    let command = line.trim_end_matches(['\n', '\r']);
     match command {
         "GO|20|22" | "GO|9223372036854775807|1" => {
             let mut parts = command.split('|');
@@ -198,7 +198,7 @@ fn run_child(scenario: Scenario, model: &mut Model, task: TaskId) -> ProcessWitn
                 let _ = sender.send("R4E|LIMIT".to_string());
                 break;
             }
-            let frame = line.trim_end_matches(|c| c == '\n' || c == '\r');
+            let frame = line.trim_end_matches(['\n', '\r']);
             if frame.starts_with("R4E|") && sender.send(frame.to_string()).is_err() {
                 break;
             }
