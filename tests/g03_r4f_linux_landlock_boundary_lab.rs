@@ -75,7 +75,8 @@ mod linux {
         let fd = fd as c_int;
 
         // SAFETY: prctl takes PR_SET_NO_NEW_PRIVS and five fixed scalar args.
-        let no_new_privs = unsafe { prctl(PR_SET_NO_NEW_PRIVS, 1_usize, 0_usize, 0_usize, 0_usize) };
+        let no_new_privs =
+            unsafe { prctl(PR_SET_NO_NEW_PRIVS, 1_usize, 0_usize, 0_usize, 0_usize) };
         if no_new_privs != 0 {
             let error = io::Error::last_os_error();
             unsafe { close(fd) };
@@ -119,10 +120,8 @@ mod live {
     impl Scratch {
         pub fn new() -> Self {
             let id = SEQUENCE.fetch_add(1, Ordering::Relaxed);
-            let dir = env::temp_dir().join(format!(
-                "nordoi-r4f-landlock-{}-{id}",
-                std::process::id()
-            ));
+            let dir =
+                env::temp_dir().join(format!("nordoi-r4f-landlock-{}-{id}", std::process::id()));
             fs::create_dir(&dir).expect("fresh disposable directory");
             Self { dir }
         }
@@ -138,7 +137,8 @@ mod live {
                 .create_new(true)
                 .open(self.protected_file())
                 .expect("parent creates unique test file");
-            f.write_all(b"PARENT_ONLY\n").expect("parent writes sentinel");
+            f.write_all(b"PARENT_ONLY\n")
+                .expect("parent writes sentinel");
         }
         pub fn check_unchanged(&self) {
             assert_eq!(
@@ -154,7 +154,10 @@ mod live {
         }
     }
 
-    fn child_attempts(parent_file: &std::path::Path, make_file: &std::path::Path) -> (bool, bool, bool) {
+    fn child_attempts(
+        parent_file: &std::path::Path,
+        make_file: &std::path::Path,
+    ) -> (bool, bool, bool) {
         let read_denied = matches!(
             fs::read(parent_file),
             Err(ref e) if e.kind() == std::io::ErrorKind::PermissionDenied
@@ -178,9 +181,7 @@ mod live {
         match linux::restrict_fs() {
             Ok(abi) => {
                 let (read, write, make) = child_attempts(&file, &create);
-                eprintln!(
-                    "{PREFIX}ABI={abi}|READ={read}|WRITE={write}|CREATE={make}"
-                );
+                eprintln!("{PREFIX}ABI={abi}|READ={read}|WRITE={write}|CREATE={make}");
                 if !(read && write && make) {
                     std::process::exit(87);
                 }
@@ -249,12 +250,28 @@ mod live {
 
     pub fn assert_enforced(witness: &Witness) {
         assert!(!witness.timed_out, "child cannot hang");
-        assert!(witness.exit_ok, "kernel Landlock must be available and enforced; got {}", witness.output);
-        let entries: Vec<_> = witness.output.lines().filter(|l| l.starts_with(PREFIX)).collect();
-        assert_eq!(entries.len(), 1, "one kernel-enforced frame expected: {}", witness.output);
+        assert!(
+            witness.exit_ok,
+            "kernel Landlock must be available and enforced; got {}",
+            witness.output
+        );
+        let entries: Vec<_> = witness
+            .output
+            .lines()
+            .filter(|l| l.starts_with(PREFIX))
+            .collect();
+        assert_eq!(
+            entries.len(),
+            1,
+            "one kernel-enforced frame expected: {}",
+            witness.output
+        );
         let frame = entries[0];
         assert!(frame.contains("ABI="), "kernel ABI must be reported");
-        assert!(frame.ends_with("|READ=true|WRITE=true|CREATE=true"), "real filesystem denial required: {frame}");
+        assert!(
+            frame.ends_with("|READ=true|WRITE=true|CREATE=true"),
+            "real filesystem denial required: {frame}"
+        );
     }
 }
 
@@ -288,8 +305,14 @@ fn linux_parent_remains_unconfined_while_child_is_fs_restricted() {
     let witness = live::run(&scratch);
     live::assert_enforced(&witness);
     // Parent process is not Landlocked by child-specific policy.
-    assert_eq!(std::fs::read(scratch.protected_file()).unwrap(), b"PARENT_ONLY\n");
-    let mut file = OpenOptions::new().append(true).open(scratch.protected_file()).unwrap();
+    assert_eq!(
+        std::fs::read(scratch.protected_file()).unwrap(),
+        b"PARENT_ONLY\n"
+    );
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open(scratch.protected_file())
+        .unwrap();
     file.write_all(b"AFTER_CHILD\n").unwrap();
     assert_eq!(
         std::fs::read(scratch.protected_file()).unwrap(),
