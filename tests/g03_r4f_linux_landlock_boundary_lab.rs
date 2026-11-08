@@ -377,9 +377,8 @@ fn linux_unresponsive_child_does_not_count_as_sandboxed() {
 #[test]
 fn macos_windows_have_no_linux_landlock_backend() {
     assert_ne!(std::env::consts::OS, "linux");
-    // No OS-backed enforcement claim on platforms without Landlock.
-    const OS_SANDBOX_SUPPORTED: bool = false;
-    assert!(!OS_SANDBOX_SUPPORTED);
+    // Compile-time absence of the Linux backend is not proof that a
+    // different OS sandbox exists; there is no backend on this target.
 }
 
 #[cfg(not(target_os = "linux"))]
