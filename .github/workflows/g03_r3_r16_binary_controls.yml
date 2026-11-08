@@ -26,5 +26,8 @@ jobs:
           python-version: '3.11'
       - name: Python syntax and synthetic negative tests
         run: python -B research/g03_r3_r16_binary_controls.py selftest
+      - name: Restore exact Git LF bytes for pinned Rust file on Windows
+        if: runner.os == 'Windows'
+        run: python -c "from pathlib import Path; p=Path('research/g03_r3_r16_security_probe.rs'); b=p.read_bytes(); p.write_bytes(b.replace(bytes([13,10]),bytes([10])))"
       - name: Offline release library and real Rust security smoke
         run: python -B research/g03_r3_r16_binary_controls.py smoke --source . --security-rust research/g03_r3_r16_security_probe.rs
