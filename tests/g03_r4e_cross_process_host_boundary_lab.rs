@@ -16,7 +16,7 @@ use reference::{
 };
 use std::env;
 use std::fs::{self, File, OpenOptions};
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::process::{Child, Command as OsCommand, ExitStatus, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -172,6 +172,7 @@ fn run_child(scenario: Scenario, model: &mut Model, task: TaskId) -> ProcessWitn
     ])
     .env("NORDOI_R4E_CHILD_MODE", "FIXED_V1")
     .env("NORDOI_R4E_CORRELATION", CORRELATION)
+    .env_remove("NORDOI_R4E_EARLY")
     .stdin(Stdio::piped())
     .stdout(Stdio::null())
     .stderr(Stdio::piped());
@@ -182,7 +183,7 @@ fn run_child(scenario: Scenario, model: &mut Model, task: TaskId) -> ProcessWitn
     let stderr = child.stderr.take().expect("owned child stderr pipe");
     let (sender, receiver) = mpsc::channel::<String>();
     let reader = thread::spawn(move || {
-        let mut reader = BufReader::new(stderr);
+        let mut reader = BufReader::new(stderr.take((MAX_TRANSCRIPT_BYTES + 1) as u64));
         let mut count = 0_usize;
         loop {
             let mut line = String::new();
