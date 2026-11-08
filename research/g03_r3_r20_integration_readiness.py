@@ -105,8 +105,14 @@ def local_safety_source(source):
     if p.is_symlink() or not p.is_file() or p.stat().st_size>12000 or p.stat().st_size<1:
         raise Blocked("security probe file missing/unsafe")
     payload=p.read_bytes()
+    # Windows checkout can translate LF to CRLF. Accept only the exact
+    # Git-pinned bytes after a line-ending-only restoration; no other change.
     if git_blob(payload)!=SAFETY_GIT_BLOB:
-        raise Blocked("security probe bytes changed")
+        if b"\r\n" not in payload or b"\r" in payload.replace(b"\r\n",b""):
+            raise Blocked("security probe content changed beyond CRLF")
+        payload=payload.replace(b"\r\n",b"\n")
+        if git_blob(payload)!=SAFETY_GIT_BLOB:
+            raise Blocked("security probe Git-pinned LF bytes mismatch")
     return payload
 
 def test_summary(stdout):
