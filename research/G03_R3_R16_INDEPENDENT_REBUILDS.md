@@ -34,3 +34,11 @@ python3 -B "$R16" measure --r13-tool "$R13" --security-rust "$SAFETY" --out "$PR
 The CI only runs synthetic selftest and a Rust real security contract smoke on GitHub-hosted macOS/Ubuntu/Windows. CI is **not a real owner-Mac benchmark**.
 
 FINAL: HUMAN_EVALUATION_GATE=CLOSED_NOT_REQUIRED; MERGE_AUTHORIZATION=NONE; PRODUCTION=NOT_AUTHORIZED.
+
+## R3-R16 FIX1 — protocol correction (2026-11-08)
+
+The original R3-R16 Mac report successfully checked four independent build identities and four security contracts. Its AA and BB independent-build controls are structurally valid, **but the group placement order is confounded**. The initial scheduler rotated by `(block + offset) % 3` while choosing `case = CASES[(block + offset) % 3]`, so each individual case always had one fixed group position sequence across all 12 blocks. Specifically, the observed order was: `noop_set: AA,BB,AB`; `changed_set_flush: BB,AB,AA`; `denied_capability: AB,AA,BB`, repeated in every block. Arm ordering within each pair *was* 6/6 balanced, but **group placement was not balanced**. Consequently, the recorded -1.4288% denied-capability AB slowdown cannot be causally attributed to source code or layout until the group order issue is corrected. The R3-R16 original receipt is retained unchanged as exploratory evidence.
+
+FIX1 changes only the measurement driver; the baseline/candidate source and Rust safety probe stay identical. For each case it now rotates group placement using `group_permutation(block, per_case_phase)` and checks that each of AA, BB and AB appears exactly `blocks/3` times at each of first, middle, last position. Valid block counts are 12, 18 or 24. The new synthetic negative test rejects any fixed-position confound. Result schema `NORDOI-G03-R3-R16-FIX1-INDEPENDENT-CONTROLS-v1` distinguishes this from the earlier report. A fresh Mac FIX1 report is needed, not a retroactive relabeling of earlier data. One extreme prior denied-capability A/B block (49,977,445 ns over 30,000 ops) must remain in archived raw data; a robust median masks its influence, but it indicates host timing jitter.
+
+No automatic merge. A verified owner Mac FIX1 report still requires engineering assessment of the absolute 0.1–0.2 ns/op change and any actual assembly/code-layout difference; test security correctness independently. No human-evaluation gate and no production approval.
