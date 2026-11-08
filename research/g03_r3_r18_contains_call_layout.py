@@ -228,7 +228,7 @@ def selftest():
       {"address":"0x100002003","asm":"callq\t_foo"},
       {"address":"0x100002008","asm":"retq"}]
     def make(start,items):
-        return {"start_hex":start,"size_upper_bound_bytes":16,
+        return {"name":"_synthetic_function","start_hex":start,"size_upper_bound_bytes":16,
           "disassembly":items,"instruction_lines":len(items),
           "asm_sha256":"synthetic-only"}
     x=summarize_function(make("0x100001000",base))
