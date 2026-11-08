@@ -1,0 +1,29 @@
+name: NORDOI G0.3 R3-R14 replication structural gates
+
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r3_r14_replication.py'
+      - 'research/G03_R3_R14_REPLICATION.md'
+      - '.github/workflows/g03_r3_r14_replication.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Python syntax
+        run: python -B -m py_compile research/g03_r3_r14_replication.py
+      - name: Synthetic structural + negative tests (zero real Mac benchmarks)
+        run: python -B research/g03_r3_r14_replication.py selftest
