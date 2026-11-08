@@ -1,0 +1,40 @@
+name: NORDOI G0.3 R4H ad-hoc signed App Sandbox helper
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4h_signed_app_sandbox_helper_lab.rs'
+      - 'research/G03_R4H_SIGNED_APP_SANDBOX_HELPER_LAB.md'
+      - '.github/workflows/g03_r4h_signed_app_sandbox_helper.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos-signed-entitlement-actual-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Actual ad-hoc code signing, entitlement verification and direct file denial
+        run: cargo test --offline --release --test g03_r4h_signed_app_sandbox_helper_lab -- --nocapture
+      - name: Strict Rust 1.98.1 Clippy
+        run: cargo clippy --offline --all-targets -- -D warnings
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+  other-os-unsupported-not-sandboxed:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: macOS App Sandbox helper unsupported on this OS, ExternalIo still denied
+        run: cargo test --offline --release --test g03_r4h_signed_app_sandbox_helper_lab
