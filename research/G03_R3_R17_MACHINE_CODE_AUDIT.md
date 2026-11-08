@@ -34,3 +34,13 @@ This is a *function-level textual assembly inspection*, not an exact instruction
 HUMAN_EVALUATION_GATE=CLOSED_NOT_REQUIRED
 MERGE_AUTHORIZATION=NONE
 PRODUCTION=NOT_AUTHORIZED
+
+## R3-R17 FIX1 — temporary build-path collision remediation (2026-11-08)
+
+The first owner Mac run passed pinned source integrity and Python synthetic selftest, but returned `G03_R3_R17_GATE=BLOCKED` with `FileExistsError` for `.../NORDOI_R317_ISOLATED_*/candidate`. The verified candidate Git checkout already occupies `root/candidate`; the initial audit loop incorrectly called `work.mkdir()` with `work=root/label` for the label `candidate`. **This is a path collision in the audit harness, not a security or performance failure.** The initial run did not complete both-variant assembly inspection and did not create an accepted R3-R17 receipt.
+
+FIX1 leaves the baseline and candidate source branches, kernel code, and external Rust witness unchanged. It allocates distinct build directories under `root/builds/baseline` and `root/builds/candidate`. A synthetic negative regression test creates the source folders first, verifies the candidate build folder is disjoint and both outputs can be created without overwriting source, and rejects invalid labels. The report schema is bumped to `NORDOI-G03-R3-R17-FIX1-FUNCTION-CODE-AUDIT-v1` to distinguish it from the blocked initial attempt.
+
+CI must pass on macOS, Windows and Ubuntu before real Mac retry. The real Mac command must download the **new FIX1 exact commit** and verify its new runner Git blob; never re-run the old pinned R17 command. The old log remains unchanged as evidence, while a fresh private R17 FIX1 report will be created only if both witnesses pass.
+
+MERGE_AUTHORIZATION=NONE. PRODUCTION=NOT_AUTHORIZED.
