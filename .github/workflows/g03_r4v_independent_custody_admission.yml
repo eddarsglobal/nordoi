@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4V independent custody admission proof lab
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4v_independent_custody_admission_gate_lab.rs'
+      - 'research/G03_R4V_INDEPENDENT_CUSTODY_ADMISSION_PROOF_LAB.md'
+      - '.github/workflows/g03_r4v_independent_custody_admission.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-independent-custody-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Real signed GitHub evidence, unsupported independent custody is denied
+        run: cargo test --offline --release --test g03_r4v_independent_custody_admission_gate_lab -- --nocapture
+      - name: R4U real observer and fork predecessor regression
+        if: always()
+        run: cargo test --offline --release --test g03_r4u_remote_observer_signed_lineage_lab
+      - name: Strict Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-no-independent-administrator:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: Portable default-deny, no macOS or external-administration claim
+        run: cargo test --offline --release --test g03_r4v_independent_custody_admission_gate_lab
