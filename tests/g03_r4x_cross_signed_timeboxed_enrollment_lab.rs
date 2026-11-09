@@ -24,17 +24,14 @@ mod native {
     const MAX_VALIDITY: u64 = 300;
     const FLOOR_EPOCH: u64 = 4;
     const REMOTE: &str = "https://github.com/eddarsglobal/nordoi.git";
-    const OBSERVER_REF: &str =
-        "refs/heads/evidence/g03-r4u-signed-observer-ledger-20261109";
+    const OBSERVER_REF: &str = "refs/heads/evidence/g03-r4u-signed-observer-ledger-20261109";
     const OBSERVER_HEAD: &str = "15adf075050a233705b3bad6eae62b6f9e6f946d";
 
     struct Scratch(PathBuf);
     impl Scratch {
         fn new() -> Self {
             let id = COUNTER.fetch_add(1, Ordering::Relaxed);
-            let dir = std::env::temp_dir().join(format!(
-                "nordoi-r4x-{}-{id}", std::process::id()
-            ));
+            let dir = std::env::temp_dir().join(format!("nordoi-r4x-{}-{id}", std::process::id()));
             fs::create_dir(&dir).expect("create fresh disposable research directory");
             Self(fs::canonicalize(&dir).expect("canonical disposable directory"))
         }
@@ -233,8 +230,13 @@ mod native {
         if digest(p.guardian_pub.as_bytes()) != expected_guardian_pin {
             return Err("GUARDIAN_ROOT_PIN_MISMATCH");
         }
-        if p.nonce != expected_nonce || p.nonce.len() != 64
-            || !p.nonce.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()) {
+        if p.nonce != expected_nonce
+            || p.nonce.len() != 64
+            || !p
+                .nonce
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        {
             return Err("FRESH_CHALLENGE_MISMATCH");
         }
         if p.epoch != expected_epoch || p.epoch < FLOOR_EPOCH {
@@ -246,14 +248,16 @@ mod native {
         if p.expiry <= p.issue || p.expiry - p.issue > MAX_VALIDITY {
             return Err("ENROLLMENT_TTL_OUT_OF_BOUNDS");
         }
-        if p.bytes != request(
-            &p.owner_pub,
-            &p.guardian_pub,
-            &p.nonce,
-            p.issue,
-            p.expiry,
-            p.epoch,
-        ) {
+        if p.bytes
+            != request(
+                &p.owner_pub,
+                &p.guardian_pub,
+                &p.nonce,
+                p.issue,
+                p.expiry,
+                p.epoch,
+            )
+        {
             return Err("NONCANONICAL_ENROLLMENT_PAYLOAD");
         }
         if !sshsig(
@@ -336,7 +340,15 @@ mod native {
         let (lab, p) = good_packet();
         let (_, guardian) = approved(&p);
         assert_eq!(
-            check_crypto(&lab, &p, &"0".repeat(64), &guardian, &p.nonce, now(), FLOOR_EPOCH),
+            check_crypto(
+                &lab,
+                &p,
+                &"0".repeat(64),
+                &guardian,
+                &p.nonce,
+                now(),
+                FLOOR_EPOCH
+            ),
             Err("OWNER_ROOT_PIN_MISMATCH")
         );
     }
@@ -345,7 +357,15 @@ mod native {
         let (lab, p) = good_packet();
         let (owner, _) = approved(&p);
         assert_eq!(
-            check_crypto(&lab, &p, &owner, &"0".repeat(64), &p.nonce, now(), FLOOR_EPOCH),
+            check_crypto(
+                &lab,
+                &p,
+                &owner,
+                &"0".repeat(64),
+                &p.nonce,
+                now(),
+                FLOOR_EPOCH
+            ),
             Err("GUARDIAN_ROOT_PIN_MISMATCH")
         );
     }
@@ -377,7 +397,15 @@ mod native {
     fn native_mixed_signature_from_previous_valid_packet_is_not_current() {
         let (lab, owner, guardian) = fixture();
         let t = now();
-        let old = packet(&lab, &owner, &guardian, &random_challenge(), t, t + 120, FLOOR_EPOCH);
+        let old = packet(
+            &lab,
+            &owner,
+            &guardian,
+            &random_challenge(),
+            t,
+            t + 120,
+            FLOOR_EPOCH,
+        );
         let mut fresh = packet(
             &lab,
             &owner,
@@ -452,7 +480,15 @@ mod native {
         let lab = Scratch::new();
         let owner = new_key(&lab.0, "owner");
         let t = now();
-        let p = packet(&lab, &owner, &owner, &random_challenge(), t, t + 120, FLOOR_EPOCH);
+        let p = packet(
+            &lab,
+            &owner,
+            &owner,
+            &random_challenge(),
+            t,
+            t + 120,
+            FLOOR_EPOCH,
+        );
         let (op, gp) = approved(&p);
         assert_eq!(
             check_crypto(&lab, &p, &op, &gp, &p.nonce, t, FLOOR_EPOCH),
