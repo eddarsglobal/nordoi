@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4N offline Ed25519 signed authority research
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4n_offline_root_signed_authority_lab.rs'
+      - 'research/G03_R4N_SIGNED_AUTHORITY_MANIFEST_ROTATION_LAB.md'
+      - '.github/workflows/g03_r4n_signed_authority.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-independent-signature-root:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Native SSHSIG Ed25519 root, delegated release and rollback proof
+        run: cargo test --offline --release --test g03_r4n_offline_root_signed_authority_lab -- --nocapture
+      - name: Exact-code predecessor R4M remains unchanged
+        if: always()
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab
+      - name: Strict Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: No native Mac code-signing claims on non-macOS
+        run: cargo test --offline --release --test g03_r4n_offline_root_signed_authority_lab
