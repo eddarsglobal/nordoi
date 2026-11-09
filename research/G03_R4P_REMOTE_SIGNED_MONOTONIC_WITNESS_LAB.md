@@ -14,9 +14,9 @@ The Rust verifier embeds a fixed public verification key independent of the obse
 
 ## Central negative experiment (R4O vulnerability closure *within the lab*)
 
-R4O demonstrated an adversary can restore **BOTH local writable state copies**, so that epoch 1 / sequence 1 becomes locally admissible again. R4P first proves epoch 2 / sequence 2 matches the live signed GitHub checkpoint. Then the same test restores **BOTH** local copies to epoch 1 / sequence 1. The GitHub-hosted witness still reports the separately signed epoch 2 / sequence 2. A version must match (a) both present and equal local states, (b) live authenticated remote state, and (c) the version requested. Both old and new requests are denied while restored local state diverges from the remotely authenticated state; re-enrollment/reconciliation is not silently performed. A genuinely signed V1 record is *intentionally not trusted* as the latest remote checkpoint.
+R4O demonstrated an adversary can restore **BOTH local writable state copies**, so that epoch 1 / sequence 1 becomes locally admissible again. R4P first proves epoch 2 / sequence 2 matches the live signed GitHub checkpoint. Then the same test restores **BOTH** local copies to epoch 1 / sequence 1 and performs an **entirely new GitHub HTTPS ref lookup and detached temporary fetch after the restoration**, rather than relying on an in-process cached checkpoint. The GitHub-hosted witness still reports the separately signed epoch 2 / sequence 2. A version must match (a) both present and equal local states, (b) live authenticated remote state, and (c) the version requested. Both old and new requests are denied while restored local state diverges from the remotely authenticated state; re-enrollment/reconciliation is not silently performed. A genuinely signed V1 record is *intentionally not trusted* as the latest remote checkpoint.
 
-Other negative controls: single local state rollback, local state ahead of the signed external witness, no available remote, missing local state, root substitution, tampering and wrong namespace.
+Other negative controls: single local state rollback, local state ahead of the signed external witness, a simulated missing-external-witness admission path, missing local state, root substitution, tampering and wrong namespace.
 
 ## Precisely bounded independence
 
