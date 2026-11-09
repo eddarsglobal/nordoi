@@ -579,7 +579,16 @@ mod native {
         let path = lab.signer.join(name);
         let mut command = Command::new("/usr/bin/ssh-keygen");
         command
-            .args(["-q", "-t", "ed25519", "-N", "", "-C", "r4t-owner-fixture", "-f"])
+            .args([
+                "-q",
+                "-t",
+                "ed25519",
+                "-N",
+                "",
+                "-C",
+                "r4t-owner-fixture",
+                "-f",
+            ])
             .arg(&path);
         assert!(
             invoke(command, None).unwrap().status.success(),
@@ -588,8 +597,13 @@ mod native {
         path
     }
 
-    fn enrollment(lab: &Lab, owner_key: &Path, guardian_key: &str,
-                  name: &str, namespace: &str) -> Signed {
+    fn enrollment(
+        lab: &Lab,
+        owner_key: &Path,
+        guardian_key: &str,
+        name: &str,
+        namespace: &str,
+    ) -> Signed {
         let message = lab.signer.join(format!("{name}.enrollment"));
         fs::write(
             &message,
@@ -599,25 +613,38 @@ mod native {
         )
         .unwrap();
         let signature = sign(&message, owner_key, namespace);
-        Signed { message, signature, successor_signature: None }
+        Signed {
+            message,
+            signature,
+            successor_signature: None,
+        }
     }
 
-    fn check_owner_enrollment(lab: &Lab, owner_public: &str,
-                              owner_approved_pin: Option<&str>,
-                              requested_guardian: &str, signed: &Signed)
-        -> Result<(), &'static str> {
+    fn check_owner_enrollment(
+        lab: &Lab,
+        owner_public: &str,
+        owner_approved_pin: Option<&str>,
+        requested_guardian: &str,
+        signed: &Signed,
+    ) -> Result<(), &'static str> {
         let pinned = owner_approved_pin.ok_or("OWNER_TRUST_NOT_ENROLLED")?;
         // The expected owner's digest MUST pre-exist the candidate.
         // The test generates both, so real out-of-band enrollment is absent.
         if !hex64(pinned) || digest(owner_public.as_bytes()) != pinned {
             return Err("OWNER_ROOT_NOT_PREAPPROVED");
         }
-        if !verify(&signed.message, &signed.signature, owner_public,
-                   OWNER_ID, OWNER_NS, &lab.verifier) {
+        if !verify(
+            &signed.message,
+            &signed.signature,
+            owner_public,
+            OWNER_ID,
+            OWNER_NS,
+            &lab.verifier,
+        ) {
             return Err("OWNER_ENROLLMENT_SIGNATURE_UNTRUSTED");
         }
-        let actual = fs::read_to_string(&signed.message)
-            .map_err(|_| "OWNER_ENROLLMENT_UNREADABLE")?;
+        let actual =
+            fs::read_to_string(&signed.message).map_err(|_| "OWNER_ENROLLMENT_UNREADABLE")?;
         let required = format!(
             "NORDOI-R4T-ENROLLMENT-V1\nproject=eddarsglobal/nordoi\nguardian={requested_guardian}\n"
         );
@@ -629,8 +656,14 @@ mod native {
 
     // Canonical signed external high-water receipt, independently signed
     // under the fixture-owner signer. It is NOT a real external log head.
-    fn signed_highwater(lab: &Lab, owner_key: &Path, custody: &Custody,
-                        revoked_pub: &str, name: &str, namespace: &str) -> Signed {
+    fn signed_highwater(
+        lab: &Lab,
+        owner_key: &Path,
+        custody: &Custody,
+        revoked_pub: &str,
+        name: &str,
+        namespace: &str,
+    ) -> Signed {
         let message = lab.signer.join(format!("{name}.receipt"));
         fs::write(
             &message,
@@ -642,7 +675,11 @@ mod native {
         )
         .unwrap();
         let signature = sign(&message, owner_key, namespace);
-        Signed { message, signature, successor_signature: None }
+        Signed {
+            message,
+            signature,
+            successor_signature: None,
+        }
     }
 
     fn admit_with_custodian_receipt(
@@ -653,46 +690,65 @@ mod native {
         verified_owner_root: &str,
         independently_pinned_root_digest: Option<&str>,
     ) -> Result<(), &'static str> {
-        let approved = independently_pinned_root_digest
-            .ok_or("INDEPENDENT_OWNER_PIN_REQUIRED")?;
+        let approved = independently_pinned_root_digest.ok_or("INDEPENDENT_OWNER_PIN_REQUIRED")?;
         if !hex64(approved) || digest(verified_owner_root.as_bytes()) != approved {
             return Err("INDEPENDENT_OWNER_PIN_MISMATCH");
         }
         let receipt = signed_receipt.ok_or("GUARDIAN_RECEIPT_UNAVAILABLE")?;
-        if !verify(&receipt.message, &receipt.signature, verified_owner_root,
-                   CUSTODIAN_ID, WITNESS_NS, &lab.verifier) {
+        if !verify(
+            &receipt.message,
+            &receipt.signature,
+            verified_owner_root,
+            CUSTODIAN_ID,
+            WITNESS_NS,
+            &lab.verifier,
+        ) {
             return Err("GUARDIAN_RECEIPT_SIGNATURE_INVALID");
         }
-        let actual = fs::read_to_string(&receipt.message)
-            .map_err(|_| "GUARDIAN_RECEIPT_UNREADABLE")?;
+        let actual =
+            fs::read_to_string(&receipt.message).map_err(|_| "GUARDIAN_RECEIPT_UNREADABLE")?;
         let fields: Vec<_> = actual.lines().collect();
         if fields.len() != 6 || fields[0] != "NORDOI-R4T-HIGHWATER-V1" {
             return Err("GUARDIAN_RECEIPT_NONCANONICAL");
         }
-        let epoch = fields[1].strip_prefix("epoch=")
+        let epoch = fields[1]
+            .strip_prefix("epoch=")
             .ok_or("GUARDIAN_RECEIPT_NONCANONICAL")?
-            .parse::<u64>().map_err(|_| "GUARDIAN_RECEIPT_NONCANONICAL")?;
-        let seq = fields[2].strip_prefix("sequence=")
+            .parse::<u64>()
+            .map_err(|_| "GUARDIAN_RECEIPT_NONCANONICAL")?;
+        let seq = fields[2]
+            .strip_prefix("sequence=")
             .ok_or("GUARDIAN_RECEIPT_NONCANONICAL")?
-            .parse::<u64>().map_err(|_| "GUARDIAN_RECEIPT_NONCANONICAL")?;
-        let head = fields[3].strip_prefix("head_sha256=")
+            .parse::<u64>()
+            .map_err(|_| "GUARDIAN_RECEIPT_NONCANONICAL")?;
+        let head = fields[3]
+            .strip_prefix("head_sha256=")
             .ok_or("GUARDIAN_RECEIPT_NONCANONICAL")?;
-        let publisher = fields[4].strip_prefix("publisher=")
+        let publisher = fields[4]
+            .strip_prefix("publisher=")
             .ok_or("GUARDIAN_RECEIPT_NONCANONICAL")?;
-        let revoked = fields[5].strip_prefix("revoked=")
+        let revoked = fields[5]
+            .strip_prefix("revoked=")
             .ok_or("GUARDIAN_RECEIPT_NONCANONICAL")?;
         let canonical = format!(
             "NORDOI-R4T-HIGHWATER-V1\nepoch={epoch}\nsequence={seq}\nhead_sha256={head}\npublisher={publisher}\nrevoked={revoked}\n"
         );
-        if actual != canonical || epoch == 0 || seq == 0 || !hex64(head)
-            || !valid_key(publisher) || (revoked != "none" && !valid_key(revoked)) {
+        if actual != canonical
+            || epoch == 0
+            || seq == 0
+            || !hex64(head)
+            || !valid_key(publisher)
+            || (revoked != "none" && !valid_key(revoked))
+        {
             return Err("GUARDIAN_RECEIPT_NONCANONICAL");
         }
         if requested.epoch != epoch || requested.seq != seq || requested.digest != head {
             return Err("SIGNED_WITNESS_NOT_CURRENT");
         }
-        if requested.publisher != publisher || requested_publisher != publisher
-            || requested_publisher == revoked {
+        if requested.publisher != publisher
+            || requested_publisher != publisher
+            || requested_publisher == revoked
+        {
             return Err("PUBLISHER_REVOKED_OR_NOT_APPROVED");
         }
         Ok(())
@@ -711,13 +767,17 @@ mod native {
             Err("OWNER_TRUST_NOT_ENROLLED")
         );
         assert_eq!(
-            check_owner_enrollment(&lab, &owner_pub, Some(&"0".repeat(64)),
-                                   &guardian, &credential),
+            check_owner_enrollment(
+                &lab,
+                &owner_pub,
+                Some(&"0".repeat(64)),
+                &guardian,
+                &credential
+            ),
             Err("OWNER_ROOT_NOT_PREAPPROVED")
         );
         assert_eq!(
-            check_owner_enrollment(&lab, &owner_pub, Some(&pin),
-                                   &guardian, &credential),
+            check_owner_enrollment(&lab, &owner_pub, Some(&pin), &guardian, &credential),
             Ok(())
         );
     }
@@ -754,23 +814,45 @@ mod native {
         let owner = generate_owner_fixture(&lab, "owner-r4t-3");
         let owner_pub = key(&owner);
         let pin = digest(owner_pub.as_bytes());
-        let s3 = lab.issue("r4t-g3", &lab.next(&lab.initial, false, false),
-                           1, false, CHECKPOINT_NS);
+        let s3 = lab.issue(
+            "r4t-g3",
+            &lab.next(&lab.initial, false, false),
+            1,
+            false,
+            CHECKPOINT_NS,
+        );
         let t3 = lab.admit(&lab.initial, &s3).unwrap();
-        let s4 = lab.issue("r4t-g4", &lab.next(&t3, false, true),
-                           1, false, CHECKPOINT_NS);
+        let s4 = lab.issue(
+            "r4t-g4",
+            &lab.next(&t3, false, true),
+            1,
+            false,
+            CHECKPOINT_NS,
+        );
         let t4 = lab.admit(&t3, &s4).unwrap();
         let current = signed_highwater(&lab, &owner, &t4, "none", "current", WITNESS_NS);
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &t4, &t4.publisher,
-                                         Some(&current), &owner_pub, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &t4,
+                &t4.publisher,
+                Some(&current),
+                &owner_pub,
+                Some(&pin)
+            ),
             Ok(())
         );
         // Attacker restores the entire writable NORDOI chain state to t3.
         // The *intact* signed t4 custodian receipt rejects the stale head.
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &t3, &t3.publisher,
-                                         Some(&current), &owner_pub, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &t3,
+                &t3.publisher,
+                Some(&current),
+                &owner_pub,
+                Some(&pin)
+            ),
             Err("SIGNED_WITNESS_NOT_CURRENT")
         );
     }
@@ -781,22 +863,43 @@ mod native {
         let owner = generate_owner_fixture(&lab, "owner-r4t-4");
         let owner_pub = key(&owner);
         let pin = digest(owner_pub.as_bytes());
-        let s3 = lab.issue("r4t-r3", &lab.next(&lab.initial, false, false),
-                           1, false, CHECKPOINT_NS);
+        let s3 = lab.issue(
+            "r4t-r3",
+            &lab.next(&lab.initial, false, false),
+            1,
+            false,
+            CHECKPOINT_NS,
+        );
         let t3 = lab.admit(&lab.initial, &s3).unwrap();
-        let s4 = lab.issue("r4t-r4", &lab.next(&t3, false, true),
-                           1, false, CHECKPOINT_NS);
+        let s4 = lab.issue(
+            "r4t-r4",
+            &lab.next(&t3, false, true),
+            1,
+            false,
+            CHECKPOINT_NS,
+        );
         let t4 = lab.admit(&t3, &s4).unwrap();
-        let receipt = signed_highwater(&lab, &owner, &t4, &t3.publisher,
-                                       "revoked", WITNESS_NS);
+        let receipt = signed_highwater(&lab, &owner, &t4, &t3.publisher, "revoked", WITNESS_NS);
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &t4, &t4.publisher,
-                                         Some(&receipt), &owner_pub, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &t4,
+                &t4.publisher,
+                Some(&receipt),
+                &owner_pub,
+                Some(&pin)
+            ),
             Ok(())
         );
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &t4, &t3.publisher,
-                                         Some(&receipt), &owner_pub, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &t4,
+                &t3.publisher,
+                Some(&receipt),
+                &owner_pub,
+                Some(&pin)
+            ),
             Err("PUBLISHER_REVOKED_OR_NOT_APPROVED")
         );
     }
@@ -808,22 +911,46 @@ mod native {
         let owner_pub = key(&owner);
         let pin = digest(owner_pub.as_bytes());
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &lab.initial, &lab.initial.publisher,
-                                         None, &owner_pub, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &lab.initial,
+                &lab.initial.publisher,
+                None,
+                &owner_pub,
+                Some(&pin)
+            ),
             Err("GUARDIAN_RECEIPT_UNAVAILABLE")
         );
-        let receipt = signed_highwater(&lab, &owner, &lab.initial, "none",
-                                       "missing-root", WITNESS_NS);
+        let receipt = signed_highwater(
+            &lab,
+            &owner,
+            &lab.initial,
+            "none",
+            "missing-root",
+            WITNESS_NS,
+        );
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &lab.initial, &lab.initial.publisher,
-                                         Some(&receipt), &owner_pub, None),
+            admit_with_custodian_receipt(
+                &lab,
+                &lab.initial,
+                &lab.initial.publisher,
+                Some(&receipt),
+                &owner_pub,
+                None
+            ),
             Err("INDEPENDENT_OWNER_PIN_REQUIRED")
         );
-        let bad_domain = signed_highwater(&lab, &owner, &lab.initial, "none",
-                                          "bad-domain", OWNER_NS);
+        let bad_domain =
+            signed_highwater(&lab, &owner, &lab.initial, "none", "bad-domain", OWNER_NS);
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &lab.initial, &lab.initial.publisher,
-                                         Some(&bad_domain), &owner_pub, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &lab.initial,
+                &lab.initial.publisher,
+                Some(&bad_domain),
+                &owner_pub,
+                Some(&pin)
+            ),
             Err("GUARDIAN_RECEIPT_SIGNATURE_INVALID")
         );
     }
@@ -834,29 +961,42 @@ mod native {
         let owner = generate_owner_fixture(&lab, "owner-r4t-6");
         let root = key(&owner);
         let pin = digest(root.as_bytes());
-        let s3 = lab.issue("r4t-old3", &lab.next(&lab.initial, false, false),
-                           1, false, CHECKPOINT_NS);
+        let s3 = lab.issue(
+            "r4t-old3",
+            &lab.next(&lab.initial, false, false),
+            1,
+            false,
+            CHECKPOINT_NS,
+        );
         let t3 = lab.admit(&lab.initial, &s3).unwrap();
         let old = signed_highwater(&lab, &owner, &t3, "none", "old-head", WITNESS_NS);
-        let s4 = lab.issue("r4t-new4", &lab.next(&t3, false, false),
-                           1, false, CHECKPOINT_NS);
+        let s4 = lab.issue(
+            "r4t-new4",
+            &lab.next(&t3, false, false),
+            1,
+            false,
+            CHECKPOINT_NS,
+        );
         let t4 = lab.admit(&t3, &s4).unwrap();
-        let new_head = signed_highwater(&lab, &owner, &t4, "none",
-                                        "new-head", WITNESS_NS);
+        let new_head = signed_highwater(&lab, &owner, &t4, "none", "new-head", WITNESS_NS);
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &t4, &t4.publisher,
-                                         Some(&new_head), &root, Some(&pin)),
+            admit_with_custodian_receipt(
+                &lab,
+                &t4,
+                &t4.publisher,
+                Some(&new_head),
+                &root,
+                Some(&pin)
+            ),
             Ok(())
         );
         // Counterexample: client and custodian BOTH restored to old signed
         // state; static Ed25519 authenticity alone cannot prove freshness.
         assert_eq!(
-            admit_with_custodian_receipt(&lab, &t3, &t3.publisher,
-                                         Some(&old), &root, Some(&pin)),
+            admit_with_custodian_receipt(&lab, &t3, &t3.publisher, Some(&old), &root, Some(&pin)),
             Ok(())
         );
     }
-
 }
 
 #[cfg(not(target_os = "macos"))]
