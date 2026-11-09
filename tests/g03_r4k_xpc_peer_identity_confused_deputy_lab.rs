@@ -96,6 +96,40 @@ int main(void) {
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <Security/Security.h>
+#include <CoreFoundation/CoreFoundation.h>
+// Identifies the actual sender of the received XPC message, rather than trusting
+// a PID or a dictionary-supplied identity. The caller must fail closed if either
+// audit-token lookup or requirement parsing cannot be performed.
+static int signed_reply_verdict(xpc_object_t msg, const char *identifier,
+                                OSStatus *verdict, OSStatus *stage) {
+    SecCodeRef code=NULL;
+    SecRequirementRef requirement=NULL;
+    CFStringRef expression=NULL;
+    char constraint[256];
+    *verdict=-1;
+    *stage=-1;
+    if(!msg || xpc_get_type(msg)!=XPC_TYPE_DICTIONARY) return 0;
+    int n=snprintf(constraint,sizeof(constraint),"identifier \"%s\"",identifier);
+    if(n<=0 || n>=(int)sizeof(constraint)) return 0;
+    OSStatus e=SecCodeCreateWithXPCMessage(msg,kSecCSDefaultFlags,&code);
+    if(e!=errSecSuccess || !code) { *stage=e; return 0; }
+    expression=CFStringCreateWithCString(kCFAllocatorDefault,constraint,kCFStringEncodingUTF8);
+    if(!expression) { CFRelease(code); return 0; }
+    e=SecRequirementCreateWithString(expression,kSecCSDefaultFlags,&requirement);
+    CFRelease(expression);
+    if(e!=errSecSuccess || !requirement) {
+        *stage=e;
+        if(requirement) CFRelease(requirement);
+        CFRelease(code);
+        return 0;
+    }
+    *verdict=SecCodeCheckValidity(code,kSecCSDefaultFlags,requirement);
+    *stage=errSecSuccess;
+    CFRelease(requirement);
+    CFRelease(code);
+    return 1;
+}
 static void probe(const char *f, const char *c, int *rd, int *wr, int *cr) {
     *rd=*wr=*cr=0;
     int fd=open(f, O_RDONLY);
@@ -128,6 +162,17 @@ int main(int argc, char **argv) {
         xpc_connection_cancel(con);
         xpc_release(con);
         return 82;
+    }
+    OSStatus actual_code=0, actual_stage=0;
+    int actual_verified=signed_reply_verdict(result,argv[1],&actual_code,&actual_stage);
+    if(!actual_verified || actual_code!=errSecSuccess) {
+        fprintf(stderr,
+                "R4K|SERVICE_ACTUAL_XPC_SENDER_UNVERIFIED|STAGE=%d|OSSTATUS=%d\n",
+                (int)actual_stage,(int)actual_code);
+        xpc_release(result);
+        xpc_connection_cancel(con);
+        xpc_release(con);
+        return 94;
     }
     const char *status=xpc_dictionary_get_string(result,"status");
     int64_t pid=xpc_dictionary_get_int64(result,"pid");
@@ -187,32 +232,45 @@ int main(int argc, char **argv) {
     xpc_dictionary_set_string(bad_q,"create",argv[3]);
     xpc_object_t bad_r=xpc_connection_send_message_with_reply_sync(bad_service,bad_q);
     xpc_release(bad_q);
-    if(bad_r!=XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
-        // The mismatch MUST still fail; distinguish an OS XPC error from
-        // an unexpected dictionary reply without broadening acceptance.
-        const char *kind = "NULL";
-        if (bad_r) {
-            xpc_type_t type = xpc_get_type(bad_r);
-            kind = (type == XPC_TYPE_ERROR) ? "ERROR" :
-                   (type == XPC_TYPE_DICTIONARY) ? "DICTIONARY" : "OTHER";
+    const char *backend=NULL;
+    OSStatus true_code=-1, bad_code=-1, true_stage=-1, bad_stage=-1;
+    int true_lookup=0, bad_lookup=0;
+    if(bad_r==XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
+        // Native libxpc rejects the peer before exposing any service message.
+        backend="LIBXPC";
+    } else if(bad_r && xpc_get_type(bad_r)==XPC_TYPE_DICTIONARY) {
+        // macOS 14.5 owner witness: libxpc returned a normal dictionary
+        // despite deliberately false requirement. Explicitly validate the
+        // kernel-attributed sender of THAT response with Security.framework.
+        // Only a valid actual identity AND a rejected false identity can pass.
+        true_lookup=signed_reply_verdict(bad_r,argv[1],&true_code,&true_stage);
+        bad_lookup=signed_reply_verdict(
+            bad_r,"org.eddarsglobal.nordoi.r4k.NOT_A_SERVICE",
+            &bad_code,&bad_stage);
+        const char *v=xpc_dictionary_get_string(bad_r,"status");
+        if(true_lookup && bad_lookup && true_code==errSecSuccess
+           && bad_code!=errSecSuccess && v && strcmp(v,"probed")==0) {
+            backend="MESSAGE_SECURITY";
         }
-        char *desc = bad_r ? xpc_copy_description(bad_r) : NULL;
-        const char *status = (bad_r && xpc_get_type(bad_r) == XPC_TYPE_DICTIONARY)
-            ? xpc_dictionary_get_string(bad_r, "status") : NULL;
+    }
+    if(!backend) {
+        const char *kind=(!bad_r)?"NULL":
+            (xpc_get_type(bad_r)==XPC_TYPE_DICTIONARY?"DICTIONARY":"OTHER");
         fprintf(stderr,
-                "R4K|WRONG_SERVICE_IDENTITY_NOT_EXPLICITLY_DENIED|TYPE=%s"
-                "|STATUS=%.48s|DESCRIPTION=%.256s\n",
-                kind, status ? status : "NULL", desc ? desc : "NULL");
-        if(desc) free(desc);
+                "R4K|WRONG_SERVICE_IDENTITY_NOT_VERIFIED|TYPE=%s"
+                "|ACTUAL_LOOKUP=%d|ACTUAL_STATUS=%d|ACTUAL_STAGE=%d"
+                "|WRONG_LOOKUP=%d|WRONG_STATUS=%d|WRONG_STAGE=%d\n",
+                kind,true_lookup,(int)true_code,(int)true_stage,
+                bad_lookup,(int)bad_code,(int)bad_stage);
         if(bad_r) xpc_release(bad_r);
         xpc_connection_cancel(bad_service);
         xpc_release(bad_service);
         return 93;
     }
-    xpc_release(bad_r);
+    if(bad_r) xpc_release(bad_r);
     xpc_connection_cancel(bad_service);
     xpc_release(bad_service);
-    printf("R4K|SERVICE_IDENTITY|MISMATCH_DENIED\n");
+    printf("R4K|SERVICE_IDENTITY|MISMATCH_DENIED|BACKEND=%s\n",backend);
 
 
     fflush(stdout);
@@ -485,7 +543,11 @@ int main(int argc, char **argv) {
             "unrecognized/host write operation must fail closed"
         );
         assert_eq!(lines[3], "R4K|POLICY|FORGED_AUTHORITY=DENIED");
-        assert_eq!(lines[4], "R4K|SERVICE_IDENTITY|MISMATCH_DENIED");
+        assert!(
+            lines[4] == "R4K|SERVICE_IDENTITY|MISMATCH_DENIED|BACKEND=LIBXPC"
+                || lines[4] == "R4K|SERVICE_IDENTITY|MISMATCH_DENIED|BACKEND=MESSAGE_SECURITY",
+            "identity mismatch must be rejected by native XPC or genuine message sender validation"
+        );
     }
     pub fn exercise() {
         let lab = Lab::new();
@@ -568,7 +630,7 @@ fn macos_client_rejects_wrong_signed_service_identity_with_actual_xpc_error() {
     macos::assert_xpc(&receipt);
     assert!(receipt
         .stdout
-        .contains("R4K|SERVICE_IDENTITY|MISMATCH_DENIED"));
+        .contains("R4K|SERVICE_IDENTITY|MISMATCH_DENIED|BACKEND="));
     lab.check_fixture();
 }
 
