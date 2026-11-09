@@ -47,3 +47,14 @@ PRODUCTION=NOT_AUTHORIZED
 - https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_code_signing_requirement
 - https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_team_identity_requirement
 - https://developer.apple.com/documentation/security/seccodecheckvalidity
+
+
+## R4L early CI finding — per-client instances, not a shared counter
+
+Initial native Apple Silicon CI: signature fixture **PASS**, portable default-denial **PASS**, but actual peer exercise **REMEDIATE**. The separately signed positive sibling received a successful XPC reply, while the original coordinator still observed `COUNT=0` for its *own* service instance. This is consistent with Apple's documented **one embedded XPC service process per client** architecture; a coordinator's counter cannot establish whether another client's per-client service instance ran its handler. Hence the originally proposed shared service counter is **NOT VALID EVIDENCE** for a separate client's admission; no PASS is awarded from unchanged counter values.
+
+The revised strict R4L scenario demands (a) two code-signing identities verified independently for binaries built from the same C source and directory; (b) the legitimate sibling's real `pong`; (c) the intentionally wrong-signed sibling receiving exactly `XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT`, not a generic XPC error and never a timeout, crash or dictionary reply; (d) no unexpected change of the coordinator's own service instance. The latter is only an isolation sanity check, **not a denial witness**. The *actual identity mismatch witness* is strictly the specific XPC signing error for the wrong-signed sibling.
+
+**Pending evidence**: we have not yet observed whether the native XPC service returns that exact error to an initiating client on either macOS 15 or owner macOS 14.5. Apple's documentation describes a nonconforming initiating peer's message being silently withheld; if it returns a generic XPC error instead, this strict test **must remain REMEDIATE** until a conclusive denial mechanism can be demonstrated. Do not broaden the acceptance gate to count a generic connection failure.
+
+Reference: https://developer.apple.com/documentation/xpc
