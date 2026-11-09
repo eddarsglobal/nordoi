@@ -331,8 +331,11 @@ int main(int argc,char **argv) {
                 .open(&sentinel)
                 .unwrap();
             f.write_all(b"R4L_OWNER_ONLY\n").unwrap();
-            OpenOptions::new().create_new(true).write(true)
-                .open(self.journal()).expect("fresh empty handler journal");
+            OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(self.journal())
+                .expect("fresh empty handler journal");
             fs::create_dir_all(self.app().join("Contents/MacOS")).unwrap();
             fs::create_dir_all(self.service().join("Contents/MacOS")).unwrap();
             fs::create_dir_all(self.control_service().join("Contents/MacOS")).unwrap();
@@ -358,7 +361,8 @@ int main(int argc,char **argv) {
             fs::write(
                 self.control_service().join("Contents/Info.plist"),
                 svc.replace(&self.name, &self.control_name),
-            ).unwrap();
+            )
+            .unwrap();
             let ent = self.dir.join("entitlements.plist");
             fs::write(&ent, ENTITLEMENTS).unwrap();
             self.compile("r4l_service.c", SERVICE, &self.service_executable());
@@ -447,8 +451,11 @@ int main(int argc,char **argv) {
                 ],
             );
             assert!(control.status.success(), "signed open-control entitlements");
-            let control_keys=String::from_utf8_lossy(&control.stdout);
-            assert_eq!(control_keys,keys,"open control and protected service must have identical entitlements");
+            let control_keys = String::from_utf8_lossy(&control.stdout);
+            assert_eq!(
+                control_keys, keys,
+                "open control and protected service must have identical entitlements"
+            );
             assert_eq!(
                 fs::read(self.dir.join("sentinel.txt")).unwrap(),
                 b"R4L_OWNER_ONLY\n"
@@ -542,13 +549,17 @@ int main(int argc,char **argv) {
         lab.prepare();
         let w = lab.execute();
         assert_evidence(&w);
-        let bytes=fs::read_to_string(lab.journal()).expect("read test-only handler receipts");
-        let records:Vec<&str>=bytes.lines().collect();
-        assert_eq!(records.len(),2,"two exact service-origin journal records");
+        let bytes = fs::read_to_string(lab.journal()).expect("read test-only handler receipts");
+        let records: Vec<&str> = bytes.lines().collect();
+        assert_eq!(records.len(), 2, "two exact service-origin journal records");
         for record in records {
-            let pid=record.strip_prefix("R4L|HANDLER|PID=")
-                .and_then(|v|v.parse::<u32>().ok());
-            assert!(pid.is_some_and(|v|v!=0),"actual handler PID marker required");
+            let pid = record
+                .strip_prefix("R4L|HANDLER|PID=")
+                .and_then(|v| v.parse::<u32>().ok());
+            assert!(
+                pid.is_some_and(|v| v != 0),
+                "actual handler PID marker required"
+            );
         }
         lab.assert_fixture();
     }
