@@ -551,11 +551,9 @@ fn macos_client_rejects_wrong_signed_service_identity_with_actual_xpc_error() {
     lab.prepare();
     let receipt = macos::run(&lab);
     macos::assert_xpc(&receipt);
-    assert!(
-        receipt
-            .stdout
-            .contains("R4K|SERVICE_IDENTITY|MISMATCH_DENIED")
-    );
+    assert!(receipt
+        .stdout
+        .contains("R4K|SERVICE_IDENTITY|MISMATCH_DENIED"));
     lab.check_fixture();
 }
 
