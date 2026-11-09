@@ -30,7 +30,7 @@ Exactly these conditions are required in sequence:
 
 1. `good -> guarded`: genuine `pong`, journal has exactly **one** service-produced handler marker.
 2. `bad -> open control`: genuine `pong`, journal increases to exactly **two** handler markers, proving this same bad executable can reach a service with equivalent bundling/sandbox conditions.
-3. `bad -> guarded`: **no** `pong`, only the explicit native code-signing rejection **or** the documented silent-drop behavior. Journal must **stay exactly two** markers. Any missing positive-control marker, partial journal entry, extra marker, invalid signature, unexpected signal, generic XPC error or output forgery must fail closed.
+3. `bad -> guarded`: **no** `pong`, only the explicit native code-signing rejection **or** the documented silent-drop behavior. Journal must **stay exactly two** markers. Any missing positive-control marker, partial journal entry, extra marker, invalid signature, unexpected signal, unexpected XPC error or output forgery must fail closed. A specifically identified `XPC_ERROR_CONNECTION_INVALID` is accepted **only** as a differential handler-non-delivery witness paired with both service-origin positive journal entries and zero extra protected-handler entries; this is NOT called a cryptographic signature-error receipt.
 
 This is **a test-scoped causal differential** for non-delivery to the guarded handler; it is NOT proof that the bad client has a trusted cryptographic identity. Neither the good peer nor the bad peer writes any journal data directly; fixed source code includes no write call to its test journal. Only the XPC service writes the marker over the passed FD.
 
@@ -45,7 +45,7 @@ This is **a test-scoped causal differential** for non-delivery to the guarded ha
 ## Acceptance and current state
 
 - macOS 15 Apple Silicon: **R4L FIX1 5/5 native PASS**, R4K 8/8 PASS, strict Clippy PASS; Rustfmt follow-up submitted. This is only CI evidence for that exact source commit, not owner Sonoma.
-- macOS 15 Intel: **PENDING latest head CI**.
+- macOS 15 Intel: **PENDING final CI**.
 - Windows and Linux: only portable model default-denial checks, no native XPC assertion.
 - Owner macOS 14.5 Intel: **PENDING FIX1 exact-head temporary-clone replay**, not yet certified.
 - Full R4A–R4L cumulative regular test target: **111 PASS, 0 FAIL, 3 intentionally ignored** for any future eligible owner PASS_WITH_CONTROLS.
@@ -65,3 +65,9 @@ PRODUCTION=NOT_AUTHORIZED
 - [Apple XPC peer-signing requirement](https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_code_signing_requirement)
 - [Apple XPC dictionary FD transfer](https://developer.apple.com/documentation/xpc/xpc_dictionary_set_fd)
 - [Apple XPC FD duplication](https://developer.apple.com/documentation/xpc/xpc_dictionary_dup_fd)
+
+## FIX1 CI addendum: macos-latest difference
+
+The general NORDOI Test Gate `macos-latest` job for the first FIX1 candidate reproduced **both positive service handler markers**, but the wrong-signed guarded peer returned an XPC `ERROR` object rather than waiting for SIGALRM or returning `XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT`. The first FIX1 candidate **deliberately rejected** this unclassified XPC error. Later candidate code distinguishes precisely `XPC_ERROR_CONNECTION_INVALID`, `XPC_ERROR_CONNECTION_INTERRUPTED` and other errors. `CONNECTION_INVALID_DIFFERENTIAL` is accepted only after independent guarded-good and open-bad positive tests and two exact service-owned handler journal entries plus no guarded-bad marker. `CONNECTION_INTERRUPTED` and unclassified errors remain **REMEDIATE**. The classification of the specific macos-latest return remains **PENDING exact-head CI**. 
+
+A positive differential is laboratory evidence of **non-delivery to the guarded handler under the controlled test conditions**. It does not establish a trusted signing authority, exclusive cryptographic cause, compliance with all macOS versions, or production authorization. All 12 admission gates remain unmet.
