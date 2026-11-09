@@ -112,11 +112,17 @@ static int count(xpc_connection_t c, uint64_t *n, int64_t *pid) {
     xpc_object_t r=xpc_connection_send_message_with_reply_sync(c,q);
     xpc_release(q);
     if(!r || xpc_get_type(r)!=XPC_TYPE_DICTIONARY) {
+        fprintf(stderr,"R4L|COUNTER_NOT_DICTIONARY|IS_NULL=%d|IS_ERROR=%d\n",
+            r==NULL,r && xpc_get_type(r)==XPC_TYPE_ERROR);
         if(r) xpc_release(r);
         return 0;
     }
     const char *s=xpc_dictionary_get_string(r,"status");
     int valid=s && strcmp(s,"counted")==0;
+    if(!valid) {
+        fprintf(stderr,"R4L|COUNTER_BAD_STATUS|VALUE=%.60s|KEYS=%zu\n",
+                s?s:"NULL",xpc_dictionary_get_count(r));
+    }
     if(valid) {
         *n=xpc_dictionary_get_uint64(r,"accepted");
         *pid=xpc_dictionary_get_int64(r,"pid");
@@ -131,6 +137,8 @@ static int run_peer(char *exe,char *svc,char *mode) {
     int status=0;
     if(waitpid(pid,&status,0)!=pid) return -2;
     if(WIFEXITED(status)) return WEXITSTATUS(status);
+    fprintf(stderr,"R4L|PEER_SIGNAL_EXIT|SIGNAL=%d\n",
+            WIFSIGNALED(status)?WTERMSIG(status):-1);
     return -3;
 }
 int main(int argc,char **argv) {
@@ -141,10 +149,18 @@ int main(int argc,char **argv) {
     xpc_connection_resume(c);
     uint64_t before=999,after_good=999,after_bad=999;
     int64_t p0=0,p1=0,p2=0;
-    if(!count(c,&before,&p0) || before!=0 || p0<=0 || p0==getpid()) return 82;
+    if(!count(c,&before,&p0) || before!=0 || p0<=0 || p0==getpid()) {
+        fprintf(stderr,"R4L|BASELINE_COUNT_FAILED|COUNTER=%llu|PID=%lld\n",
+                (unsigned long long)before,(long long)p0);
+        return 82;
+    }
     int good=run_peer(argv[2],argv[1],"good");
     if(good!=0) {fprintf(stderr,"R4L|GOOD_SIBLING_UNREACHABLE|EXIT=%d\n",good);return 83;}
-    if(!count(c,&after_good,&p1) || after_good!=1 || p1!=p0) return 84;
+    if(!count(c,&after_good,&p1) || after_good!=1 || p1!=p0) {
+        fprintf(stderr,"R4L|GOOD_COUNT_FAILED|COUNTER=%llu|PID=%lld|BASEPID=%lld\n",
+                (unsigned long long)after_good,(long long)p1,(long long)p0);
+        return 84;
+    }
     int bad=run_peer(argv[3],argv[1],"bad");
     if(bad!=7) {fprintf(stderr,"R4L|BAD_SIBLING_NOT_EXPLICIT_XPC_ERROR|EXIT=%d\n",bad);return 85;}
     if(!count(c,&after_bad,&p2) || after_bad!=1 || p2!=p0) {
@@ -254,8 +270,13 @@ int main(int argc,char **argv) {
         pub fn assert_fixture(&self) {
             for p in [self.app(),self.client(),self.good(),self.bad(),
                       self.service(),self.service_executable()] {Self::verify(&p);}
+            let main=Self::identity(&self.app());
             let g=Self::identity(&self.good());
             let b=Self::identity(&self.bad());
+            assert!(
+                main.contains("Identifier=org.eddarsglobal.nordoi.r4l.client"),
+                "main app signature identity must match admitted peer"
+            );
             assert!(g.contains("Identifier=org.eddarsglobal.nordoi.r4l.client"),"valid peer identity");
             assert!(b.contains("Identifier=org.eddarsglobal.nordoi.r4l.impostor"),"wrong peer identity");
             assert_ne!(g,b,"two distinct independently signed identities");
