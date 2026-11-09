@@ -188,7 +188,22 @@ int main(int argc, char **argv) {
     xpc_object_t bad_r=xpc_connection_send_message_with_reply_sync(bad_service,bad_q);
     xpc_release(bad_q);
     if(bad_r!=XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
-        fprintf(stderr,"R4K|WRONG_SERVICE_IDENTITY_NOT_EXPLICITLY_DENIED\n");
+        // The mismatch MUST still fail; distinguish an OS XPC error from
+        // an unexpected dictionary reply without broadening acceptance.
+        const char *kind = "NULL";
+        if (bad_r) {
+            xpc_type_t type = xpc_get_type(bad_r);
+            kind = (type == XPC_TYPE_ERROR) ? "ERROR" :
+                   (type == XPC_TYPE_DICTIONARY) ? "DICTIONARY" : "OTHER";
+        }
+        char *desc = bad_r ? xpc_copy_description(bad_r) : NULL;
+        const char *status = (bad_r && xpc_get_type(bad_r) == XPC_TYPE_DICTIONARY)
+            ? xpc_dictionary_get_string(bad_r, "status") : NULL;
+        fprintf(stderr,
+                "R4K|WRONG_SERVICE_IDENTITY_NOT_EXPLICITLY_DENIED|TYPE=%s"
+                "|STATUS=%.48s|DESCRIPTION=%.256s\n",
+                kind, status ? status : "NULL", desc ? desc : "NULL");
+        if(desc) free(desc);
         if(bad_r) xpc_release(bad_r);
         xpc_connection_cancel(bad_service);
         xpc_release(bad_service);
