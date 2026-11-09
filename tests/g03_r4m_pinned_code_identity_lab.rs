@@ -365,9 +365,7 @@ int main(int argc,char **argv) {
         fn code_requirement(cdhash: &str) -> String {
             assert_eq!(cdhash.len(), 40, "exact 20-byte CDHash requirement");
             assert!(cdhash.bytes().all(|b| b.is_ascii_hexdigit()));
-            format!(
-                "identifier \"org.eddarsglobal.nordoi.r4m.client\" and cdhash H\"{cdhash}\""
-            )
+            format!("identifier \"org.eddarsglobal.nordoi.r4m.client\" and cdhash H\"{cdhash}\"")
         }
         fn requirement_matches(path: &Path, requirement: &str, expected: bool) {
             let result = Command::new("/usr/bin/codesign")
@@ -464,11 +462,7 @@ int main(int argc,char **argv) {
             let pinned = Self::code_requirement(&good_cdhash);
             Self::requirement_matches(&self.good(), &pinned, true);
             Self::requirement_matches(&self.bad(), &pinned, false);
-            Self::requirement_matches(
-                &self.bad(),
-                &Self::code_requirement(&bad_cdhash),
-                true,
-            );
+            Self::requirement_matches(&self.bad(), &Self::code_requirement(&bad_cdhash), true);
             // Enrol the positive hash into the service at build time.
             // This is a disposable same-session *lab* enrollment, not an
             // independently trusted supply-chain authorization record.
@@ -518,7 +512,10 @@ int main(int argc,char **argv) {
             );
             let good_cdhash = Self::cdhash(&self.good());
             let bad_cdhash = Self::cdhash(&self.bad());
-            assert_ne!(good_cdhash, bad_cdhash, "exact signed code identities differ");
+            assert_ne!(
+                good_cdhash, bad_cdhash,
+                "exact signed code identities differ"
+            );
             let policy = Self::code_requirement(&good_cdhash);
             Self::requirement_matches(&self.good(), &policy, true);
             Self::requirement_matches(&self.bad(), &policy, false);
