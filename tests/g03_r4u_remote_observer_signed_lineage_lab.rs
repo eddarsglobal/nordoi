@@ -365,7 +365,7 @@ mod native {
         let e = evidence();
         let current = trusted_head(Some(e)).unwrap();
         let old = parse_record(section(&e.pack, "epoch3").unwrap()).unwrap();
-        assert_eq!(admission(Some(e), [current.clone(); 2], &current), Ok(()));
+        assert_eq!(admission(Some(e), [current.clone(), current.clone()], &current), Ok(()));
         assert_eq!((old.epoch, old.seq), (3, 3));
         assert!(sshsig(
             section(&e.pack, "epoch3").unwrap(),
@@ -385,7 +385,7 @@ mod native {
         // are restored. Re-fetch the GitHub ref and both signatures NOW.
         let refreshed = fetch_live().expect("fresh external read after rollback");
         assert_eq!(
-            admission(Some(&refreshed), [old.clone(); 2], &old),
+            admission(Some(&refreshed), [old.clone(), old.clone()], &old),
             Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK")
         );
     }
@@ -412,7 +412,7 @@ mod native {
             OBSERVER_NS
         ));
         assert_eq!(
-            admission(Some(e), [revoked.clone(); 2], &revoked),
+            admission(Some(e), [revoked.clone(), revoked.clone()], &revoked),
             Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK")
         );
         assert_ne!(v4, revoked);
@@ -514,7 +514,7 @@ mod native {
         let v4 = trusted_head(Some(e)).unwrap();
         let old = parse_record(section(&e.pack, "epoch3").unwrap()).unwrap();
         assert_eq!(
-            admission(None, [v4.clone(); 2], &v4),
+            admission(None, [v4.clone(), v4.clone()], &v4),
             Err("OFF_DEVICE_OBSERVER_REQUIRED")
         );
         assert_eq!(
@@ -531,7 +531,7 @@ mod native {
         assert!(sshsig(old, s, OBSERVER, OBSERVER_PRINCIPAL, OBSERVER_NS));
         let previously_valid = parse_record(old).unwrap();
         assert_eq!(
-            admission(Some(e), [previously_valid.clone(); 2], &previously_valid),
+            admission(Some(e), [previously_valid.clone(), previously_valid.clone()], &previously_valid),
             Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK")
         );
     }
