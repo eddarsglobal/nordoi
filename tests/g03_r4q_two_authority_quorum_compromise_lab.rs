@@ -10,7 +10,7 @@ use reference::{Model, ModelError, ResourceEffect, ScopeBudget};
 
 #[cfg(target_os = "macos")]
 mod native {
-    use std::fs::{self, OpenOptions};
+    use std::fs;
     use std::io::Write;
     use std::path::{Path, PathBuf};
     use std::process::{Command, Output, Stdio};
@@ -22,8 +22,7 @@ mod native {
     const RELEASE_PRINCIPAL: &str = "nordoi-r4q-publisher";
     const WITNESS_PRINCIPAL: &str = "nordoi-r4q-witness";
     const EVIDENCE_COMMIT: &str = "ff8abe01cc1a527dd84b463dec1736d20a5391a4";
-    const EVIDENCE_BRANCH: &str =
-        "refs/heads/evidence/g03-r4p-external-signed-checkpoint-20261109";
+    const EVIDENCE_BRANCH: &str = "refs/heads/evidence/g03-r4p-external-signed-checkpoint-20261109";
     const GITHUB_URL: &str = "https://github.com/eddarsglobal/nordoi.git";
 
     fn run(mut cmd: Command, input: Option<&[u8]>) -> Output {
@@ -64,7 +63,7 @@ mod native {
                 .all(|v| v.is_ascii_hexdigit() && !v.is_ascii_uppercase())
     }
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
     pub struct Cursor {
         epoch: u64,
         seq: u64,
@@ -205,8 +204,8 @@ mod native {
     impl Lab {
         pub fn new() -> Self {
             let id = SERIAL.fetch_add(1, Ordering::Relaxed);
-            let dir = std::env::temp_dir()
-                .join(format!("nordoi-r4q-quorum-{}-{id}", std::process::id()));
+            let dir =
+                std::env::temp_dir().join(format!("nordoi-r4q-quorum-{}-{id}", std::process::id()));
             fs::create_dir(&dir).expect("new R4Q test-only fixture");
             let dir = fs::canonicalize(dir).expect("canonical fixture");
             let repo_signer = dir.join("repository_admin_fixture");
@@ -319,10 +318,7 @@ mod native {
         fn external_now(&self) -> Option<Signed> {
             let msg = self.external_signer.join("active_external");
             let signature = self.external_signer.join("active_external.sig");
-            (msg.is_file() && signature.is_file()).then_some(Signed {
-                msg,
-                signature,
-            })
+            (msg.is_file() && signature.is_file()).then_some(Signed { msg, signature })
         }
 
         pub fn verify_admission(
@@ -395,7 +391,10 @@ mod native {
                 .env("GIT_TERMINAL_PROMPT", "0")
                 .args(["ls-remote", GITHUB_URL, EVIDENCE_BRANCH]);
             let out = run(cmd, None);
-            assert!(out.status.success(), "actual pinned R4P GitHub ref reachable");
+            assert!(
+                out.status.success(),
+                "actual pinned R4P GitHub ref reachable"
+            );
             let expected = format!("{EVIDENCE_COMMIT}\t{EVIDENCE_BRANCH}\n");
             assert_eq!(
                 String::from_utf8(out.stdout).unwrap(),
@@ -425,9 +424,18 @@ mod native {
         assert_ne!(lab.publisher_key(true), lab.publisher_key(false));
         let v2 = lab.version(2, 2);
         let a2 = lab.publish("approved-a2", &v2, 0);
-        let b2 = lab.attest("independent-b2", &v2, &lab.publisher_key(false), false, WITNESS_NS);
+        let b2 = lab.attest(
+            "independent-b2",
+            &v2,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b2);
-        assert_eq!(lab.verify_admission(&a2, &[v2.cursor.clone(); 2]), Ok(v2.cursor));
+        assert_eq!(
+            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            Ok(v2.cursor)
+        );
     }
 
     #[test]
@@ -481,7 +489,13 @@ mod native {
         let lab = Lab::new();
         let v2 = lab.version(2, 2);
         let a2 = lab.publish("a2", &v2, 0);
-        let forged = lab.attest("forged-b2", &v2, &lab.publisher_key(false), true, WITNESS_NS);
+        let forged = lab.attest(
+            "forged-b2",
+            &v2,
+            &lab.publisher_key(false),
+            true,
+            WITNESS_NS,
+        );
         lab.install_external_head(&forged);
         assert_eq!(
             lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
@@ -550,10 +564,7 @@ mod native {
         lab.install_external_head(&b2);
         let a2 = lab.publish("a2", &v2, 0);
         assert_eq!(
-            lab.verify_admission(
-                &a2,
-                &[v2.cursor.clone(), Cursor { epoch: 1, seq: 1 }]
-            ),
+            lab.verify_admission(&a2, &[v2.cursor.clone(), Cursor { epoch: 1, seq: 1 }]),
             Err("LOCAL_COPIES_DIVERGED")
         );
     }
