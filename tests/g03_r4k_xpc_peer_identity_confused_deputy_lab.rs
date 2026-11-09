@@ -34,24 +34,10 @@ mod macos {
 #include <stdlib.h>
 #include <Security/Security.h>
 
-static int authenticated_peer(xpc_object_t msg, OSStatus *code_status) {
-    SecCodeRef code = NULL;
-    SecRequirementRef req = NULL;
-    OSStatus s = SecCodeCreateWithXPCMessage(msg, kSecCSDefaultFlags, &code);
-    if (s != errSecSuccess || !code) { *code_status = (OSStatus)(1000000 + s); return 0; }
-    s = SecRequirementCreateWithString(CFSTR("identifier \"org.eddarsglobal.nordoi.r4k.client\""), kSecCSDefaultFlags, &req);
-    if (s != errSecSuccess || !req) {
-        if (req) CFRelease(req);
-        CFRelease(code);
-        *code_status = (OSStatus)(3000000 + s);
-        return 0;
-    }
-    s = SecCodeCheckValidity(code, kSecCSDefaultFlags, req);
-    CFRelease(req);
-    CFRelease(code);
-    *code_status = (OSStatus)(4000000 + s);
-    return s == errSecSuccess;
-}
+// Install before activation. libxpc enforces this requirement for every message.
+// This identifier-only predicate is a research smoke gate, not a production trust anchor.
+static const char *CLIENT_REQUIREMENT =
+    "identifier \"org.eddarsglobal.nordoi.r4k.client\"";
 
 static void probe(const char *f, const char *c, int *rd, int *wr, int *cr) {
     *rd = *wr = *cr = 0;
@@ -64,16 +50,18 @@ static void probe(const char *f, const char *c, int *rd, int *wr, int *cr) {
     if (fd >= 0) { *cr = 1; close(fd); unlink(c); }
 }
 static void accept_peer(xpc_connection_t peer) {
+    int peer_gate = xpc_connection_set_peer_code_signing_requirement(peer, CLIENT_REQUIREMENT);
+    if (peer_gate != 0) {
+        fprintf(stderr, "R4K|XPC_PEER_GATE_INSTALL_FAILED|ERRNO=%d\\n", peer_gate);
+        xpc_connection_cancel(peer);
+        return;
+    }
     xpc_connection_set_event_handler(peer, ^(xpc_object_t msg) {
         if (xpc_get_type(msg) != XPC_TYPE_DICTIONARY) return;
         xpc_object_t reply = xpc_dictionary_create_reply(msg);
         if (!reply) return;
         const char *op = xpc_dictionary_get_string(msg, "op");
-        OSStatus auth_error = 0;
-        if (!authenticated_peer(msg, &auth_error)) {
-            xpc_dictionary_set_string(reply, "status", "unauthenticated");
-            xpc_dictionary_set_int64(reply, "auth_error", (int64_t)auth_error);
-        } else if (!op || strcmp(op, "probe") != 0 ||
+        if (!op || strcmp(op, "probe") != 0 ||
                    xpc_dictionary_get_value(msg, "grant") != NULL ||
                    xpc_dictionary_get_value(msg, "authority") != NULL ||
                    xpc_dictionary_get_value(msg, "identity") != NULL) {
@@ -147,7 +135,7 @@ int main(int argc, char **argv) {
     int64_t w=xpc_dictionary_get_int64(result,"write");
     int64_t c=xpc_dictionary_get_int64(result,"create");
     if(!status || strcmp(status,"probed") || pid<=0 || pid==getpid()) {
-        fprintf(stderr, "R4K|AUTH_DIAGNOSTIC|STATUS=%s|OSSTATUS=%" PRId64 "\\n",
+        fprintf(stderr, "R4K|XPC_POLICY_DIAGNOSTIC|STATUS=%s|OSSTATUS=%" PRId64 "\n",
                 status?status:"NULL", xpc_dictionary_get_int64(result,"auth_error"));
         xpc_release(result);
         xpc_connection_cancel(con);
@@ -182,7 +170,7 @@ int main(int argc, char **argv) {
     const char *fs=xpc_dictionary_get_string(fr,"status");
     if(!fs || strcmp(fs,"denied")) return 87;
     xpc_release(fr);
-    printf("R4K|POLICY|FORGED_AUTHORITY=DENIED\\n");
+    printf("R4K|POLICY|FORGED_AUTHORITY=DENIED\n");
 
     fflush(stdout);
     xpc_release(denied);
