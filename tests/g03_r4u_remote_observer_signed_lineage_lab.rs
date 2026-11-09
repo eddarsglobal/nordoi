@@ -64,13 +64,22 @@ mod native {
         if payload.is_some() {
             cmd.stdin(Stdio::piped());
         }
-        let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped())
-            .spawn().map_err(|e| format!("HOST_EXEC_UNAVAILABLE:{e}"))?;
+        let mut child = cmd
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("HOST_EXEC_UNAVAILABLE:{e}"))?;
         if let Some(bytes) = payload {
-            child.stdin.take().ok_or("NO_STDIN")?
-                .write_all(bytes).map_err(|_| "HOST_STDIN_FAILED")?;
+            child
+                .stdin
+                .take()
+                .ok_or("NO_STDIN")?
+                .write_all(bytes)
+                .map_err(|_| "HOST_STDIN_FAILED")?;
         }
-        child.wait_with_output().map_err(|_| "HOST_PROCESS_FAILED".into())
+        child
+            .wait_with_output()
+            .map_err(|_| "HOST_PROCESS_FAILED".into())
     }
     fn git(cmd: &mut Command) -> Result<Output, String> {
         cmd.env("GIT_CONFIG_NOSYSTEM", "1")
@@ -88,8 +97,12 @@ mod native {
         cmd.args(["-a", "256"]);
         let output = command(cmd, Some(bytes)).expect("native SHA256 available");
         assert!(output.status.success());
-        String::from_utf8(output.stdout).unwrap()
-            .split_ascii_whitespace().next().unwrap().to_owned()
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .split_ascii_whitespace()
+            .next()
+            .unwrap()
+            .to_owned()
     }
 
     fn fetch_live() -> Result<Evidence, String> {
@@ -104,28 +117,39 @@ mod native {
         init.args(["init", "-q"]).arg(&temp.0);
         git(&mut init)?;
         let mut fetch = Command::new("/usr/bin/git");
-        fetch.arg("-C").arg(&temp.0)
+        fetch
+            .arg("-C")
+            .arg(&temp.0)
             .args(["fetch", "--depth=1", "--no-tags", URL, REF]);
         git(&mut fetch)?;
         let mut refcheck = Command::new("/usr/bin/git");
-        refcheck.arg("-C").arg(&temp.0).args(["rev-parse", "FETCH_HEAD"]);
+        refcheck
+            .arg("-C")
+            .arg(&temp.0)
+            .args(["rev-parse", "FETCH_HEAD"]);
         if git(&mut refcheck)?.stdout != format!("{COMMIT}\n").as_bytes() {
             return Err("FETCH_CHANGED_DURING_READ".into());
         }
         let mut read = Command::new("/usr/bin/git");
-        read.arg("-C").arg(&temp.0).arg("show")
+        read.arg("-C")
+            .arg(&temp.0)
+            .arg("show")
             .arg(format!("FETCH_HEAD:{PACK_PATH}"));
         let out = git(&mut read)?;
         if out.stdout.is_empty() || out.stdout.len() > 8192 {
             return Err("EXTERNAL_EVIDENCE_TOO_LARGE_OR_MISSING".into());
         }
-        let pack = String::from_utf8(out.stdout)
-            .map_err(|_| "REMOTE_EVIDENCE_NON_UTF8")?;
-        Ok(Evidence { head: COMMIT.to_owned(), pack })
+        let pack = String::from_utf8(out.stdout).map_err(|_| "REMOTE_EVIDENCE_NON_UTF8")?;
+        Ok(Evidence {
+            head: COMMIT.to_owned(),
+            pack,
+        })
     }
 
     fn evidence() -> &'static Evidence {
-        REMOTE.get_or_init(fetch_live).as_ref()
+        REMOTE
+            .get_or_init(fetch_live)
+            .as_ref()
             .unwrap_or_else(|err| panic!("R4U_REAL_GITHUB_WITNESS_UNAVAILABLE:{err}"))
     }
 
@@ -135,28 +159,41 @@ mod native {
         if pack.matches(start.as_str()).count() != 1 || pack.matches(end.as_str()).count() != 1 {
             return Err("EVIDENCE_SECTION_NOT_UNIQUE");
         }
-        let (_, tail) = pack.split_once(start.as_str()).ok_or("EVIDENCE_SECTION_MISSING")?;
-        let (part, _) = tail.split_once(end.as_str()).ok_or("EVIDENCE_SECTION_NOT_CLOSED")?;
+        let (_, tail) = pack
+            .split_once(start.as_str())
+            .ok_or("EVIDENCE_SECTION_MISSING")?;
+        let (part, _) = tail
+            .split_once(end.as_str())
+            .ok_or("EVIDENCE_SECTION_NOT_CLOSED")?;
         if !part.ends_with('\n') || part.is_empty() {
             return Err("EVIDENCE_SECTION_NONCANONICAL");
         }
         Ok(part)
     }
 
-    fn sshsig(payload: &str, signature: &str, public: &str,
-              principal: &str, namespace: &str) -> bool {
+    fn sshsig(
+        payload: &str,
+        signature: &str,
+        public: &str,
+        principal: &str,
+        namespace: &str,
+    ) -> bool {
         let temp = Temporary::new("sshsig");
         let p = temp.0.join("payload.txt");
         let s = temp.0.join("payload.sig");
         let allowed = temp.0.join("allowed_signers");
         if fs::write(&p, payload).is_err()
             || fs::write(&s, signature).is_err()
-            || fs::write(&allowed, format!("{principal} {public}\n")).is_err() {
+            || fs::write(&allowed, format!("{principal} {public}\n")).is_err()
+        {
             return false;
         }
         let mut verify = Command::new("/usr/bin/ssh-keygen");
-        verify.args(["-Y", "verify", "-f"]).arg(&allowed)
-            .args(["-I", principal, "-n", namespace, "-s"]).arg(&s);
+        verify
+            .args(["-Y", "verify", "-f"])
+            .arg(&allowed)
+            .args(["-I", principal, "-n", namespace, "-s"])
+            .arg(&s);
         command(verify, Some(payload.as_bytes())).is_ok_and(|o| o.status.success())
     }
 
@@ -170,32 +207,52 @@ mod native {
 
     fn parse_record(bytes: &str) -> Result<Record, &'static str> {
         let lines: Vec<_> = bytes.lines().collect();
-        if lines.len() != 6 || lines[0] != "NORDOI-R4U-LOG-V1"
-            || lines[1] != "project=eddarsglobal/nordoi" {
+        if lines.len() != 6
+            || lines[0] != "NORDOI-R4U-LOG-V1"
+            || lines[1] != "project=eddarsglobal/nordoi"
+        {
             return Err("LOG_RECORD_NONCANONICAL");
         }
-        let epoch = lines[2].strip_prefix("epoch=")
-            .ok_or("LOG_EPOCH_MISSING")?.parse::<u64>()
+        let epoch = lines[2]
+            .strip_prefix("epoch=")
+            .ok_or("LOG_EPOCH_MISSING")?
+            .parse::<u64>()
             .map_err(|_| "LOG_EPOCH_INVALID")?;
-        let seq = lines[3].strip_prefix("sequence=")
-            .ok_or("LOG_SEQUENCE_MISSING")?.parse::<u64>()
+        let seq = lines[3]
+            .strip_prefix("sequence=")
+            .ok_or("LOG_SEQUENCE_MISSING")?
+            .parse::<u64>()
             .map_err(|_| "LOG_SEQUENCE_INVALID")?;
-        let parent = lines[4].strip_prefix("previous_sha256=")
-            .ok_or("LOG_PARENT_MISSING")?.to_owned();
-        let policy = lines[5].strip_prefix("policy=")
-            .ok_or("LOG_POLICY_MISSING")?.to_owned();
+        let parent = lines[4]
+            .strip_prefix("previous_sha256=")
+            .ok_or("LOG_PARENT_MISSING")?
+            .to_owned();
+        let policy = lines[5]
+            .strip_prefix("policy=")
+            .ok_or("LOG_POLICY_MISSING")?
+            .to_owned();
         let expected = format!(
             "NORDOI-R4U-LOG-V1\nproject=eddarsglobal/nordoi\nepoch={epoch}\nsequence={seq}\nprevious_sha256={parent}\npolicy={policy}\n"
         );
-        if bytes != expected || epoch == 0 || seq == 0 ||
-            parent.len() != 64 || !parent.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase()) ||
-            !matches!(policy.as_str(), "accepted" | "revoked") {
+        if bytes != expected
+            || epoch == 0
+            || seq == 0
+            || parent.len() != 64
+            || !parent
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+            || !matches!(policy.as_str(), "accepted" | "revoked")
+        {
             return Err("LOG_RECORD_NONCANONICAL");
         }
-        Ok(Record { epoch, seq, parent, policy })
+        Ok(Record {
+            epoch,
+            seq,
+            parent,
+            policy,
+        })
     }
-    fn check_link(first: &Record, first_bytes: &str,
-                  second: &Record) -> Result<(), &'static str> {
+    fn check_link(first: &Record, first_bytes: &str, second: &Record) -> Result<(), &'static str> {
         if second.epoch != first.epoch + 1 || second.seq != first.seq + 1 {
             return Err("LOG_NONMONOTONIC");
         }
@@ -218,34 +275,54 @@ mod native {
         let v4 = section(pack, "epoch4")?;
         let first = parse_record(v3)?;
         let latest = parse_record(v4)?;
-        if first.epoch != 3 || first.seq != 3 || first.parent != GENESIS_SHA ||
-            first.policy != "accepted" || sha(v3.as_bytes()) != E3_SHA {
+        if first.epoch != 3
+            || first.seq != 3
+            || first.parent != GENESIS_SHA
+            || first.policy != "accepted"
+            || sha(v3.as_bytes()) != E3_SHA
+        {
             return Err("GENESIS_OR_EPOCH3_INVALID");
         }
         check_link(&first, v3, &latest)?;
-        if latest.epoch != 4 || latest.seq != 4 || latest.policy != "accepted"
-            || sha(v4.as_bytes()) != E4_SHA {
+        if latest.epoch != 4
+            || latest.seq != 4
+            || latest.policy != "accepted"
+            || sha(v4.as_bytes()) != E4_SHA
+        {
             return Err("LATEST_REMOTE_RECORD_MISMATCH");
         }
         for (stage, contents) in [("epoch3", v3), ("epoch4", v4)] {
             let guardian_sig = section(pack, &format!("{stage}_guardian_sig"))?;
             let observer_sig = section(pack, &format!("{stage}_observer_sig"))?;
-            if !sshsig(contents, guardian_sig, GUARDIAN,
-                       GUARDIAN_PRINCIPAL, GUARDIAN_NS) {
+            if !sshsig(
+                contents,
+                guardian_sig,
+                GUARDIAN,
+                GUARDIAN_PRINCIPAL,
+                GUARDIAN_NS,
+            ) {
                 return Err("GUARDIAN_SIGNATURE_UNTRUSTED");
             }
-            if !sshsig(contents, observer_sig, OBSERVER,
-                       OBSERVER_PRINCIPAL, OBSERVER_NS) {
+            if !sshsig(
+                contents,
+                observer_sig,
+                OBSERVER,
+                OBSERVER_PRINCIPAL,
+                OBSERVER_NS,
+            ) {
                 return Err("OBSERVER_SIGNATURE_UNTRUSTED");
             }
         }
         let fork = section(pack, "epoch4_fork")?;
         let fork_record = parse_record(fork)?;
         let fork_sig = section(pack, "epoch4_fork_guardian_sig")?;
-        if fork_record.epoch != 4 || fork_record.seq != 4 ||
-            fork_record.parent != E3_SHA || fork_record.policy != "revoked" ||
-            sha(fork.as_bytes()) != FORK_SHA ||
-            !sshsig(fork, fork_sig, GUARDIAN, GUARDIAN_PRINCIPAL, GUARDIAN_NS) {
+        if fork_record.epoch != 4
+            || fork_record.seq != 4
+            || fork_record.parent != E3_SHA
+            || fork_record.policy != "revoked"
+            || sha(fork.as_bytes()) != FORK_SHA
+            || !sshsig(fork, fork_sig, GUARDIAN, GUARDIAN_PRINCIPAL, GUARDIAN_NS)
+        {
             return Err("FORK_EVIDENCE_NOT_AUTHENTIC");
         }
         Ok(latest)
@@ -259,8 +336,11 @@ mod native {
         accepted_remote(&e.pack)
     }
 
-    fn admission(remote: Option<&Evidence>, local: [Record; 2],
-                 requested: &Record) -> Result<(), &'static str> {
+    fn admission(
+        remote: Option<&Evidence>,
+        local: [Record; 2],
+        requested: &Record,
+    ) -> Result<(), &'static str> {
         let latest = trusted_head(remote)?;
         if local[0] != local[1] {
             return Err("LOCAL_STATE_DIVERGED");
@@ -287,12 +367,20 @@ mod native {
         let old = parse_record(section(&e.pack, "epoch3").unwrap()).unwrap();
         assert_eq!(admission(Some(e), [current.clone(); 2], &current), Ok(()));
         assert_eq!((old.epoch, old.seq), (3, 3));
-        assert!(sshsig(section(&e.pack, "epoch3").unwrap(),
-                       section(&e.pack, "epoch3_guardian_sig").unwrap(),
-                       GUARDIAN, GUARDIAN_PRINCIPAL, GUARDIAN_NS));
-        assert!(sshsig(section(&e.pack, "epoch3").unwrap(),
-                       section(&e.pack, "epoch3_observer_sig").unwrap(),
-                       OBSERVER, OBSERVER_PRINCIPAL, OBSERVER_NS));
+        assert!(sshsig(
+            section(&e.pack, "epoch3").unwrap(),
+            section(&e.pack, "epoch3_guardian_sig").unwrap(),
+            GUARDIAN,
+            GUARDIAN_PRINCIPAL,
+            GUARDIAN_NS
+        ));
+        assert!(sshsig(
+            section(&e.pack, "epoch3").unwrap(),
+            section(&e.pack, "epoch3_observer_sig").unwrap(),
+            OBSERVER,
+            OBSERVER_PRINCIPAL,
+            OBSERVER_NS
+        ));
         // Both writable local copies and the two authentic old signatures
         // are restored. Re-fetch the GitHub ref and both signatures NOW.
         let refreshed = fetch_live().expect("fresh external read after rollback");
@@ -309,12 +397,24 @@ mod native {
         let revoked = parse_record(fork).unwrap();
         let v4 = trusted_head(Some(e)).unwrap();
         assert_eq!((revoked.epoch, revoked.seq), (4, 4));
-        assert!(sshsig(fork, section(&e.pack, "epoch4_fork_guardian_sig").unwrap(),
-                       GUARDIAN, GUARDIAN_PRINCIPAL, GUARDIAN_NS));
-        assert!(!sshsig(fork, section(&e.pack, "epoch4_observer_sig").unwrap(),
-                        OBSERVER, OBSERVER_PRINCIPAL, OBSERVER_NS));
-        assert_eq!(admission(Some(e), [revoked.clone(); 2], &revoked),
-                   Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK"));
+        assert!(sshsig(
+            fork,
+            section(&e.pack, "epoch4_fork_guardian_sig").unwrap(),
+            GUARDIAN,
+            GUARDIAN_PRINCIPAL,
+            GUARDIAN_NS
+        ));
+        assert!(!sshsig(
+            fork,
+            section(&e.pack, "epoch4_observer_sig").unwrap(),
+            OBSERVER,
+            OBSERVER_PRINCIPAL,
+            OBSERVER_NS
+        ));
+        assert_eq!(
+            admission(Some(e), [revoked.clone(); 2], &revoked),
+            Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK")
+        );
         assert_ne!(v4, revoked);
     }
 
@@ -332,9 +432,13 @@ mod native {
         let e = evidence();
         let v4 = section(&e.pack, "epoch4").unwrap();
         let corrupted = v4.replace("policy=accepted", "policy=revoked");
-        assert!(!sshsig(&corrupted,
-                        section(&e.pack, "epoch4_guardian_sig").unwrap(),
-                        GUARDIAN, GUARDIAN_PRINCIPAL, GUARDIAN_NS));
+        assert!(!sshsig(
+            &corrupted,
+            section(&e.pack, "epoch4_guardian_sig").unwrap(),
+            GUARDIAN,
+            GUARDIAN_PRINCIPAL,
+            GUARDIAN_NS
+        ));
     }
 
     #[test]
@@ -350,14 +454,20 @@ mod native {
         let e = evidence();
         let mut changed = e.clone();
         changed.head = "0000000000000000000000000000000000000000".into();
-        assert_eq!(trusted_head(Some(&changed)),
-                   Err("EVIDENCE_COMMIT_OR_CONTENT_NOT_PINNED"));
+        assert_eq!(
+            trusted_head(Some(&changed)),
+            Err("EVIDENCE_COMMIT_OR_CONTENT_NOT_PINNED")
+        );
         let mut wrong_key = e.clone();
         wrong_key.pack = wrong_key.pack.replacen(GUARDIAN, OBSERVER, 1);
-        assert_eq!(trusted_head(Some(&wrong_key)),
-                   Err("EVIDENCE_COMMIT_OR_CONTENT_NOT_PINNED"));
-        assert_eq!(accepted_remote(&wrong_key.pack),
-                   Err("EVIDENCE_SIGNER_NOT_PINNED"));
+        assert_eq!(
+            trusted_head(Some(&wrong_key)),
+            Err("EVIDENCE_COMMIT_OR_CONTENT_NOT_PINNED")
+        );
+        assert_eq!(
+            accepted_remote(&wrong_key.pack),
+            Err("EVIDENCE_SIGNER_NOT_PINNED")
+        );
     }
 
     #[test]
@@ -365,11 +475,17 @@ mod native {
         let e = evidence();
         let mut duplicate = e.pack.clone();
         duplicate.push_str("[epoch4_observer_sig]\nforged\n[/epoch4_observer_sig]\n");
-        assert_eq!(accepted_remote(&duplicate),
-                   Err("EVIDENCE_SECTION_NOT_UNIQUE"));
-        let missing = e.pack.replace("[epoch4_observer_sig]", "[missing_observer_sig]");
-        assert_eq!(accepted_remote(&missing),
-                   Err("EVIDENCE_SECTION_NOT_UNIQUE"));
+        assert_eq!(
+            accepted_remote(&duplicate),
+            Err("EVIDENCE_SECTION_NOT_UNIQUE")
+        );
+        let missing = e
+            .pack
+            .replace("[epoch4_observer_sig]", "[missing_observer_sig]");
+        assert_eq!(
+            accepted_remote(&missing),
+            Err("EVIDENCE_SECTION_NOT_UNIQUE")
+        );
     }
 
     #[test]
@@ -380,11 +496,16 @@ mod native {
         let first = parse_record(first_str).unwrap();
         let mut next = parse_record(next_str).unwrap();
         next.parent = "0".repeat(64);
-        assert_eq!(check_link(&first, first_str, &next),
-                   Err("LOG_PREDECESSOR_MISMATCH"));
+        assert_eq!(
+            check_link(&first, first_str, &next),
+            Err("LOG_PREDECESSOR_MISMATCH")
+        );
         next.parent = E3_SHA.into();
         next.seq = 7;
-        assert_eq!(check_link(&first, first_str, &next), Err("LOG_NONMONOTONIC"));
+        assert_eq!(
+            check_link(&first, first_str, &next),
+            Err("LOG_NONMONOTONIC")
+        );
     }
 
     #[test]
@@ -392,10 +513,14 @@ mod native {
         let e = evidence();
         let v4 = trusted_head(Some(e)).unwrap();
         let old = parse_record(section(&e.pack, "epoch3").unwrap()).unwrap();
-        assert_eq!(admission(None, [v4.clone(); 2], &v4),
-                   Err("OFF_DEVICE_OBSERVER_REQUIRED"));
-        assert_eq!(admission(Some(e), [v4.clone(), old], &v4),
-                   Err("LOCAL_STATE_DIVERGED"));
+        assert_eq!(
+            admission(None, [v4.clone(); 2], &v4),
+            Err("OFF_DEVICE_OBSERVER_REQUIRED")
+        );
+        assert_eq!(
+            admission(Some(e), [v4.clone(), old], &v4),
+            Err("LOCAL_STATE_DIVERGED")
+        );
     }
 
     #[test]
@@ -405,8 +530,10 @@ mod native {
         let s = section(&e.pack, "epoch3_observer_sig").unwrap();
         assert!(sshsig(old, s, OBSERVER, OBSERVER_PRINCIPAL, OBSERVER_NS));
         let previously_valid = parse_record(old).unwrap();
-        assert_eq!(admission(Some(e), [previously_valid.clone(); 2], &previously_valid),
-                   Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK"));
+        assert_eq!(
+            admission(Some(e), [previously_valid.clone(); 2], &previously_valid),
+            Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK")
+        );
     }
 }
 #[cfg(not(target_os = "macos"))]
@@ -417,7 +544,13 @@ fn portable_targets_do_not_claim_actual_independent_guardian_custody() {
 #[test]
 fn reference_kernel_host_external_io_remains_default_denied() {
     let (mut model, permit) = Model::bootstrap(
-        0x54, ScopeBudget { tasks: 0, resources: 0, children: 0 }, 16
+        0x54,
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
+        16,
     );
     let root = model.root();
     assert_eq!(
