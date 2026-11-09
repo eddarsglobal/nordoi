@@ -9,9 +9,9 @@ use reference::{Model, ModelError, ResourceEffect, ScopeBudget};
 
 #[cfg(target_os = "macos")]
 mod native {
-    use std::fs::{self};
+    use std::fs;
     use std::io::Write;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::process::{Command, Output, Stdio};
     use std::sync::{
         atomic::{AtomicU64, Ordering},
@@ -132,11 +132,11 @@ mod native {
     fn section<'a>(pack: &'a str, key: &str) -> Result<&'a str, &'static str> {
         let start = format!("[{key}]\n");
         let end = format!("[/{key}]\n");
-        if pack.matches(&start).count() != 1 || pack.matches(&end).count() != 1 {
+        if pack.matches(start.as_str()).count() != 1 || pack.matches(end.as_str()).count() != 1 {
             return Err("EVIDENCE_SECTION_NOT_UNIQUE");
         }
-        let (_, tail) = pack.split_once(&start).ok_or("EVIDENCE_SECTION_MISSING")?;
-        let (part, _) = tail.split_once(&end).ok_or("EVIDENCE_SECTION_NOT_CLOSED")?;
+        let (_, tail) = pack.split_once(start.as_str()).ok_or("EVIDENCE_SECTION_MISSING")?;
+        let (part, _) = tail.split_once(end.as_str()).ok_or("EVIDENCE_SECTION_NOT_CLOSED")?;
         if !part.ends_with('\n') || part.is_empty() {
             return Err("EVIDENCE_SECTION_NONCANONICAL");
         }
