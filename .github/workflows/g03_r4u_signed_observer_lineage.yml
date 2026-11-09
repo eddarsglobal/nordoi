@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4U signed remote observer and fork lab
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4u_remote_observer_signed_lineage_lab.rs'
+      - 'research/G03_R4U_SIGNED_REMOTE_OBSERVER_LINEAGE_LAB.md'
+      - '.github/workflows/g03_r4u_signed_observer_lineage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-observer:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Native SSHSIG signed observer, fresh GitHub evidence, fork and rollback denial
+        run: cargo test --offline --release --test g03_r4u_remote_observer_signed_lineage_lab -- --nocapture
+      - name: R4T predecessor highwater and known receipt replay negative-control
+        if: always()
+        run: cargo test --offline --release --test g03_r4t_owner_enrolled_custodian_receipts_lab
+      - name: Strict Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-default-deny:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: No native guardian or external administrative witness claim
+        run: cargo test --offline --release --test g03_r4u_remote_observer_signed_lineage_lab
