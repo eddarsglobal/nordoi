@@ -1,0 +1,40 @@
+name: NORDOI G0.3 R4J real bundled XPC sandbox service
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4j_xpc_service_sandbox_boundary_lab.rs'
+      - 'research/G03_R4J_XPC_SERVICE_SANDBOX_BOUNDARY_LAB.md'
+      - '.github/workflows/g03_r4j_xpc_service_sandbox_boundary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos-genuine-launchd-xpc:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Real launchd XPC service response, separate privilege, OS filesystem denial
+        run: cargo test --offline --release --test g03_r4j_xpc_service_sandbox_boundary_lab -- --nocapture
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        run: cargo clippy --offline --all-targets -- -D warnings
+  other-os-no-xpc-proof:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: macOS-only XPC service not available, reference model ExternalIo denied
+        run: cargo test --offline --release --test g03_r4j_xpc_service_sandbox_boundary_lab
