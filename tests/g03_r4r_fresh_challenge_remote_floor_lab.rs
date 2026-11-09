@@ -588,8 +588,7 @@ mod native {
     // A current B SSHSIG response is insufficient if B's current state is
     // itself restored: the independent Git-hosted floor must also agree.
     const R4R_REMOTE_URL: &str = "https://github.com/eddarsglobal/nordoi.git";
-    const R4R_REMOTE_REF: &str =
-        "refs/heads/evidence/g03-r4p-external-signed-checkpoint-20261109";
+    const R4R_REMOTE_REF: &str = "refs/heads/evidence/g03-r4p-external-signed-checkpoint-20261109";
     const R4R_REMOTE_HEAD: &str = "ff8abe01cc1a527dd84b463dec1736d20a5391a4";
     const R4R_REMOTE_PUBLIC: &str =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE1i2sBt6ulBFM32PSg6dUeMGG1EBAj3URQ0XUaskrAx";
@@ -634,9 +633,7 @@ mod native {
         let mut ls = Command::new("/usr/bin/git");
         ls.args(["ls-remote", R4R_REMOTE_URL, R4R_REMOTE_REF]);
         let remote = r4r_git(&mut ls)?;
-        if remote.stdout
-            != format!("{R4R_REMOTE_HEAD}\t{R4R_REMOTE_REF}\n").as_bytes()
-        {
+        if remote.stdout != format!("{R4R_REMOTE_HEAD}\t{R4R_REMOTE_REF}\n").as_bytes() {
             return Err("REMOTE_REF_CHANGED");
         }
         let seq = SERIAL.fetch_add(1, Ordering::Relaxed);
@@ -646,9 +643,13 @@ mod native {
         init.args(["init", "-q"]).arg(&repo);
         r4r_git(&mut init)?;
         let mut fetch = Command::new("/usr/bin/git");
-        fetch.arg("-C")
-            .arg(&repo)
-            .args(["fetch", "--depth=1", "--no-tags", R4R_REMOTE_URL, R4R_REMOTE_REF]);
+        fetch.arg("-C").arg(&repo).args([
+            "fetch",
+            "--depth=1",
+            "--no-tags",
+            R4R_REMOTE_URL,
+            R4R_REMOTE_REF,
+        ]);
         r4r_git(&mut fetch)?;
         let mut rev = Command::new("/usr/bin/git");
         rev.arg("-C").arg(&repo).args(["rev-parse", "FETCH_HEAD"]);
@@ -661,7 +662,8 @@ mod native {
             return Err("REMOTE_ROOT_SUBSTITUTED");
         }
         let message = r4r_read(&repo, "witness_v2.txt")?;
-        let expected = b"NORDOI-R4P-EXTERNAL-WITNESS-V1\nproject=eddarsglobal/nordoi\nepoch=2\nsequence=2\n";
+        let expected =
+            b"NORDOI-R4P-EXTERNAL-WITNESS-V1\nproject=eddarsglobal/nordoi\nepoch=2\nsequence=2\n";
         if message != expected {
             return Err("REMOTE_WITNESS_NONCANONICAL");
         }
@@ -671,7 +673,10 @@ mod native {
         fs::write(&msg, message).map_err(|_| "REMOTE_MESSAGE_WRITE")?;
         fs::write(&sig, signature).map_err(|_| "REMOTE_SIG_WRITE")?;
         if !verify(
-            &Signed { msg, signature: sig },
+            &Signed {
+                msg,
+                signature: sig,
+            },
             R4R_REMOTE_PUBLIC,
             R4R_REMOTE_ID,
             R4R_REMOTE_NS,
@@ -736,8 +741,8 @@ mod native {
             ) {
                 return Err("FRESHNESS_SIGNATURE_INVALID");
             }
-            let observed = fs::read_to_string(&response.msg)
-                .map_err(|_| "FRESHNESS_MESSAGE_MISSING")?;
+            let observed =
+                fs::read_to_string(&response.msg).map_err(|_| "FRESHNESS_MESSAGE_MISSING")?;
             let wanted = format!(
                 "NORDOI-R4R-FRESHNESS-V1\nepoch={}\nseq={}\nnonce={nonce}\n",
                 candidate.epoch, candidate.seq,
@@ -754,7 +759,13 @@ mod native {
         let lab = Lab::new();
         let current = lab.version(2, 2);
         let a2 = lab.publish("r4r-a2", &current, 0);
-        let b2 = lab.attest("r4r-b2", &current, &lab.publisher_key(false), false, WITNESS_NS);
+        let b2 = lab.attest(
+            "r4r-b2",
+            &current,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b2);
         let floor = r4r_live_floor(&lab).expect("live signed GitHub epoch 2 floor");
         let nonce = r4r_nonce();
@@ -770,13 +781,28 @@ mod native {
         let lab = Lab::new();
         let previous = lab.version(1, 1);
         let latest = lab.version(2, 2);
-        let b2 = lab.attest("r4r-b2", &latest, &lab.publisher_key(false), false, WITNESS_NS);
+        let b2 = lab.attest(
+            "r4r-b2",
+            &latest,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b2);
         let a2 = lab.publish("r4r-before-rollback", &latest, 0);
-        assert_eq!(lab.verify_admission(&a2, &[latest.cursor; 2]), Ok(latest.cursor));
+        assert_eq!(
+            lab.verify_admission(&a2, &[latest.cursor; 2]),
+            Ok(latest.cursor)
+        );
 
         // Malicious restoration of B's current view AND the two local files.
-        let b1 = lab.attest("r4r-restored-b1", &previous, &lab.publisher_key(false), false, WITNESS_NS);
+        let b1 = lab.attest(
+            "r4r-restored-b1",
+            &previous,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b1);
         let a1 = lab.publish("r4r-replayed-a1", &previous, 0);
         assert_eq!(
@@ -793,8 +819,11 @@ mod native {
             r4r_live_floor(&lab).expect("new live GitHub fetch AFTER malicious restore");
         assert_eq!(
             lab.r4r_admit(
-                &a1, &[previous.cursor; 2], Some(&remote_after_rollback),
-                &nonce, &freshly_signed_old
+                &a1,
+                &[previous.cursor; 2],
+                Some(&remote_after_rollback),
+                &nonce,
+                &freshly_signed_old
             ),
             Err("REMOTE_HIGH_WATER_MISMATCH")
         );
@@ -804,7 +833,13 @@ mod native {
     fn native_r4r_replayed_nonce_cannot_satisfy_new_challenge() {
         let lab = Lab::new();
         let latest = lab.version(2, 2);
-        let b2 = lab.attest("r4r-b2", &latest, &lab.publisher_key(false), false, WITNESS_NS);
+        let b2 = lab.attest(
+            "r4r-b2",
+            &latest,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b2);
         let a2 = lab.publish("r4r-a2", &latest, 0);
         let nonce = r4r_nonce();
@@ -814,11 +849,16 @@ mod native {
         // The only valid floor object is produced by a signed+commit-pinned fetch;
         // here we use a fixed offline authenticated floor snapshot fixture for
         // narrow nonce tests, not a new network freshness claim.
-        let fixed_floor = AuthenticatedFloor { latest: latest.cursor };
+        let fixed_floor = AuthenticatedFloor {
+            latest: latest.cursor,
+        };
         assert_eq!(
             lab.r4r_admit(
-                &a2, &[latest.cursor; 2], Some(&fixed_floor),
-                &different_nonce, &old_token
+                &a2,
+                &[latest.cursor; 2],
+                Some(&fixed_floor),
+                &different_nonce,
+                &old_token
             ),
             Err("FRESHNESS_NONCE_OR_STATE_MISMATCH")
         );
@@ -828,10 +868,18 @@ mod native {
     fn native_r4r_tampered_or_wrong_domain_freshness_denied() {
         let lab = Lab::new();
         let latest = lab.version(2, 2);
-        let b2 = lab.attest("r4r-b2", &latest, &lab.publisher_key(false), false, WITNESS_NS);
+        let b2 = lab.attest(
+            "r4r-b2",
+            &latest,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b2);
         let a2 = lab.publish("r4r-a2", &latest, 0);
-        let floor = AuthenticatedFloor { latest: latest.cursor };
+        let floor = AuthenticatedFloor {
+            latest: latest.cursor,
+        };
         let nonce = r4r_nonce();
         let altered = lab.r4r_challenge_response("r4r-corrupt", &nonce, latest.cursor);
         fs::write(&altered.msg, b"forged").unwrap();
@@ -842,14 +890,18 @@ mod native {
         let domain_path = lab.external_signer.join("r4r-wrong-domain.freshness");
         fs::write(
             &domain_path,
-            format!(
-                "NORDOI-R4R-FRESHNESS-V1\nepoch=2\nseq=2\nnonce={nonce}\n"
-            ),
+            format!("NORDOI-R4R-FRESHNESS-V1\nepoch=2\nseq=2\nnonce={nonce}\n"),
         )
         .unwrap();
         let wrong_domain = sign(&domain_path, &lab.witness_key, RELEASE_NS);
         assert_eq!(
-            lab.r4r_admit(&a2, &[latest.cursor; 2], Some(&floor), &nonce, &wrong_domain),
+            lab.r4r_admit(
+                &a2,
+                &[latest.cursor; 2],
+                Some(&floor),
+                &nonce,
+                &wrong_domain
+            ),
             Err("FRESHNESS_SIGNATURE_INVALID")
         );
     }
@@ -858,7 +910,13 @@ mod native {
     fn native_r4r_network_unavailable_never_falls_back_to_local_quorum() {
         let lab = Lab::new();
         let latest = lab.version(2, 2);
-        let b2 = lab.attest("r4r-b2", &latest, &lab.publisher_key(false), false, WITNESS_NS);
+        let b2 = lab.attest(
+            "r4r-b2",
+            &latest,
+            &lab.publisher_key(false),
+            false,
+            WITNESS_NS,
+        );
         lab.install_external_head(&b2);
         let a2 = lab.publish("r4r-a2", &latest, 0);
         let nonce = r4r_nonce();
@@ -868,7 +926,6 @@ mod native {
             Err("REMOTE_FLOOR_REQUIRED")
         );
     }
-
 }
 
 #[cfg(not(target_os = "macos"))]
