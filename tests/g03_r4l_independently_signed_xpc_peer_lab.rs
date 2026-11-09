@@ -167,7 +167,7 @@ int main(int argc,char **argv) {
     int bad=run_peer(argv[3],argv[1],"bad");
     if(bad!=7) {fprintf(stderr,"R4L|BAD_SIBLING_NOT_EXPLICIT_SIGNATURE_ERROR|EXIT=%d\n",bad);return 85;}
     if(!count(c,&after_bad,&p2) || after_bad!=0 || p2!=p0) {
-        fprintf(stderr,"R4L|UNAUTHORIZED_MESSAGE_REACHED_SERVICE|COUNT=%llu\n",
+        fprintf(stderr,"R4L|COORDINATOR_INSTANCE_COUNTER_CHANGED|COUNT=%llu\n",
                 (unsigned long long)after_bad);
         return 86;
     }
@@ -447,7 +447,7 @@ int main(int argc,char **argv) {
     pub fn assert_evidence(w: &Witness) {
         assert!(
             !w.timed_out && w.ok,
-            "native signed peer run MUST succeed: {}",
+            "strict independent peer admission evidence must succeed: {}",
             w.stderr
         );
         assert!(w.stdout.len() as u64 <= LIMIT, "bounded stdout");
@@ -494,7 +494,7 @@ fn native_two_independently_signed_peers_same_bundle_positive_and_negative() {
 }
 #[cfg(target_os = "macos")]
 #[test]
-fn native_repeated_signed_peers_do_not_reach_unauthorized_handler() {
+fn native_repeated_independently_signed_peer_requirement_evidence() {
     for _ in 0..2 {
         native::exercise();
     }
