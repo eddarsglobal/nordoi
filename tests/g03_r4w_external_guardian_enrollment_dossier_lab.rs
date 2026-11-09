@@ -27,9 +27,8 @@ mod native {
     impl Temp {
         fn new() -> Self {
             let n = SEQ.fetch_add(1, Ordering::Relaxed);
-            let dir = std::env::temp_dir().join(format!(
-                "nordoi-r4w-enrollment-{}-{n}", std::process::id()
-            ));
+            let dir = std::env::temp_dir()
+                .join(format!("nordoi-r4w-enrollment-{}-{n}", std::process::id()));
             fs::create_dir(&dir).expect("new test-only directory");
             Self(fs::canonicalize(dir).expect("canonical test-only directory"))
         }
@@ -43,13 +42,22 @@ mod native {
         if input.is_some() {
             c.stdin(Stdio::piped());
         }
-        let mut child = c.stdout(Stdio::piped()).stderr(Stdio::piped())
-            .spawn().map_err(|_| "NATIVE_COMMAND_NOT_AVAILABLE")?;
+        let mut child = c
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|_| "NATIVE_COMMAND_NOT_AVAILABLE")?;
         if let Some(input) = input {
-            child.stdin.take().ok_or("NO_NATIVE_STDIN")?
-                .write_all(input).map_err(|_| "NATIVE_INPUT_FAILED")?;
+            child
+                .stdin
+                .take()
+                .ok_or("NO_NATIVE_STDIN")?
+                .write_all(input)
+                .map_err(|_| "NATIVE_INPUT_FAILED")?;
         }
-        child.wait_with_output().map_err(|_| "NATIVE_COMMAND_FAILED_TO_EXIT")
+        child
+            .wait_with_output()
+            .map_err(|_| "NATIVE_COMMAND_FAILED_TO_EXIT")
     }
     fn ssh_key(directory: &Path, name: &str) -> PathBuf {
         let private = directory.join(name);
@@ -69,8 +77,10 @@ mod native {
     }
     fn fresh_nonce() -> String {
         let mut bytes = [0_u8; 32];
-        File::open("/dev/urandom").expect("random source")
-            .read_exact(&mut bytes).expect("256-bit challenge");
+        File::open("/dev/urandom")
+            .expect("random source")
+            .read_exact(&mut bytes)
+            .expect("256-bit challenge");
         let mut output = String::with_capacity(64);
         for b in bytes {
             use std::fmt::Write as _;
@@ -86,28 +96,36 @@ mod native {
     }
     fn canonical_record(actual: &str, guardian: &str, nonce: &str, epoch: u64) -> bool {
         nonce.len() == 64
-            && nonce.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+            && nonce
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
             && guardian.starts_with("ssh-ed25519 ")
             && epoch > 0
             && actual == record(guardian, nonce, epoch)
     }
     fn sign(message: &Path, key: &Path, namespace: &str) -> PathBuf {
         let mut c = Command::new("/usr/bin/ssh-keygen");
-        c.args(["-Y", "sign", "-f"]).arg(key).args(["-n", namespace]).arg(message);
+        c.args(["-Y", "sign", "-f"])
+            .arg(key)
+            .args(["-n", namespace])
+            .arg(message);
         let out = command(c, None).expect("actual OpenSSH SSHSIG");
         assert!(out.status.success(), "SSH signature generation failed");
         PathBuf::from(format!("{}.sig", message.display()))
     }
     fn verify(msg: &str, sig: &Path, pubkey: &str, namespace: &str, directory: &Path) -> bool {
         let allow = directory.join(format!(
-            "allowed-{}.txt", SEQ.fetch_add(1, Ordering::Relaxed)
+            "allowed-{}.txt",
+            SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         if fs::write(&allow, format!("{SIGN_ID} {pubkey}\n")).is_err() {
             return false;
         }
         let mut c = Command::new("/usr/bin/ssh-keygen");
-        c.args(["-Y", "verify", "-f"]).arg(allow)
-            .args(["-I", SIGN_ID, "-n", namespace, "-s"]).arg(sig);
+        c.args(["-Y", "verify", "-f"])
+            .arg(allow)
+            .args(["-I", SIGN_ID, "-n", namespace, "-s"])
+            .arg(sig);
         command(c, Some(msg.as_bytes())).is_ok_and(|out| out.status.success())
     }
     struct Proof {
@@ -120,11 +138,17 @@ mod native {
         let candidate = public_key(key);
         let message = record(&candidate, nonce, epoch);
         let path = temp.0.join(format!(
-            "candidate-{}.txt", SEQ.fetch_add(1, Ordering::Relaxed)
+            "candidate-{}.txt",
+            SEQ.fetch_add(1, Ordering::Relaxed)
         ));
         fs::write(&path, &message).unwrap();
         let signature = sign(&path, key, SIGN_NS);
-        Proof { message, signature, candidate, nonce: nonce.to_owned() }
+        Proof {
+            message,
+            signature,
+            candidate,
+            nonce: nonce.to_owned(),
+        }
     }
     #[derive(Clone)]
     struct IndependentCustody {
@@ -176,12 +200,19 @@ mod native {
         // Claims are untrusted strings/flags. No separate trust oracle exists.
         Err("RESEARCH_CANNOT_CERTIFY_REAL_OPERATOR_CUSTODY")
     }
-    fn admit(proof: Option<&Proof>, expected_key: &str, expected_nonce: &str,
-             epoch: u64, temp: &Temp, claims: &IndependentCustody)
-        -> Result<(), &'static str> {
+    fn admit(
+        proof: Option<&Proof>,
+        expected_key: &str,
+        expected_nonce: &str,
+        epoch: u64,
+        temp: &Temp,
+        claims: &IndependentCustody,
+    ) -> Result<(), &'static str> {
         let p = proof.ok_or("SIGNED_ENROLLMENT_REQUIRED")?;
         if !canonical_record(&p.message, expected_key, expected_nonce, epoch)
-            || p.candidate != expected_key || p.nonce != expected_nonce {
+            || p.candidate != expected_key
+            || p.nonce != expected_nonce
+        {
             return Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE");
         }
         if !verify(&p.message, &p.signature, expected_key, SIGN_NS, &temp.0) {
@@ -196,10 +227,24 @@ mod native {
         let key = ssh_key(&temp.0, "candidate-a");
         let nonce = fresh_nonce();
         let proof = generate_proof(&temp, &key, &nonce, 4);
-        assert!(verify(&proof.message, &proof.signature,
-                       &proof.candidate, SIGN_NS, &temp.0));
-        assert_eq!(admit(Some(&proof), &proof.candidate, &nonce, 4, &temp,
-                         &IndependentCustody::actual_r4w()), Err("SAME_ADMINISTRATOR"));
+        assert!(verify(
+            &proof.message,
+            &proof.signature,
+            &proof.candidate,
+            SIGN_NS,
+            &temp.0
+        ));
+        assert_eq!(
+            admit(
+                Some(&proof),
+                &proof.candidate,
+                &nonce,
+                4,
+                &temp,
+                &IndependentCustody::actual_r4w()
+            ),
+            Err("SAME_ADMINISTRATOR")
+        );
     }
     #[test]
     fn native_new_256_bit_challenge_rejects_prior_authentic_signature() {
@@ -209,9 +254,17 @@ mod native {
         let second = fresh_nonce();
         assert_ne!(first, second);
         let proof = generate_proof(&temp, &key, &first, 4);
-        assert_eq!(admit(Some(&proof), &proof.candidate, &second, 4, &temp,
-                         &IndependentCustody::actual_r4w()),
-                   Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE"));
+        assert_eq!(
+            admit(
+                Some(&proof),
+                &proof.candidate,
+                &second,
+                4,
+                &temp,
+                &IndependentCustody::actual_r4w()
+            ),
+            Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE")
+        );
     }
     #[test]
     fn native_wrong_public_key_cannot_replace_owner_enrollment() {
@@ -220,11 +273,24 @@ mod native {
         let other = ssh_key(&temp.0, "candidate-b");
         let nonce = fresh_nonce();
         let proof = generate_proof(&temp, &key, &nonce, 4);
-        assert_eq!(admit(Some(&proof), &public_key(&other), &nonce, 4, &temp,
-                         &IndependentCustody::actual_r4w()),
-                   Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE"));
-        assert!(!verify(&proof.message, &proof.signature,
-                        &public_key(&other), SIGN_NS, &temp.0));
+        assert_eq!(
+            admit(
+                Some(&proof),
+                &public_key(&other),
+                &nonce,
+                4,
+                &temp,
+                &IndependentCustody::actual_r4w()
+            ),
+            Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE")
+        );
+        assert!(!verify(
+            &proof.message,
+            &proof.signature,
+            &public_key(&other),
+            SIGN_NS,
+            &temp.0
+        ));
     }
     #[test]
     fn native_wrong_sshsig_namespace_denied_even_for_same_key() {
@@ -232,8 +298,13 @@ mod native {
         let key = ssh_key(&temp.0, "candidate-a");
         let nonce = fresh_nonce();
         let proof = generate_proof(&temp, &key, &nonce, 4);
-        assert!(!verify(&proof.message, &proof.signature,
-                        &proof.candidate, OTHER_NS, &temp.0));
+        assert!(!verify(
+            &proof.message,
+            &proof.signature,
+            &proof.candidate,
+            OTHER_NS,
+            &temp.0
+        ));
     }
     #[test]
     fn native_modified_enrollment_bytes_denied() {
@@ -241,21 +312,44 @@ mod native {
         let key = ssh_key(&temp.0, "candidate-a");
         let nonce = fresh_nonce();
         let proof = generate_proof(&temp, &key, &nonce, 4);
-        let tampered = proof.message.replace("requested_epoch=4", "requested_epoch=5");
-        assert!(!verify(&tampered, &proof.signature, &proof.candidate,
-                        SIGN_NS, &temp.0));
-        assert_eq!(admit(Some(&proof), &proof.candidate, &nonce, 5, &temp,
-                         &IndependentCustody::actual_r4w()),
-                   Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE"));
+        let tampered = proof
+            .message
+            .replace("requested_epoch=4", "requested_epoch=5");
+        assert!(!verify(
+            &tampered,
+            &proof.signature,
+            &proof.candidate,
+            SIGN_NS,
+            &temp.0
+        ));
+        assert_eq!(
+            admit(
+                Some(&proof),
+                &proof.candidate,
+                &nonce,
+                5,
+                &temp,
+                &IndependentCustody::actual_r4w()
+            ),
+            Err("ENROLLMENT_NONCANONICAL_OR_WRONG_CHALLENGE")
+        );
     }
     #[test]
     fn native_missing_external_enrollment_does_not_fall_back_to_two_keys() {
         let temp = Temp::new();
         let key = ssh_key(&temp.0, "candidate-a");
         let nonce = fresh_nonce();
-        assert_eq!(admit(None, &public_key(&key), &nonce, 4, &temp,
-                         &IndependentCustody::actual_r4w()),
-                   Err("SIGNED_ENROLLMENT_REQUIRED"));
+        assert_eq!(
+            admit(
+                None,
+                &public_key(&key),
+                &nonce,
+                4,
+                &temp,
+                &IndependentCustody::actual_r4w()
+            ),
+            Err("SIGNED_ENROLLMENT_REQUIRED")
+        );
     }
     #[test]
     fn native_signed_request_with_same_repo_owner_is_not_an_external_guardian() {
@@ -263,8 +357,17 @@ mod native {
         let key = ssh_key(&temp.0, "candidate-a");
         let nonce = fresh_nonce();
         let proof = generate_proof(&temp, &key, &nonce, 4);
-        assert_eq!(admit(Some(&proof), &proof.candidate, &nonce, 4, &temp,
-                         &IndependentCustody::actual_r4w()), Err("SAME_ADMINISTRATOR"));
+        assert_eq!(
+            admit(
+                Some(&proof),
+                &proof.candidate,
+                &nonce,
+                4,
+                &temp,
+                &IndependentCustody::actual_r4w()
+            ),
+            Err("SAME_ADMINISTRATOR")
+        );
     }
     #[test]
     fn native_distinct_names_do_not_replace_external_operator_attestation() {
@@ -277,7 +380,10 @@ mod native {
         let mut c = IndependentCustody::actual_r4w();
         c.candidate_controller = "unverified-other-operator";
         c.verified_independent_operator = true;
-        assert_eq!(audit(&c), Err("OWNER_APPROVED_ROOT_NOT_OBTAINED_OUT_OF_BAND"));
+        assert_eq!(
+            audit(&c),
+            Err("OWNER_APPROVED_ROOT_NOT_OBTAINED_OUT_OF_BAND")
+        );
     }
     #[test]
     fn native_observer_without_protected_monotonic_head_is_denied() {
@@ -308,7 +414,10 @@ mod native {
         c.deployment_pin_protected = true;
         c.recovery_policy_authorized = true;
         c.external_signed_provenance = true;
-        assert_eq!(audit(&c), Err("RESEARCH_CANNOT_CERTIFY_REAL_OPERATOR_CUSTODY"));
+        assert_eq!(
+            audit(&c),
+            Err("RESEARCH_CANNOT_CERTIFY_REAL_OPERATOR_CUSTODY")
+        );
     }
     #[test]
     fn native_actual_github_observer_commit_is_not_independently_administered() {
@@ -319,9 +428,18 @@ mod native {
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GIT_ASKPASS", "/usr/bin/false");
         let out = command(c, None).expect("actual network observation");
-        assert!(out.status.success(), "GitHub evidence ref must be accessible");
-        assert_eq!(out.stdout, format!("{REMOTE_COMMIT}\t{REMOTE_REF}\n").as_bytes());
-        assert_eq!(audit(&IndependentCustody::actual_r4w()), Err("SAME_ADMINISTRATOR"));
+        assert!(
+            out.status.success(),
+            "GitHub evidence ref must be accessible"
+        );
+        assert_eq!(
+            out.stdout,
+            format!("{REMOTE_COMMIT}\t{REMOTE_REF}\n").as_bytes()
+        );
+        assert_eq!(
+            audit(&IndependentCustody::actual_r4w()),
+            Err("SAME_ADMINISTRATOR")
+        );
     }
 }
 
@@ -333,7 +451,13 @@ fn portable_targets_cannot_claim_native_independent_guardian_custody() {
 #[test]
 fn reference_model_still_denies_external_io_without_production_authorization() {
     let (mut model, permit) = Model::bootstrap(
-        0x56, ScopeBudget { tasks: 0, resources: 0, children: 0 }, 16
+        0x56,
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
+        16,
     );
     let root = model.root();
     assert_eq!(
