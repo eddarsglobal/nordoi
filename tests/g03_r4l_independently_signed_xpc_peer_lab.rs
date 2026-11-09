@@ -164,7 +164,7 @@ static int journal(char *path, unsigned long *first, unsigned long *second) {
         if(sscanf(cursor,"R4L|HANDLER|PID=%lu%c",&pid,&trailer)!=1 || pid==0) return -1;
         if(lines==0 && first) *first=pid;
         if(lines==1 && second) *second=pid;
-        if(++lines>2) return -1;
+        if(++lines>3) return -1;
         cursor=end+1;
     }
     return lines;
@@ -206,7 +206,7 @@ int main(int argc,char **argv) {
     // Differential proof: same bad executable and bundle, only the service
     // admission signing requirement differs; kernel may silently drop it.
     int bad_guarded=run_peer(argv[4],argv[1],"bad",argv[5]);
-    if(bad_guarded!=14 && bad_guarded!=7 && bad_guarded!=8) {
+    if(bad_guarded!=14 && bad_guarded!=7 && bad_guarded!=8 && bad_guarded!=9) {
         fprintf(stderr,"R4L|BAD_GUARDED_UNEXPECTED_EXIT|EXIT=%d\n",bad_guarded);
         return 84;
     }
@@ -214,10 +214,21 @@ int main(int argc,char **argv) {
         fprintf(stderr,"R4L|BAD_GUARDED_REACHED_HANDLER\n");
         return 85;
     }
-    printf("R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED\n");
-    printf("R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=%s|RECORDS=2\n",
-           bad_guarded==14?"SILENT_DROP":
-           (bad_guarded==7?"XPC_SIGNING_ERROR":"CONNECTION_INVALID_DIFFERENTIAL"));
+    // One more guarded positive handshake AFTER the adversarial attempt
+    // excludes a dead or generally unreachable protected service.
+    int after_good=run_peer(argv[3],argv[1],"good",argv[5]);
+    if(after_good!=0 || journal(argv[5],NULL,NULL)!=3) {
+        fprintf(stderr,"R4L|GUARDED_POST_NEGATIVE_CONTROL_FAILED|EXIT=%d\n",
+                after_good);
+        return 86;
+    }
+    printf("R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED|POST_GOOD=HANDLER_RECORDED\n");
+    const char *witness=(bad_guarded==14)?"SILENT_DROP":
+        (bad_guarded==7)?"XPC_SIGNING_ERROR":
+        (bad_guarded==8)?"CONNECTION_INVALID_DIFFERENTIAL":
+        "CONNECTION_INTERRUPTED_DIFFERENTIAL";
+    printf("R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=%s|RECORDS=3\n",
+           witness);
     fflush(stdout);
     return 0;
 }
@@ -547,12 +558,13 @@ int main(int argc,char **argv) {
         assert_eq!(lines.len(), 2, "two exact differential receipt frames");
         assert_eq!(
             lines[0],
-            "R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED"
+            "R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED|POST_GOOD=HANDLER_RECORDED"
         );
         assert!(
-            lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=SILENT_DROP|RECORDS=2"
-             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=XPC_SIGNING_ERROR|RECORDS=2"
-             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=CONNECTION_INVALID_DIFFERENTIAL|RECORDS=2",
+            lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=SILENT_DROP|RECORDS=3"
+             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=XPC_SIGNING_ERROR|RECORDS=3"
+             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=CONNECTION_INVALID_DIFFERENTIAL|RECORDS=3"
+             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=CONNECTION_INTERRUPTED_DIFFERENTIAL|RECORDS=3",
             "negative evidence must be paired with genuine protected and open-control XPC handler records"
         );
     }
@@ -563,7 +575,7 @@ int main(int argc,char **argv) {
         assert_evidence(&w);
         let bytes = fs::read_to_string(lab.journal()).expect("read test-only handler receipts");
         let records: Vec<&str> = bytes.lines().collect();
-        assert_eq!(records.len(), 2, "two exact service-origin journal records");
+        assert_eq!(records.len(), 3, "three exact service-origin journal records");
         for record in records {
             let pid = record
                 .strip_prefix("R4L|HANDLER|PID=")
