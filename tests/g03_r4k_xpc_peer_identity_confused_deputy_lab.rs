@@ -179,6 +179,50 @@ int main(int argc, char **argv) {
     return 0;
 }
 "#;
+
+    // A separately ad-hoc-signed process inside the SAME app must not be
+    // implicitly authorized by its filesystem location or shared Unix uid.
+    const IMPOSTOR_C: &str = r#"
+#include <xpc/xpc.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+int main(int argc, char **argv) {
+    if (argc != 4) return 90;
+    xpc_connection_t con = xpc_connection_create(argv[1], NULL);
+    if (!con) return 91;
+    xpc_connection_set_event_handler(con, ^(xpc_object_t event) { (void)event; });
+    xpc_connection_resume(con);
+    xpc_object_t q = xpc_dictionary_create(NULL, NULL, 0);
+    xpc_dictionary_set_string(q, "op", "probe");
+    xpc_dictionary_set_string(q, "sentinel", argv[2]);
+    xpc_dictionary_set_string(q, "create", argv[3]);
+    xpc_dictionary_set_string(q, "grant", "unlimited");
+    xpc_object_t result = xpc_connection_send_message_with_reply_sync(con, q);
+    xpc_release(q);
+    if (result != XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
+        if (result) {
+            char *descr = xpc_copy_description(result);
+            fprintf(stderr, "R4K|IMPOSTOR_UNEXPECTED_RESPONSE|%s\n", descr ? descr : "NULL");
+            if (descr) free(descr);
+            xpc_release(result);
+        } else {
+            fprintf(stderr, "R4K|IMPOSTOR_NO_XPC_ERROR\n");
+        }
+        xpc_connection_cancel(con);
+        xpc_release(con);
+        return 92;
+    }
+    printf("R4K|IMPOSTOR|SIGNATURE_POLICY_REJECTED\n");
+    fflush(stdout);
+    xpc_release(result);
+    xpc_connection_cancel(con);
+    xpc_release(con);
+    return 0;
+}
+"#;
+
     const SANDBOX_PLIST: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>
@@ -204,6 +248,9 @@ int main(int argc, char **argv) {
         }
         pub fn client(&self) -> PathBuf {
             self.app().join("Contents/MacOS/r4k-client")
+        }
+        pub fn impostor(&self) -> PathBuf {
+            self.app().join("Contents/MacOS/r4k-impostor")
         }
         pub fn service_bundle(&self) -> PathBuf {
             self.app()
@@ -250,6 +297,37 @@ int main(int argc, char **argv) {
                 result.status.success(),
                 "native ad-hoc test bundle signing: {}",
                 String::from_utf8_lossy(&result.stderr)
+            );
+        }
+        fn sign_impostor(path: &Path) {
+            let result = Command::new("/usr/bin/codesign")
+                .args([
+                    "--force",
+                    "--sign",
+                    "-",
+                    "--identifier",
+                    "org.eddarsglobal.nordoi.r4k.impostor",
+                ])
+                .arg(path)
+                .output()
+                .expect("sign independently identified client");
+            assert!(
+                result.status.success(),
+                "impostor ad-hoc signature: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
+        }
+        fn assert_impostor_identifier(path: &Path) {
+            let output = Command::new("/usr/bin/codesign")
+                .args(["--display", "--verbose=2"])
+                .arg(path)
+                .output()
+                .expect("impostor code signature details");
+            assert!(output.status.success(), "impostor signing details");
+            assert!(
+                String::from_utf8_lossy(&output.stderr)
+                    .contains("Identifier=org.eddarsglobal.nordoi.r4k.impostor"),
+                "impostor must be independently signed with a DIFFERENT identity"
             );
         }
         fn verify_signature(path: &Path) {
@@ -309,6 +387,9 @@ int main(int argc, char **argv) {
             fs::write(self.path("service.entitlements"), SANDBOX_PLIST).unwrap();
             self.compile("xpc_service.c", SERVICE_C, &self.service_exec());
             self.compile("xpc_client.c", CLIENT_C, &self.client());
+            self.compile("xpc_impostor.c", IMPOSTOR_C, &self.impostor());
+            Self::sign_impostor(&self.impostor());
+            Self::assert_impostor_identifier(&self.impostor());
             // Nested signed service before outer signed app, no extra entitlement.
             Self::sign(
                 &self.service_bundle(),
@@ -321,6 +402,8 @@ int main(int argc, char **argv) {
         pub fn verify(&self) {
             Self::verify_signature(&self.app());
             Self::verify_signature(&self.client());
+            Self::verify_signature(&self.impostor());
+            Self::assert_impostor_identifier(&self.impostor());
             Self::verify_signature(&self.service_bundle());
             Self::verify_signature(&self.service_exec());
             let service = Self::signed_keys(&self.service_bundle());
@@ -370,7 +453,13 @@ int main(int argc, char **argv) {
         }
     }
     pub fn run(lab: &Lab) -> Witness {
-        let mut child = Command::new(lab.client())
+        run_executable(&lab.client(), lab)
+    }
+    pub fn run_impostor(lab: &Lab) -> Witness {
+        run_executable(&lab.impostor(), lab)
+    }
+    fn run_executable(executable: &Path, lab: &Lab) -> Witness {
+        let mut child = Command::new(executable)
             .arg(&lab.service_name)
             .arg(lab.sentinel())
             .arg(lab.creation())
@@ -506,9 +595,31 @@ fn macos_r4k_authentication_is_bound_to_actual_xpc_messages() {
     lab.prepare();
     let receipt = macos::run(&lab);
     macos::assert_xpc(&receipt);
-    assert!(receipt.stdout.contains("R4K|POLICY|FORGED_AUTHORITY=DENIED"));
+    assert!(receipt
+        .stdout
+        .contains("R4K|POLICY|FORGED_AUTHORITY=DENIED"));
     lab.check_fixture();
 }
+#[cfg(target_os = "macos")]
+#[test]
+fn macos_wrong_signed_peer_is_rejected_by_native_xpc_policy() {
+    let lab = macos::Lab::new();
+    lab.prepare();
+    // Prove the exact same private service was reachable for the genuine client.
+    macos::assert_xpc(&macos::run(&lab));
+    let denied = macos::run_impostor(&lab);
+    assert!(
+        denied.ok && !denied.timed_out,
+        "a wrong-signed client must receive the specific XPC signature error: {}",
+        denied.stderr
+    );
+    assert_eq!(
+        denied.stdout.trim(),
+        "R4K|IMPOSTOR|SIGNATURE_POLICY_REJECTED"
+    );
+    lab.check_fixture();
+}
+
 #[cfg(not(target_os = "macos"))]
 #[test]
 fn portable_model_never_claims_macos_xpc_sandbox() {
