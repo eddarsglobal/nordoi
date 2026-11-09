@@ -67,7 +67,7 @@ static void accept_peer(xpc_connection_t peer) {
     xpc_connection_resume(peer);
 }
 int main(void) {
-    xpc_main(^(xpc_connection_t peer) { accept_peer(peer); });
+    xpc_main(accept_peer);
     return 0;
 }
 "#;
@@ -167,53 +167,74 @@ int main(int argc, char **argv) {
                 service_name: format!("org.eddarsglobal.nordoi.r4j.service.p{pid}.n{n}"),
             }
         }
-        pub fn app(&self) -> PathBuf { self.dir.join("R4JClient.app") }
-        pub fn client(&self) -> PathBuf { self.app().join("Contents/MacOS/r4j-client") }
+        pub fn app(&self) -> PathBuf {
+            self.dir.join("R4JClient.app")
+        }
+        pub fn client(&self) -> PathBuf {
+            self.app().join("Contents/MacOS/r4j-client")
+        }
         pub fn service_bundle(&self) -> PathBuf {
-            self.app().join(format!("Contents/XPCServices/{}.xpc", self.service_name))
+            self.app()
+                .join(format!("Contents/XPCServices/{}.xpc", self.service_name))
         }
         pub fn service_exec(&self) -> PathBuf {
             self.service_bundle().join("Contents/MacOS/r4j-service")
         }
-        pub fn sentinel(&self) -> PathBuf { self.dir.join("parent-owned.txt") }
-        pub fn creation(&self) -> PathBuf { self.dir.join("child-must-not-create.txt") }
-        fn path(&self, name: &str) -> PathBuf { self.dir.join(name) }
+        pub fn sentinel(&self) -> PathBuf {
+            self.dir.join("parent-owned.txt")
+        }
+        pub fn creation(&self) -> PathBuf {
+            self.dir.join("child-must-not-create.txt")
+        }
+        fn path(&self, name: &str) -> PathBuf {
+            self.dir.join(name)
+        }
 
         fn compile(&self, name: &str, content: &str, binary: &Path) {
             let path = self.path(name);
             fs::write(&path, content).expect("write fixed native test-only source");
             let build = Command::new("/usr/bin/cc")
-                .args(["-O2","-std=c11","-fblocks","-x","c"])
+                .args(["-O2", "-std=c11", "-fblocks", "-x", "c"])
                 .arg(path)
                 .arg("-o")
                 .arg(binary)
-                .args(["-framework","Foundation"])
+                .args(["-framework", "Foundation"])
                 .output()
                 .expect("Apple command-line tools required");
-            assert!(build.status.success(),
+            assert!(
+                build.status.success(),
                 "compile real libxpc test-only helper: {}",
-                String::from_utf8_lossy(&build.stderr));
+                String::from_utf8_lossy(&build.stderr)
+            );
         }
         fn sign(path: &Path, ent: Option<&Path>) {
             let mut command = Command::new("/usr/bin/codesign");
-            command.args(["--force","--sign","-"]);
-            if let Some(ent) = ent { command.arg("--entitlements").arg(ent); }
+            command.args(["--force", "--sign", "-"]);
+            if let Some(ent) = ent {
+                command.arg("--entitlements").arg(ent);
+            }
             let result = command.arg(path).output().expect("codesign required");
-            assert!(result.status.success(),
+            assert!(
+                result.status.success(),
                 "native ad-hoc test bundle signing: {}",
-                String::from_utf8_lossy(&result.stderr));
+                String::from_utf8_lossy(&result.stderr)
+            );
         }
         fn verify_signature(path: &Path) {
             let result = Command::new("/usr/bin/codesign")
-                .args(["--verify","--strict","--verbose=2"])
+                .args(["--verify", "--strict", "--verbose=2"])
                 .arg(path)
                 .output()
                 .expect("codesign verify");
-            assert!(result.status.success(), "invalid test code signature: {}", String::from_utf8_lossy(&result.stderr));
+            assert!(
+                result.status.success(),
+                "invalid test code signature: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
         }
         fn signed_keys(path: &Path) -> String {
             let output = Command::new("/usr/bin/codesign")
-                .args(["--display","--entitlements",":-"])
+                .args(["--display", "--entitlements", ":-"])
                 .arg(path)
                 .output()
                 .expect("codesign signed entitlements");
@@ -221,12 +242,15 @@ int main(int argc, char **argv) {
             String::from_utf8_lossy(&output.stdout).into_owned()
         }
         pub fn prepare(&self) {
-            let mut f = OpenOptions::new().write(true).create_new(true)
-                .open(self.sentinel()).expect("fresh sentinel");
+            let mut f = OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(self.sentinel())
+                .expect("fresh sentinel");
             f.write_all(b"R4J_PARENT_ONLY\n").unwrap();
-            let contents=self.app().join("Contents");
+            let contents = self.app().join("Contents");
             fs::create_dir_all(contents.join("MacOS")).unwrap();
-            let svc=self.service_bundle().join("Contents");
+            let svc = self.service_bundle().join("Contents");
             fs::create_dir_all(svc.join("MacOS")).unwrap();
 
             let client_info = format!(
@@ -250,14 +274,17 @@ int main(int argc, char **argv) {
                 </dict></plist>",
                 self.service_name
             );
-            fs::write(contents.join("Info.plist"),client_info).unwrap();
-            fs::write(svc.join("Info.plist"),svc_info).unwrap();
-            fs::write(self.path("service.entitlements"),SANDBOX_PLIST).unwrap();
-            self.compile("xpc_service.c",SERVICE_C,&self.service_exec());
-            self.compile("xpc_client.c",CLIENT_C,&self.client());
+            fs::write(contents.join("Info.plist"), client_info).unwrap();
+            fs::write(svc.join("Info.plist"), svc_info).unwrap();
+            fs::write(self.path("service.entitlements"), SANDBOX_PLIST).unwrap();
+            self.compile("xpc_service.c", SERVICE_C, &self.service_exec());
+            self.compile("xpc_client.c", CLIENT_C, &self.client());
             // Nested signed service before outer signed app, no extra entitlement.
-            Self::sign(&self.service_bundle(),Some(&self.path("service.entitlements")));
-            Self::sign(&self.app(),None);
+            Self::sign(
+                &self.service_bundle(),
+                Some(&self.path("service.entitlements")),
+            );
+            Self::sign(&self.app(), None);
             self.verify();
             self.check_fixture();
         }
@@ -266,14 +293,21 @@ int main(int argc, char **argv) {
             Self::verify_signature(&self.client());
             Self::verify_signature(&self.service_bundle());
             Self::verify_signature(&self.service_exec());
-            let service=Self::signed_keys(&self.service_bundle());
-            let client=Self::signed_keys(&self.app());
-            assert!(service.contains("<key>com.apple.security.app-sandbox</key>"),
-                "XPC service must be signed with OS App Sandbox");
-            assert_eq!(service.matches("<key>").count(),1,
-                "service must have no extra privilege entitlements");
-            assert!(!client.contains("com.apple.security.app-sandbox"),
-                "client control must not itself be sandboxed");
+            let service = Self::signed_keys(&self.service_bundle());
+            let client = Self::signed_keys(&self.app());
+            assert!(
+                service.contains("<key>com.apple.security.app-sandbox</key>"),
+                "XPC service must be signed with OS App Sandbox"
+            );
+            assert_eq!(
+                service.matches("<key>").count(),
+                1,
+                "service must have no extra privilege entitlements"
+            );
+            assert!(
+                !client.contains("com.apple.security.app-sandbox"),
+                "client control must not itself be sandboxed"
+            );
         }
         pub fn check_fixture(&self) {
             assert_eq!(fs::read(self.sentinel()).unwrap(), b"R4J_PARENT_ONLY\n");
@@ -286,91 +320,126 @@ int main(int argc, char **argv) {
         }
     }
     pub struct Witness {
-        pub ok: bool, pub timed_out: bool, pub stdout: String, pub stderr: String,
+        pub ok: bool,
+        pub timed_out: bool,
+        pub stdout: String,
+        pub stderr: String,
     }
-    fn wait_reap(child: &mut Child) -> (bool,bool) {
-        let start=Instant::now();
+    fn wait_reap(child: &mut Child) -> (bool, bool) {
+        let start = Instant::now();
         loop {
-            if let Some(exit)=child.try_wait().expect("XPC client status") {
-                return (exit.success(),false);
+            if let Some(exit) = child.try_wait().expect("XPC client status") {
+                return (exit.success(), false);
             }
-            if start.elapsed()>Duration::from_secs(15) {
-                let _=child.kill();
+            if start.elapsed() > Duration::from_secs(15) {
+                let _ = child.kill();
                 child.wait().expect("XPC client must be reaped");
-                return (false,true);
+                return (false, true);
             }
             thread::sleep(Duration::from_millis(10));
         }
     }
     pub fn run(lab: &Lab) -> Witness {
-        let mut child=Command::new(lab.client())
+        let mut child = Command::new(lab.client())
             .arg(&lab.service_name)
             .arg(lab.sentinel())
             .arg(lab.creation())
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
-            .spawn().expect("run only signed test client within disposable .app");
-        let (ok,timed_out)=wait_reap(&mut child);
-        let mut stdout=String::new();
-        let mut stderr=String::new();
-        child.stdout.take().expect("child stdout").take(CAP+1)
-            .read_to_string(&mut stdout).expect("UTF-8 stdout");
-        child.stderr.take().expect("child stderr").take(CAP+1)
-            .read_to_string(&mut stderr).expect("UTF-8 stderr");
-        Witness {ok,timed_out,stdout,stderr}
+            .spawn()
+            .expect("run only signed test client within disposable .app");
+        let (ok, timed_out) = wait_reap(&mut child);
+        let mut stdout = String::new();
+        let mut stderr = String::new();
+        child
+            .stdout
+            .take()
+            .expect("child stdout")
+            .take(CAP + 1)
+            .read_to_string(&mut stdout)
+            .expect("UTF-8 stdout");
+        child
+            .stderr
+            .take()
+            .expect("child stderr")
+            .take(CAP + 1)
+            .read_to_string(&mut stderr)
+            .expect("UTF-8 stderr");
+        Witness {
+            ok,
+            timed_out,
+            stdout,
+            stderr,
+        }
     }
     fn pid(line: &str, prefix: &str) -> Option<u32> {
-        let rest=line.strip_prefix(prefix)?;
-        let token=rest.split('|').next()?;
-        token.parse::<u32>().ok().filter(|p| *p!=0)
+        let rest = line.strip_prefix(prefix)?;
+        let token = rest.split('|').next()?;
+        token.parse::<u32>().ok().filter(|p| *p != 0)
     }
     pub fn assert_xpc(w: &Witness) {
-        assert!(w.ok && !w.timed_out,
-            "XPC client and service MUST complete via real launchd: {}",w.stderr);
-        assert!(w.stdout.len() as u64<=CAP,"bounded receipt");
-        let lines:Vec<&str>=w.stdout.lines().collect();
-        assert_eq!(lines.len(),3,"exactly 3 XPC receipt frames required: {}",w.stdout);
-        let cp=pid(lines[0],"R4J|CLIENT|PID=").expect("real client pid");
-        let sp=pid(lines[1],"R4J|SERVICE|PID=").expect("real service pid");
-        assert_ne!(cp,sp,"XPC server MUST be distinct OS process");
-        assert!(lines[0].ends_with("|READ=1|WRITE=1|CREATE=1"),
-            "parent baseline must actually have authority");
-        assert!(lines[1].ends_with("|READ=0|WRITE=0|CREATE=0"),
-            "XPC service MUST be kernel-denied even for known path");
-        assert_eq!(lines[2],"R4J|POLICY|UNKNOWN=DENIED",
-            "unrecognized/host write operation must fail closed");
+        assert!(
+            w.ok && !w.timed_out,
+            "XPC client and service MUST complete via real launchd: {}",
+            w.stderr
+        );
+        assert!(w.stdout.len() as u64 <= CAP, "bounded receipt");
+        let lines: Vec<&str> = w.stdout.lines().collect();
+        assert_eq!(
+            lines.len(),
+            3,
+            "exactly 3 XPC receipt frames required: {}",
+            w.stdout
+        );
+        let cp = pid(lines[0], "R4J|CLIENT|PID=").expect("real client pid");
+        let sp = pid(lines[1], "R4J|SERVICE|PID=").expect("real service pid");
+        assert_ne!(cp, sp, "XPC server MUST be distinct OS process");
+        assert!(
+            lines[0].ends_with("|READ=1|WRITE=1|CREATE=1"),
+            "parent baseline must actually have authority"
+        );
+        assert!(
+            lines[1].ends_with("|READ=0|WRITE=0|CREATE=0"),
+            "XPC service MUST be kernel-denied even for known path"
+        );
+        assert_eq!(
+            lines[2], "R4J|POLICY|UNKNOWN=DENIED",
+            "unrecognized/host write operation must fail closed"
+        );
     }
     pub fn exercise() {
-        let lab=Lab::new();
+        let lab = Lab::new();
         lab.prepare();
-        let response=run(&lab);
+        let response = run(&lab);
         assert_xpc(&response);
         lab.check_fixture();
     }
 }
 
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn macos_real_bundled_xpc_service_runs_separately_and_denies_host_io() {
     macos::exercise();
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn macos_repeated_xpc_activation_does_not_gain_client_file_authority() {
-    for _ in 0..2 { macos::exercise(); }
+    for _ in 0..2 {
+        macos::exercise();
+    }
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn macos_xpc_service_and_client_have_separate_signed_entitlement_sets() {
-    let lab=macos::Lab::new();
+    let lab = macos::Lab::new();
     lab.prepare();
     lab.verify();
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn macos_fail_closed_forged_ipc_receipts_and_duplicate_server_frame() {
-    use std::panic::{catch_unwind,AssertUnwindSafe};
+    use std::panic::{catch_unwind, AssertUnwindSafe};
     for frame in [
         "",
         "R4J|CLIENT|PID=1|READ=1|WRITE=1|CREATE=1\nR4J|SERVICE|PID=1|READ=0|WRITE=0|CREATE=0\nR4J|POLICY|UNKNOWN=DENIED\n",
@@ -381,32 +450,44 @@ fn macos_fail_closed_forged_ipc_receipts_and_duplicate_server_frame() {
         assert!(catch_unwind(AssertUnwindSafe(|| macos::assert_xpc(&receipt))).is_err());
     }
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn macos_unsandboxed_test_driver_keeps_fresh_sentinel_ownership() {
     use std::fs::OpenOptions;
     use std::io::Write;
-    let lab=macos::Lab::new();
+    let lab = macos::Lab::new();
     lab.prepare();
     macos::assert_xpc(&macos::run(&lab));
-    let mut f=OpenOptions::new().append(true).open(lab.sentinel()).unwrap();
+    let mut f = OpenOptions::new()
+        .append(true)
+        .open(lab.sentinel())
+        .unwrap();
     f.write_all(b"DRIVER_CAN_APPEND\n").unwrap();
-    assert_eq!(std::fs::read(lab.sentinel()).unwrap(),b"R4J_PARENT_ONLY\nDRIVER_CAN_APPEND\n");
+    assert_eq!(
+        std::fs::read(lab.sentinel()).unwrap(),
+        b"R4J_PARENT_ONLY\nDRIVER_CAN_APPEND\n"
+    );
 }
-#[cfg(not(target_os="macos"))]
+#[cfg(not(target_os = "macos"))]
 #[test]
 fn portable_model_never_claims_macos_xpc_sandbox() {
-    assert_ne!(std::env::consts::OS,"macos");
+    assert_ne!(std::env::consts::OS, "macos");
 }
 #[test]
 fn reference_external_io_is_still_unsupported() {
-    let (mut model,permit)=Model::bootstrap(
+    let (mut model, permit) = Model::bootstrap(
         0x4a,
-        ScopeBudget {tasks:0,resources:0,children:0},
-        16
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
+        16,
     );
-    let root=model.root();
-    assert_eq!(model.host_grant(&permit,root,ResourceEffect::ExternalIo),
-        Err(ModelError::UnsupportedEffect));
-    assert_eq!(model.event_count(),0);
+    let root = model.root();
+    assert_eq!(
+        model.host_grant(&permit, root, ResourceEffect::ExternalIo),
+        Err(ModelError::UnsupportedEffect)
+    );
+    assert_eq!(model.event_count(), 0);
 }
