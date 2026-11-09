@@ -253,16 +253,14 @@ int main(int argc, char **argv) {
             let svc = self.service_bundle().join("Contents");
             fs::create_dir_all(svc.join("MacOS")).unwrap();
 
-            let client_info = "
-                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
-                <plist version=\"1.0\"><dict>\
-                <key>CFBundleIdentifier</key><string>org.eddarsglobal.nordoi.r4j.client</string>\
-                <key>CFBundleExecutable</key><string>r4j-client</string>\
-                <key>CFBundlePackageType</key><string>APPL</string>\
-                <key>CFBundleVersion</key><string>1</string>\
-                <key>LSBackgroundOnly</key><true/>\
-                </dict></plist>"
-            .to_string();
+            let client_info = r#"<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>org.eddarsglobal.nordoi.r4j.client</string>
+<key>CFBundleExecutable</key><string>r4j-client</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSBackgroundOnly</key><true/>
+</dict></plist>"#;
             let svc_info=format!(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\
                 <plist version=\"1.0\"><dict>\
