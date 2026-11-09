@@ -113,8 +113,18 @@ int main(int argc,char **argv) {
     } else if(resp==XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
         result=(strcmp(argv[3],"bad")==0)?7:75;
     } else if(resp && xpc_get_type(resp)==XPC_TYPE_ERROR) {
-        fprintf(stderr,"R4L|UNEXPECTED_XPC_ERROR|PEER=%s\n",argv[3]);
-        result=(strcmp(argv[3],"bad")==0)?8:75;
+        // Error categories must remain distinguishable. A generic process
+        // interruption is not equivalent to a code-signing rejection.
+        if(resp==XPC_ERROR_CONNECTION_INVALID) {
+            fprintf(stderr,"R4L|XPC_ERROR_CONNECTION_INVALID|PEER=%s\n",argv[3]);
+            result=(strcmp(argv[3],"bad")==0)?8:75;
+        } else if(resp==XPC_ERROR_CONNECTION_INTERRUPTED) {
+            fprintf(stderr,"R4L|XPC_ERROR_CONNECTION_INTERRUPTED|PEER=%s\n",argv[3]);
+            result=(strcmp(argv[3],"bad")==0)?9:75;
+        } else {
+            fprintf(stderr,"R4L|UNCLASSIFIED_XPC_ERROR|PEER=%s\n",argv[3]);
+            result=(strcmp(argv[3],"bad")==0)?10:75;
+        }
     }
     if(resp) xpc_release(resp);
     xpc_connection_cancel(c);
@@ -196,7 +206,7 @@ int main(int argc,char **argv) {
     // Differential proof: same bad executable and bundle, only the service
     // admission signing requirement differs; kernel may silently drop it.
     int bad_guarded=run_peer(argv[4],argv[1],"bad",argv[5]);
-    if(bad_guarded!=14 && bad_guarded!=7) {
+    if(bad_guarded!=14 && bad_guarded!=7 && bad_guarded!=8) {
         fprintf(stderr,"R4L|BAD_GUARDED_UNEXPECTED_EXIT|EXIT=%d\n",bad_guarded);
         return 84;
     }
@@ -206,7 +216,8 @@ int main(int argc,char **argv) {
     }
     printf("R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED\n");
     printf("R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=%s|RECORDS=2\n",
-           bad_guarded==14?"SILENT_DROP":"XPC_SIGNING_ERROR");
+           bad_guarded==14?"SILENT_DROP":
+           (bad_guarded==7?"XPC_SIGNING_ERROR":"CONNECTION_INVALID_DIFFERENTIAL"));
     fflush(stdout);
     return 0;
 }
@@ -540,7 +551,8 @@ int main(int argc,char **argv) {
         );
         assert!(
             lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=SILENT_DROP|RECORDS=2"
-             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=XPC_SIGNING_ERROR|RECORDS=2",
+             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=XPC_SIGNING_ERROR|RECORDS=2"
+             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=CONNECTION_INVALID_DIFFERENTIAL|RECORDS=2",
             "negative evidence must be paired with genuine protected and open-control XPC handler records"
         );
     }
