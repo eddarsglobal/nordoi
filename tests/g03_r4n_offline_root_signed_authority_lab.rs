@@ -42,7 +42,8 @@ mod native {
 
     fn cdhash_valid(s: &str) -> bool {
         s.len() == 40
-            && s.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+            && s.bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
@@ -199,12 +200,22 @@ mod native {
         if stdin.is_some() {
             cmd.stdin(Stdio::piped());
         }
-        let mut child = cmd.stdout(Stdio::piped()).stderr(Stdio::piped())
-            .spawn().expect("invoke installed macOS research tool");
+        let mut child = cmd
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("invoke installed macOS research tool");
         if let Some(data) = stdin {
-            child.stdin.take().unwrap().write_all(data).expect("bounded signature input");
+            child
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(data)
+                .expect("bounded signature input");
         }
-        child.wait_with_output().expect("finish installed macOS research tool")
+        child
+            .wait_with_output()
+            .expect("finish installed macOS research tool")
     }
 
     fn sign_message(message: &Path, private_key: &Path, namespace: &str) -> Bundle {
@@ -227,12 +238,7 @@ mod native {
         }
     }
 
-    fn verify_message(
-        bundle: &Bundle,
-        allowed: &Path,
-        principal: &str,
-        namespace: &str,
-    ) -> bool {
+    fn verify_message(bundle: &Bundle, allowed: &Path, principal: &str, namespace: &str) -> bool {
         let data = match fs::read(&bundle.msg) {
             Ok(v) if v.len() < 2048 => v,
             _ => return false,
@@ -248,10 +254,8 @@ mod native {
     impl Lab {
         pub fn new() -> Self {
             let counter = SERIAL.fetch_add(1, Ordering::Relaxed);
-            let dir = std::env::temp_dir().join(format!(
-                "nordoi-r4n-{}-{counter}",
-                std::process::id()
-            ));
+            let dir =
+                std::env::temp_dir().join(format!("nordoi-r4n-{}-{counter}", std::process::id()));
             fs::create_dir(&dir).expect("new temporary directory");
             let dir = fs::canonicalize(dir).expect("canonical temporary directory");
             let signer = dir.join("signer_private_fixture");
@@ -283,9 +287,18 @@ mod native {
             let good = dir.join("approved_binary");
             let bad = dir.join("different_binary");
             let mut lab = Self {
-                dir, signer, verifier, root, delegate1, delegate2, rogue,
-                root_allowed, good, bad,
-                good_hash: String::new(), bad_hash: String::new(),
+                dir,
+                signer,
+                verifier,
+                root,
+                delegate1,
+                delegate2,
+                rogue,
+                root_allowed,
+                good,
+                bad,
+                good_hash: String::new(),
+                bad_hash: String::new(),
             };
             lab.make_signed_code();
             lab
@@ -305,41 +318,60 @@ mod native {
                 )
                 .expect("bounded disposable native source");
                 let mut cc = Command::new("/usr/bin/cc");
-                cc.args(["-O0", "-x", "c"])
-                    .arg(&src)
-                    .arg("-o")
-                    .arg(path);
-                assert!(execute(cc, None).status.success(), "build real Mach-O executable");
+                cc.args(["-O0", "-x", "c"]).arg(&src).arg("-o").arg(path);
+                assert!(
+                    execute(cc, None).status.success(),
+                    "build real Mach-O executable"
+                );
                 let mut cs = Command::new("/usr/bin/codesign");
                 cs.args([
-                    "--force", "--sign", "-", "--identifier",
+                    "--force",
+                    "--sign",
+                    "-",
+                    "--identifier",
                     "org.eddarsglobal.nordoi.r4n.authorized-code",
                 ])
                 .arg(path);
-                assert!(execute(cs, None).status.success(), "sign disposable Mach-O code");
+                assert!(
+                    execute(cs, None).status.success(),
+                    "sign disposable Mach-O code"
+                );
             }
             self.good_hash = Self::code_hash(&self.good);
             self.bad_hash = Self::code_hash(&self.bad);
-            assert_ne!(self.good_hash, self.bad_hash, "different signed code directories");
+            assert_ne!(
+                self.good_hash, self.bad_hash,
+                "different signed code directories"
+            );
         }
 
         pub fn code_hash(path: &Path) -> String {
             let mut verify = Command::new("/usr/bin/codesign");
             verify.args(["--verify", "--strict"]).arg(path);
-            assert!(execute(verify, None).status.success(), "valid code signature");
+            assert!(
+                execute(verify, None).status.success(),
+                "valid code signature"
+            );
             let mut display = Command::new("/usr/bin/codesign");
             display.args(["--display", "--verbose=4"]).arg(path);
             let out = execute(display, None);
             assert!(out.status.success(), "real signed code identity");
             let text = String::from_utf8_lossy(&out.stderr);
-            let hash = text.lines().find_map(|line| line.trim().strip_prefix("CDHash="))
-                .expect("actual Apple CDHash required").to_ascii_lowercase();
+            let hash = text
+                .lines()
+                .find_map(|line| line.trim().strip_prefix("CDHash="))
+                .expect("actual Apple CDHash required")
+                .to_ascii_lowercase();
             assert!(cdhash_valid(&hash), "canonical 20-byte CodeDirectory hash");
             hash
         }
 
-        pub fn approved_hash(&self) -> &str { &self.good_hash }
-        pub fn modified_hash(&self) -> &str { &self.bad_hash }
+        pub fn approved_hash(&self) -> &str {
+            &self.good_hash
+        }
+        pub fn modified_hash(&self) -> &str {
+            &self.bad_hash
+        }
 
         pub fn delegate_key(&self, id: u8) -> &Path {
             match id {
@@ -363,32 +395,38 @@ mod native {
             fs::write(&path, data.encode()).expect("write test policy");
             sign_message(
                 &path,
-                if signer_rogue { &self.rogue } else { &self.root },
+                if signer_rogue {
+                    &self.rogue
+                } else {
+                    &self.root
+                },
                 POLICY_NS,
             )
         }
 
-        pub fn release(
-            &self, id: &str, data: &Release, signer_id: u8, namespace: &str
-        ) -> Bundle {
+        pub fn release(&self, id: &str, data: &Release, signer_id: u8, namespace: &str) -> Bundle {
             let path = self.signer.join(format!("{id}.release"));
             fs::write(&path, data.encode()).expect("write test release");
             sign_message(&path, self.delegate_key(signer_id), namespace)
         }
 
-        pub fn root_trust(&self) -> &Path { &self.root_allowed }
+        pub fn root_trust(&self) -> &Path {
+            &self.root_allowed
+        }
 
         pub fn verify(
-            &self, policy: &Bundle, release: &Bundle, previous: &Custody,
+            &self,
+            policy: &Bundle,
+            release: &Bundle,
+            previous: &Custody,
             native_cdhash: &str,
         ) -> Result<Custody, &'static str> {
             // Verifier inputs intentionally exclude all private signing keys.
             if !verify_message(policy, self.root_trust(), ROOT_PRINCIPAL, POLICY_NS) {
                 return Err("ROOT_NOT_AUTHENTICATED");
             }
-            let p = Policy::parse(
-                &fs::read_to_string(&policy.msg).map_err(|_| "POLICY_READ")?
-            ).ok_or("POLICY_NONCANONICAL")?;
+            let p = Policy::parse(&fs::read_to_string(&policy.msg).map_err(|_| "POLICY_READ")?)
+                .ok_or("POLICY_NONCANONICAL")?;
             if p.delegate == p.revoked {
                 return Err("ACTIVE_KEY_ALREADY_REVOKED");
             }
@@ -410,17 +448,13 @@ mod native {
                 return Err("EPOCH_REPLAY_OR_GAP");
             }
             let allowed = self.verifier.join("release_allowed_signers");
-            fs::write(
-                &allowed,
-                format!("{RELEASE_PRINCIPAL} {}\n", p.delegate),
-            )
-            .map_err(|_| "RELEASE_PUBLIC_ENROLLMENT")?;
+            fs::write(&allowed, format!("{RELEASE_PRINCIPAL} {}\n", p.delegate))
+                .map_err(|_| "RELEASE_PUBLIC_ENROLLMENT")?;
             if !verify_message(release, &allowed, RELEASE_PRINCIPAL, RELEASE_NS) {
                 return Err("DELEGATE_SIGNATURE_NOT_AUTHENTICATED");
             }
-            let r = Release::parse(
-                &fs::read_to_string(&release.msg).map_err(|_| "RELEASE_READ")?
-            ).ok_or("RELEASE_NONCANONICAL")?;
+            let r = Release::parse(&fs::read_to_string(&release.msg).map_err(|_| "RELEASE_READ")?)
+                .ok_or("RELEASE_NONCANONICAL")?;
             if r.epoch != p.epoch || r.seq <= previous.seq {
                 return Err("RELEASE_REPLAY_OR_WRONG_EPOCH");
             }
@@ -436,34 +470,47 @@ mod native {
         }
 
         pub fn policy_v1(&self) -> Policy {
-            Policy { epoch: 1, delegate: self.delegate_public(1), revoked: "none".into() }
+            Policy {
+                epoch: 1,
+                delegate: self.delegate_public(1),
+                revoked: "none".into(),
+            }
         }
         pub fn policy_v2(&self) -> Policy {
             Policy {
-                epoch: 2, delegate: self.delegate_public(2),
+                epoch: 2,
+                delegate: self.delegate_public(2),
                 revoked: self.delegate_public(1),
             }
         }
         pub fn release_v1(&self) -> Release {
-            Release { epoch: 1, seq: 1, cdhash: self.good_hash.clone() }
+            Release {
+                epoch: 1,
+                seq: 1,
+                cdhash: self.good_hash.clone(),
+            }
         }
         pub fn base(&self) -> (Bundle, Bundle, Custody) {
             let p = self.policy("p1", &self.policy_v1(), false);
             let r = self.release("r1", &self.release_v1(), 1, RELEASE_NS);
-            let c = self.verify(&p, &r, &Custody::empty(), self.approved_hash())
+            let c = self
+                .verify(&p, &r, &Custody::empty(), self.approved_hash())
                 .expect("real root + delegate + code admission");
             (p, r, c)
         }
 
         pub fn assert_no_private_signer_in_verifier(&self) {
-            let allowed = fs::read_to_string(self.root_trust())
-                .expect("read independent public-only anchor");
+            let allowed =
+                fs::read_to_string(self.root_trust()).expect("read independent public-only anchor");
             assert!(allowed.starts_with(ROOT_PRINCIPAL));
             assert!(allowed.contains("ssh-ed25519 "));
             assert!(!allowed.contains("PRIVATE KEY"));
             assert!(!self.verifier.join("root").exists());
             assert!(!self.verifier.join("release1").exists());
-            assert!(self.root.is_file(), "signer private root present only in signer fixture");
+            assert!(
+                self.root.is_file(),
+                "signer private root present only in signer fixture"
+            );
         }
     }
     impl Drop for Lab {
@@ -495,8 +542,14 @@ mod native {
         // Tamper with signed manifest bytes; do not replace original signature.
         fs::write(
             &r.msg,
-            Release { epoch: 1, seq: 1, cdhash: lab.modified_hash().to_string() }.encode()
-        ).unwrap();
+            Release {
+                epoch: 1,
+                seq: 1,
+                cdhash: lab.modified_hash().to_string(),
+            }
+            .encode(),
+        )
+        .unwrap();
         assert_eq!(
             lab.verify(&p, &r, &Custody::empty(), lab.modified_hash()),
             Err("DELEGATE_SIGNATURE_NOT_AUTHENTICATED")
@@ -537,17 +590,29 @@ mod native {
         let (_p1, _r1, c1) = lab.base();
         let p2 = lab.policy("p2", &lab.policy_v2(), false);
         let r2 = lab.release(
-            "r2", &Release { epoch: 2, seq: 2, cdhash: lab.approved_hash().into() },
-            2, RELEASE_NS
+            "r2",
+            &Release {
+                epoch: 2,
+                seq: 2,
+                cdhash: lab.approved_hash().into(),
+            },
+            2,
+            RELEASE_NS,
         );
-        let c2 = lab.verify(&p2, &r2, &c1, lab.approved_hash())
+        let c2 = lab
+            .verify(&p2, &r2, &c1, lab.approved_hash())
             .expect("root-approved new delegate, old signer explicitly revoked");
         assert_eq!(c2.epoch, 2);
         assert_eq!(c2.revoked, lab.delegate_public(1));
         let old_delegate = lab.release(
             "old-delegate",
-            &Release { epoch: 2, seq: 3, cdhash: lab.approved_hash().into() },
-            1, RELEASE_NS
+            &Release {
+                epoch: 2,
+                seq: 3,
+                cdhash: lab.approved_hash().into(),
+            },
+            1,
+            RELEASE_NS,
         );
         assert_eq!(
             lab.verify(&p2, &old_delegate, &c2, lab.approved_hash()),
@@ -565,8 +630,14 @@ mod native {
         );
         let p2 = lab.policy("p2", &lab.policy_v2(), false);
         let r2 = lab.release(
-            "r2", &Release { epoch: 2, seq: 2, cdhash: lab.approved_hash().into() },
-            2, RELEASE_NS
+            "r2",
+            &Release {
+                epoch: 2,
+                seq: 2,
+                cdhash: lab.approved_hash().into(),
+            },
+            2,
+            RELEASE_NS,
         );
         let c2 = lab.verify(&p2, &r2, &c1, lab.approved_hash()).unwrap();
         assert_eq!(
@@ -589,12 +660,20 @@ mod native {
         let lab = Lab::new();
         let (_, _, c1) = lab.base();
         let wrong_rotation = Policy {
-            epoch: 2, delegate: lab.delegate_public(2), revoked: "none".into()
+            epoch: 2,
+            delegate: lab.delegate_public(2),
+            revoked: "none".into(),
         };
         let p2 = lab.policy("wrong-rotation", &wrong_rotation, false);
         let r2 = lab.release(
-            "r2", &Release { epoch: 2, seq: 2, cdhash: lab.approved_hash().into() },
-            2, RELEASE_NS
+            "r2",
+            &Release {
+                epoch: 2,
+                seq: 2,
+                cdhash: lab.approved_hash().into(),
+            },
+            2,
+            RELEASE_NS,
         );
         assert_eq!(
             lab.verify(&p2, &r2, &c1, lab.approved_hash()),
@@ -614,7 +693,10 @@ mod native {
         assert!(Policy::parse("NORDOI-R4N-POLICY-V1\nepoch=01\n").is_none());
         assert!(Release::parse("NORDOI-R4N-RELEASE-V1\nepoch=1\nseq=1\ncdhash=evil\n").is_none());
         assert!(Custody::parse("NORDOI-R4N-CUSTODY-V1\nepoch=1\nseq=1\n").is_none());
-        assert!(Custody::parse("NORDOI-R4N-CUSTODY-V1\nepoch=0\nseq=1\nactive=none\nrevoked=none\n").is_none());
+        assert!(Custody::parse(
+            "NORDOI-R4N-CUSTODY-V1\nepoch=0\nseq=1\nactive=none\nrevoked=none\n"
+        )
+        .is_none());
         assert!(!cdhash_valid(lab.approved_hash().to_uppercase().as_str()));
     }
 }
@@ -629,7 +711,11 @@ fn non_macos_does_not_claim_openssh_or_macos_code_signature_validation() {
 fn reference_external_host_io_remains_default_denied() {
     let (mut model, permit) = Model::bootstrap(
         0x4e,
-        ScopeBudget { tasks: 0, resources: 0, children: 0 },
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
         16,
     );
     let root = model.root();
