@@ -11,7 +11,7 @@ use reference::{Model, ModelError, ResourceEffect, ScopeBudget};
 mod native {
     use std::fs;
     use std::io::Write;
-    use std::path::{Path, PathBuf};
+    use std::path::PathBuf;
     use std::process::{Command, Output, Stdio};
     use std::sync::atomic::{AtomicU64, Ordering};
 
