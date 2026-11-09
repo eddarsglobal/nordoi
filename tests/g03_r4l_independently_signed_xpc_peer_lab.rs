@@ -86,8 +86,11 @@ int main(int argc,char **argv) {
         if(s && strcmp(s,"pong")==0) {
             result=(strcmp(argv[3],"good")==0)?0:74;
         }
-    } else if(resp && xpc_get_type(resp)==XPC_TYPE_ERROR) {
+    } else if(resp==XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
         result=(strcmp(argv[3],"bad")==0)?7:75;
+    } else if(resp && xpc_get_type(resp)==XPC_TYPE_ERROR) {
+        fprintf(stderr,"R4L|UNEXPECTED_XPC_ERROR|PEER=%s\n",argv[3]);
+        result=(strcmp(argv[3],"bad")==0)?8:75;
     }
     if(resp) xpc_release(resp);
     xpc_connection_cancel(c);
@@ -156,20 +159,20 @@ int main(int argc,char **argv) {
     }
     int good=run_peer(argv[2],argv[1],"good");
     if(good!=0) {fprintf(stderr,"R4L|GOOD_SIBLING_UNREACHABLE|EXIT=%d\n",good);return 83;}
-    if(!count(c,&after_good,&p1) || after_good!=1 || p1!=p0) {
-        fprintf(stderr,"R4L|GOOD_COUNT_FAILED|COUNTER=%llu|PID=%lld|BASEPID=%lld\n",
+    if(!count(c,&after_good,&p1) || after_good!=0 || p1!=p0) {
+        fprintf(stderr,"R4L|COORDINATOR_INSTANCE_CHANGED|COUNTER=%llu|PID=%lld|BASEPID=%lld\n",
                 (unsigned long long)after_good,(long long)p1,(long long)p0);
         return 84;
     }
     int bad=run_peer(argv[3],argv[1],"bad");
-    if(bad!=7) {fprintf(stderr,"R4L|BAD_SIBLING_NOT_EXPLICIT_XPC_ERROR|EXIT=%d\n",bad);return 85;}
-    if(!count(c,&after_bad,&p2) || after_bad!=1 || p2!=p0) {
+    if(bad!=7) {fprintf(stderr,"R4L|BAD_SIBLING_NOT_EXPLICIT_SIGNATURE_ERROR|EXIT=%d\n",bad);return 85;}
+    if(!count(c,&after_bad,&p2) || after_bad!=0 || p2!=p0) {
         fprintf(stderr,"R4L|UNAUTHORIZED_MESSAGE_REACHED_SERVICE|COUNT=%llu\n",
                 (unsigned long long)after_bad);
         return 86;
     }
     printf("R4L|CLIENT=%ld|SERVER=%lld\n",(long)getpid(),(long long)p0);
-    printf("R4L|GOOD=ACCEPTED|BAD=XPC_ERROR|BEFORE=%llu|AFTER_GOOD=%llu|AFTER_BAD=%llu\n",
+    printf("R4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=%llu|AFTER_GOOD=%llu|AFTER_BAD=%llu\n",
            (unsigned long long)before,(unsigned long long)after_good,
            (unsigned long long)after_bad);
     fflush(stdout);
@@ -334,8 +337,8 @@ int main(int argc,char **argv) {
         assert_ne!(cp,sp,"service must be distinct OS process");
         assert_eq!(
             lines[1],
-            "R4L|GOOD=ACCEPTED|BAD=XPC_ERROR|BEFORE=0|AFTER_GOOD=1|AFTER_BAD=1",
-            "verified good sibling reachability and no unauthorized server handler execution"
+            "R4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=0",
+            "genuine good sibling must succeed and wrong-signed sibling must return the specific XPC signing-error constant"
         );
     }
     pub fn exercise() {
@@ -371,8 +374,8 @@ fn forged_and_truncated_inbound_peer_reports_fail_closed() {
     for v in [
         "",
         "R4L|CLIENT=1|SERVER=1\nR4L|GOOD=ACCEPTED|BAD=XPC_ERROR|BEFORE=0|AFTER_GOOD=1|AFTER_BAD=1\n",
-        "R4L|CLIENT=1|SERVER=2\nR4L|GOOD=ACCEPTED|BAD=ACCEPTED|BEFORE=0|AFTER_GOOD=1|AFTER_BAD=2\n",
-        "R4L|CLIENT=1|SERVER=2\nR4L|GOOD=ACCEPTED|BAD=XPC_ERROR|BEFORE=0|AFTER_GOOD=1|AFTER_BAD=2\n",
+        "R4L|CLIENT=1|SERVER=2\nR4L|GOOD=ACCEPTED|BAD=ACCEPTED|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=1\n",
+        "R4L|CLIENT=1|SERVER=2\nR4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=1\n",
     ] {
         let w=native::Witness{ok:true,timed_out:false,stdout:v.to_string(),stderr:String::new()};
         assert!(catch_unwind(AssertUnwindSafe(||native::assert_evidence(&w))).is_err());
