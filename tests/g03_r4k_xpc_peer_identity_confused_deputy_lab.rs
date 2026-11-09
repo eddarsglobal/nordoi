@@ -40,10 +40,16 @@ static int authenticated_peer(xpc_object_t msg, OSStatus *code_status) {
     OSStatus s = SecCodeCreateWithXPCMessage(msg, kSecCSDefaultFlags, &code);
     if (s != errSecSuccess || !code) { *code_status = (OSStatus)(1000000 + s); return 0; }
     s = SecRequirementCreateWithString(CFSTR("identifier \"org.eddarsglobal.nordoi.r4k.client\""), kSecCSDefaultFlags, &req);
-    if (s == errSecSuccess && req) s = SecCodeCheckValidity(code, kSecCSDefaultFlags, req);
-    if (req) CFRelease(req);
+    if (s != errSecSuccess || !req) {
+        if (req) CFRelease(req);
+        CFRelease(code);
+        *code_status = (OSStatus)(3000000 + s);
+        return 0;
+    }
+    s = SecCodeCheckValidity(code, kSecCSDefaultFlags, req);
+    CFRelease(req);
     CFRelease(code);
-    *code_status = (OSStatus)(2000000 + s);
+    *code_status = (OSStatus)(4000000 + s);
     return s == errSecSuccess;
 }
 
