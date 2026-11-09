@@ -365,7 +365,10 @@ mod native {
         let e = evidence();
         let current = trusted_head(Some(e)).unwrap();
         let old = parse_record(section(&e.pack, "epoch3").unwrap()).unwrap();
-        assert_eq!(admission(Some(e), [current.clone(), current.clone()], &current), Ok(()));
+        assert_eq!(
+            admission(Some(e), [current.clone(), current.clone()], &current),
+            Ok(())
+        );
         assert_eq!((old.epoch, old.seq), (3, 3));
         assert!(sshsig(
             section(&e.pack, "epoch3").unwrap(),
@@ -531,7 +534,11 @@ mod native {
         assert!(sshsig(old, s, OBSERVER, OBSERVER_PRINCIPAL, OBSERVER_NS));
         let previously_valid = parse_record(old).unwrap();
         assert_eq!(
-            admission(Some(e), [previously_valid.clone(), previously_valid.clone()], &previously_valid),
+            admission(
+                Some(e),
+                [previously_valid.clone(), previously_valid.clone()],
+                &previously_valid
+            ),
             Err("OBSERVER_HIGHWATER_DENIES_OLD_OR_FORK")
         );
     }
