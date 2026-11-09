@@ -1,60 +1,51 @@
-# NORDOI G0.3 R4L — Independently signed inbound XPC peer admission lab
+# NORDOI G0.3 R4L — Independently signed inbound XPC peers
 
-**RESEARCH · DRAFT · DENY BY DEFAULT · NO PRODUCT AUTHORIZATION**
+**Research only · strict admission witness · REMEDIATE · no product deployment**
 
-## Parent provenance
-Exact accepted-with-controls owner macOS 14.5 Intel R4K FIX3: `5c2fa93cd3dbc729e0d09195ef1a0084a18f92f3`. That R4K parent produced 106/106 R4A–R4K tests PASS, 0 fail, 3 intentionally ignored, rustfmt PASS and Clippy strict PASS on owner macOS 14.5 Intel. Its native dual macOS 15 CI + portable CI PASS. R4A–R4K PRs (#56, #58, #60, #62, #64, #66, #68, #70, #72, #74, #75) are draft/unmerged; this research PR stacks on #75 without modifying it or `main`.
+## Parent custody
 
-## Scientific hypothesis
-R4K tested signature requirements on the service, and independently verified the received *service*'s signed identity on the client. It **did not** establish that a separately signed *wrong client* can reach the same private XPC service and is rejected before the event handler. In earlier R4K exploration, a wrong-signed helper timed out, which is **not** a sufficient security witness.
+Exactly stacked on R4K FIX3 `5c2fa93cd3dbc729e0d09195ef1a0084a18f92f3` (owner macOS 14.5 Intel: 106/106 regular R4A–R4K tests PASS, 3 intentionally ignored, format and Clippy strict PASS, original source untouched). R4A–R4K draft PRs #56, #58, #60, #62, #64, #66, #68, #70, #72, #74, #75 remain unmerged. R4L PR #76 adds only one new test, this report, and a dedicated CI workflow; no public `.noi` syntax or kernel changes.
 
-R4L builds a real launchd-managed embedded XPC service, one actual app/client, and **two separate independently ad-hoc-signed sibling executables** from exactly the same source, under the same `.app/Contents/MacOS` directory and UID:
+## Experiment
 
-- **Allowed peer**: `r4l-good`, signed identifier `org.eddarsglobal.nordoi.r4l.client`.
-- **Unauthorized peer**: `r4l-bad`, signed identifier `org.eddarsglobal.nordoi.r4l.impostor`.
-- **Service requirement**: `xpc_connection_set_peer_code_signing_requirement` before resuming each inbound connection; allows only the expected identifier. Ad-hoc identifier is not a production identity trust anchor.
+A disposable, sandboxed, launchd-managed embedded XPC service installs `xpc_connection_set_peer_code_signing_requirement` before resuming inbound peer connections. A signed coordinator launches **two standalone sibling processes**, built from the same C source and executable directory, signed *separately*:
 
-An unsandboxed signed coordinator maintains a live XPC connection to the service, reads its **accepted-ping counter**, starts and awaits the **good** signed sibling to demonstrate live accessibility and increases count by one, then starts the **bad** signed sibling. The bad peer must observe an actual XPC error; no dictionary `pong` and no silent timeout are accepted. The coordinator queries **the same live service PID** again: its accepted ping counter must be **unchanged** after the bad peer. Both sibling signatures must verify and identify as different before launch. Service remains independently sandboxed without extra file privileges.
+- **Good client**: ad-hoc identifier `org.eddarsglobal.nordoi.r4l.client`, valid `codesign --verify --strict`, gets genuine `pong` from its private service.
+- **Wrong-signed client**: ad-hoc identifier `org.eddarsglobal.nordoi.r4l.impostor`, also validly signed, must be rejected without a `pong` and **only** the explicit `XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT` is currently sufficient for strong positive proof. An indefinite wait, `SIGALRM`, generic connection error, or negative PID alone is **NOT** accepted as cryptographic identity rejection.
 
-This combines **positive reachability** of a separately signed sibling and **negative non-delivery** to the service handler, avoiding the earlier misleading `timeout=denial` conclusion.
+All signed code and service files are created in a fresh owner-owned temporary fixture. The original repository, user files, launchd configuration, security settings and network remain untouched. The reference NORDOI model still denies `ResourceEffect::ExternalIo`. The service has only the App Sandbox entitlement.
 
-## Required fail-closed verdicts
-1. If the good sibling cannot access the private service (e.g. private launchd app association), FAIL — the bad peer's nonresponse alone is inconclusive.
-2. If the bad peer returns `pong`, FAIL — signature admission bypassed.
-3. If the bad peer times out or crashes, FAIL — no explicit XPC error witness.
-4. If the service's counter increments after the bad peer, FAIL — unauthorized handler access.
-5. If service PID changes, either signature invalid, sandbox entitlement missing, or sideband receipts malformed, FAIL.
-6. If no Apple native environment, only portable model external-IO default denial is tested; never claim native XPC proof.
+## Actual CI witness and interpretation — 2026-11-09
 
-## Intentional limitations
-An `identifier` constraint without a trusted Developer ID / Team ID, full hardened runtime, entitlements and update security is NOT proof of trusted production identity. Client signature creation is ad-hoc and deliberately disposable. The test does not implement complete audit-token authorization for inbound messages, secure file-descriptor transfer, replay resistance, real host resource mediation, symlink/TOCTOU protection, or execution of untrusted `.noi`. The OS may return `XPC_ERROR_CONNECTION_INVALID` rather than an explicit signature requirement error on an inbound denied peer: **this test only claims denial of handler delivery**, and requires the signed-positive reachability and before/after counter evidence.
+- Original candidate [CI #42588113715](https://github.com/eddarsglobal/nordoi/actions/runs/42588113715): macOS 15 Apple Silicon **3/5 tests PASS, 2 FAIL**, baseline signatures PASS; portable Linux/Windows PASS. Initial failed `GOOD_COUNT` assumption was invalid.
+- The accepted-ping counter is **per embedded XPC service process**, not globally shared. Apple documents **one XPC service process per client**. The coordinator's counter remains 0 after a *separately executed authorized sibling* receives `pong`. Thus an unchanged coordinator counter **cannot prove non-delivery to the adversary's separate service**. R4L code treats this counter only as a coordinator-instance consistency check; it must not be cited as successful bad-peer refusal.
+- Tightened [CI #42588647100](https://github.com/eddarsglobal/nordoi/actions/runs/42588647100): macOS 15 Intel **3/5 PASS, 2 FAIL** and Apple Silicon **3/5 PASS, 2 FAIL**. The good signed sibling receives `pong`; the bad sibling **hangs until `SIGALRM` (signal 14)**. This is **NOT** the exact expected XPC peer-signing error. We reject rather than reinterpret silence as success. Portable Windows and Linux default-denial tests PASS.
+- Strict rustfmt initially failed because the new Rust test was unformatted. Source was later formatted using pinned CI Rust 1.98.1 without modifying the original Git tree; final head formatting/checks must be revalidated by CI.
+- macOS owner Intel 14.5: **not yet replayed**. No claim that Sonoma behaves like macOS 15.
 
-R4L does not grant external IO authority in the NORDOI reference model and changes no public syntax. Native admission gates = 12 UNMET. No merge, release, install, or production activation.
+## Scope and next controlled investigation
+
+The XPC signing requirement and the mismatch from the two `codesign` identities are real research controls. However, Apple's documented behavior for an untrusted **initiating** client is **silent non-delivery** to a server, not necessarily an explicit error visible to that client. Existing R4L observations cannot distinguish denial by code-signing enforcement from an alternate private-service access restriction. A future experiment must provide a **trusted, same-service-instance sideband** for counting actual handler delivery, or a trusted OS rejection receipt. Do not introduce an untrusted response as proof, assume a shared service instance, create a global launchd daemon, or grant arbitrary host I/O to force PASS.
+
+An ad-hoc signing identifier is attacker-choosable; Developer ID / trusted Team ID or properly pinned code identity, adversarial client verification and full confused-deputy hardening are still NOT IMPLEMENTED. No merge, release, install, or production authority; native admission gates 12 UNMET.
 
 ```ini
-G03_R4L=RESEARCH_CANDIDATE
-SOURCE_PARENT_R4K=5c2fa93cd3dbc729e0d09195ef1a0084a18f92f3
-INDEPENDENT_WRONG_SIGNED_CLIENT=CI_PENDING
-POSITIVE_SIBLING_REACHABILITY=CI_PENDING
-SERVER_HANDLER_COUNT_UNCHANGED=CI_PENDING
-OWNER_MAC_INTEL_14_5=PENDING
-PRODUCTION_SIGNING_TRUST_ANCHOR=NONE
+G03_R4K_FIX3=PASS_WITH_CONTROLS
+G03_R4L=REMEDIATE
+R4L_NATIVE_MACOS_15_INTEL=3_PASS_2_FAIL
+R4L_NATIVE_MACOS_15_ARM=3_PASS_2_FAIL
+SIGNED_GOOD_SIBLING_REACHABILITY=PASS
+SIGNED_BAD_SIBLING_SPECIFIC_REJECTION=NOT_VERIFIED
+BAD_SIBLING_TIMEOUT=REJECTED_AS_PROOF
+COORDINATOR_COUNTER=NOT_SHARED_BETWEEN_CLIENT_INSTANCES
+OWNER_MACOS_14_5=PENDING
+PRODUCTION_TRUSTED_SIGNER=NONE
 NATIVE_ADMISSION_GATES=12_UNMET
+PR76=DRAFT_UNMERGED
 PRODUCTION=NOT_AUTHORIZED
 ```
 
-### Apple API references
-- https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_code_signing_requirement
-- https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_team_identity_requirement
-- https://developer.apple.com/documentation/security/seccodecheckvalidity
-
-
-## R4L early CI finding — per-client instances, not a shared counter
-
-Initial native Apple Silicon CI: signature fixture **PASS**, portable default-denial **PASS**, but actual peer exercise **REMEDIATE**. The separately signed positive sibling received a successful XPC reply, while the original coordinator still observed `COUNT=0` for its *own* service instance. This is consistent with Apple's documented **one embedded XPC service process per client** architecture; a coordinator's counter cannot establish whether another client's per-client service instance ran its handler. Hence the originally proposed shared service counter is **NOT VALID EVIDENCE** for a separate client's admission; no PASS is awarded from unchanged counter values.
-
-The revised strict R4L scenario demands (a) two code-signing identities verified independently for binaries built from the same C source and directory; (b) the legitimate sibling's real `pong`; (c) the intentionally wrong-signed sibling receiving exactly `XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT`, not a generic XPC error and never a timeout, crash or dictionary reply; (d) no unexpected change of the coordinator's own service instance. The latter is only an isolation sanity check, **not a denial witness**. The *actual identity mismatch witness* is strictly the specific XPC signing error for the wrong-signed sibling.
-
-**Pending evidence**: we have not yet observed whether the native XPC service returns that exact error to an initiating client on either macOS 15 or owner macOS 14.5. Apple's documentation describes a nonconforming initiating peer's message being silently withheld; if it returns a generic XPC error instead, this strict test **must remain REMEDIATE** until a conclusive denial mechanism can be demonstrated. Do not broaden the acceptance gate to count a generic connection failure.
-
-Reference: https://developer.apple.com/documentation/xpc
+## Sources
+- [Apple XPC process model](https://developer.apple.com/documentation/xpc)
+- [Peer code-signing requirement API](https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_code_signing_requirement)
+- [Team identity requirement](https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_team_identity_requirement)
