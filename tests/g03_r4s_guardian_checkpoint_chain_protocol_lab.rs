@@ -209,13 +209,11 @@ mod native {
             fs::write(&message, record.encode()).unwrap();
             let signature = sign(&message, self.guardian(signer), namespace);
             let successor_signature = if proof {
-                let saved = self.signer.join(format!("{name}.old-sig"));
-                fs::copy(&signature, &saved).unwrap();
-                let generated = sign(&message, &self.guardian2, ROTATION_NS);
-                let next = self.signer.join(format!("{name}.new-sig"));
-                fs::copy(generated, &next).unwrap();
-                fs::copy(saved, &signature).unwrap();
-                Some(next)
+                // Detached SSHSIG verifies the message bytes, not the path.
+                // Separate source filename prevents OpenSSH overwrite prompts.
+                let proof_message = self.signer.join(format!("{name}.next-proof"));
+                fs::copy(&message, &proof_message).unwrap();
+                Some(sign(&proof_message, &self.guardian2, ROTATION_NS))
             } else {
                 None
             };
