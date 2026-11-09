@@ -432,10 +432,7 @@ mod native {
             WITNESS_NS,
         );
         lab.install_external_head(&b2);
-        assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor; 2]),
-            Ok(v2.cursor)
-        );
+        assert_eq!(lab.verify_admission(&a2, &[v2.cursor; 2]), Ok(v2.cursor));
     }
 
     #[test]
@@ -576,10 +573,7 @@ mod native {
         let b2 = lab.attest("b2", &v2, &lab.publisher_key(false), false, WITNESS_NS);
         lab.install_external_head(&b2);
         let a2 = lab.publish("a2", &v2, 0);
-        assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor; 2]),
-            Ok(v2.cursor)
-        );
+        assert_eq!(lab.verify_admission(&a2, &[v2.cursor; 2]), Ok(v2.cursor));
         let v1 = lab.version(1, 1);
         let b1 = lab.attest("old-b1", &v1, &lab.publisher_key(false), false, WITNESS_NS);
         let a1 = lab.publish("old-a1", &v1, 0);
@@ -587,10 +581,7 @@ mod native {
         // *current signed view* is rolled back, static old valid signatures
         // provide NO hardware-protected monotonicity guarantee.
         lab.install_external_head(&b1);
-        assert_eq!(
-            lab.verify_admission(&a1, &[v1.cursor; 2]),
-            Ok(v1.cursor)
-        );
+        assert_eq!(lab.verify_admission(&a1, &[v1.cursor; 2]), Ok(v1.cursor));
     }
 }
 
