@@ -575,7 +575,11 @@ int main(int argc,char **argv) {
         assert_evidence(&w);
         let bytes = fs::read_to_string(lab.journal()).expect("read test-only handler receipts");
         let records: Vec<&str> = bytes.lines().collect();
-        assert_eq!(records.len(), 3, "three exact service-origin journal records");
+        assert_eq!(
+            records.len(),
+            3,
+            "three exact service-origin journal records"
+        );
         for record in records {
             let pid = record
                 .strip_prefix("R4L|HANDLER|PID=")
