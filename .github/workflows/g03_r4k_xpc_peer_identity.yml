@@ -1,0 +1,42 @@
+name: NORDOI G0.3 R4K XPC peer identity research
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4k_xpc_peer_identity_confused_deputy_lab.rs'
+      - 'research/G03_R4K_XPC_PEER_IDENTITY_CONFUSED_DEPUTY_LAB.md'
+      - '.github/workflows/g03_r4k_xpc_peer_identity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-message-bound-signature:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: R4K genuine private XPC and message-bound Security.framework peer check
+        run: cargo test --offline --release --test g03_r4k_xpc_peer_identity_confused_deputy_lab -- --nocapture
+      - name: Strict format
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-negative-model-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: Portable default-denied effect; NEVER claim native XPC attestation
+        run: cargo test --offline --release --test g03_r4k_xpc_peer_identity_confused_deputy_lab
