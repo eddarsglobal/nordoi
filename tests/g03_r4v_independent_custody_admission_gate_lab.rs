@@ -17,12 +17,10 @@ mod native {
 
     static NEXT: AtomicU64 = AtomicU64::new(1);
     const URL: &str = "https://github.com/eddarsglobal/nordoi.git";
-    const OBSERVER_REF: &str =
-        "refs/heads/evidence/g03-r4u-signed-observer-ledger-20261109";
+    const OBSERVER_REF: &str = "refs/heads/evidence/g03-r4u-signed-observer-ledger-20261109";
     const OBSERVER_COMMIT: &str = "15adf075050a233705b3bad6eae62b6f9e6f946d";
     const PACK_PATH: &str = "research/r4u_signed_observer_ledger/evidence_pack.txt";
-    const PACK_SHA: &str =
-        "692809e55aed8ad188208e04653d3bf4fdb9945aa7fa661db6ee22fe8100400d";
+    const PACK_SHA: &str = "692809e55aed8ad188208e04653d3bf4fdb9945aa7fa661db6ee22fe8100400d";
     const GUARDIAN: &str =
         "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfClkGUTZWf18i0YPkUCj5R+jSwE2eF3sGASALCLvL6";
     const OBSERVER: &str =
@@ -31,15 +29,14 @@ mod native {
     const OBSERVER_ID: &str = "nordoi-r4u-observer";
     const GUARDIAN_NS: &str = "nordoi-r4u-guardian-log@eddarsglobal";
     const OBSERVER_NS: &str = "nordoi-r4u-observer-highwater@eddarsglobal";
-    const EPOCH4_SHA: &str =
-        "65b71123804659cea8b334c783f51d7e63ad3c8283057c22e432a8a54f6c9d1c";
+    const EPOCH4_SHA: &str = "65b71123804659cea8b334c783f51d7e63ad3c8283057c22e432a8a54f6c9d1c";
 
     struct Scratch(PathBuf);
     impl Scratch {
         fn new() -> Self {
             let n = NEXT.fetch_add(1, Ordering::Relaxed);
-            let folder = std::env::temp_dir()
-                .join(format!("nordoi-r4v-{}-{n}", std::process::id()));
+            let folder =
+                std::env::temp_dir().join(format!("nordoi-r4v-{}-{n}", std::process::id()));
             fs::create_dir(&folder).expect("new temporary R4V fixture only");
             Self(fs::canonicalize(folder).expect("R4V fixture canonical path"))
         }
@@ -54,17 +51,27 @@ mod native {
         if input.is_some() {
             command.stdin(Stdio::piped());
         }
-        let mut child = command.stdout(Stdio::piped()).stderr(Stdio::piped())
-            .spawn().map_err(|_| "NATIVE_TOOL_UNAVAILABLE")?;
+        let mut child = command
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|_| "NATIVE_TOOL_UNAVAILABLE")?;
         if let Some(data) = input {
-            child.stdin.take().ok_or("NATIVE_STDIN_UNAVAILABLE")?
-                .write_all(data).map_err(|_| "NATIVE_INPUT_FAILED")?;
+            child
+                .stdin
+                .take()
+                .ok_or("NATIVE_STDIN_UNAVAILABLE")?
+                .write_all(data)
+                .map_err(|_| "NATIVE_INPUT_FAILED")?;
         }
-        child.wait_with_output().map_err(|_| "NATIVE_TOOL_DID_NOT_EXIT")
+        child
+            .wait_with_output()
+            .map_err(|_| "NATIVE_TOOL_DID_NOT_EXIT")
     }
 
     fn git(command: &mut Command) -> Result<Output, &'static str> {
-        command.env("GIT_CONFIG_NOSYSTEM", "1")
+        command
+            .env("GIT_CONFIG_NOSYSTEM", "1")
             .env("GIT_CONFIG_GLOBAL", "/dev/null")
             .env("GIT_TERMINAL_PROMPT", "0")
             .env("GIT_ASKPASS", "/usr/bin/false");
@@ -81,19 +88,24 @@ mod native {
         let output = run(command, Some(bytes)).expect("native SHA256");
         assert!(output.status.success());
         let str_out = String::from_utf8(output.stdout).expect("SHA ASCII");
-        str_out.split_ascii_whitespace().next().expect("SHA digest").to_owned()
+        str_out
+            .split_ascii_whitespace()
+            .next()
+            .expect("SHA digest")
+            .to_owned()
     }
 
     fn part<'a>(pack: &'a str, name: &str) -> Result<&'a str, &'static str> {
         let start = format!("[{name}]\n");
         let end = format!("[/{name}]\n");
-        if pack.matches(start.as_str()).count() != 1
-            || pack.matches(end.as_str()).count() != 1 {
+        if pack.matches(start.as_str()).count() != 1 || pack.matches(end.as_str()).count() != 1 {
             return Err("EVIDENCE_SECTION_AMBIGUOUS");
         }
-        let (_, tail) = pack.split_once(start.as_str())
+        let (_, tail) = pack
+            .split_once(start.as_str())
             .ok_or("EVIDENCE_SECTION_MISSING")?;
-        let (contents, _) = tail.split_once(end.as_str())
+        let (contents, _) = tail
+            .split_once(end.as_str())
             .ok_or("EVIDENCE_SECTION_UNTERMINATED")?;
         if contents.is_empty() || !contents.ends_with('\n') {
             return Err("EVIDENCE_SECTION_NONCANONICAL");
@@ -101,21 +113,28 @@ mod native {
         Ok(contents)
     }
 
-    fn ssh_verify(data: &str, signature: &str, key: &str,
-                  principal: &str, namespace: &str) -> bool {
+    fn ssh_verify(
+        data: &str,
+        signature: &str,
+        key: &str,
+        principal: &str,
+        namespace: &str,
+    ) -> bool {
         let scratch = Scratch::new();
         let signature_path = scratch.0.join("receipt.sig");
         let signers_path = scratch.0.join("allowed_signers");
         if fs::write(&signature_path, signature).is_err()
-            || fs::write(&signers_path, format!("{principal} {key}\n")).is_err() {
+            || fs::write(&signers_path, format!("{principal} {key}\n")).is_err()
+        {
             return false;
         }
         let mut verify = Command::new("/usr/bin/ssh-keygen");
-        verify.args(["-Y", "verify", "-f"]).arg(signers_path)
+        verify
+            .args(["-Y", "verify", "-f"])
+            .arg(signers_path)
             .args(["-I", principal, "-n", namespace, "-s"])
             .arg(signature_path);
-        run(verify, Some(data.as_bytes()))
-            .is_ok_and(|result| result.status.success())
+        run(verify, Some(data.as_bytes())).is_ok_and(|result| result.status.success())
     }
 
     fn live_public_pack() -> Result<String, &'static str> {
@@ -132,7 +151,9 @@ mod native {
         init.args(["init", "-q"]).arg(&repo);
         git(&mut init)?;
         let mut fetch = Command::new("/usr/bin/git");
-        fetch.arg("-C").arg(&repo)
+        fetch
+            .arg("-C")
+            .arg(&repo)
             .args(["fetch", "--depth=1", "--no-tags", URL, OBSERVER_REF]);
         git(&mut fetch)?;
         let mut rev = Command::new("/usr/bin/git");
@@ -141,7 +162,9 @@ mod native {
             return Err("FETCHED_OBSERVER_COMMIT_CHANGED");
         }
         let mut read = Command::new("/usr/bin/git");
-        read.arg("-C").arg(&repo).arg("show")
+        read.arg("-C")
+            .arg(&repo)
+            .arg("show")
             .arg(format!("FETCH_HEAD:{PACK_PATH}"));
         let bytes = git(&mut read)?.stdout;
         if bytes.is_empty() || bytes.len() > 8192 || hash(&bytes) != PACK_SHA {
@@ -182,7 +205,8 @@ mod native {
     fn lab_custody_gate(c: &OperatorClaims<'_>) -> Result<(), &'static str> {
         if c.publisher_admin == c.guardian_admin
             || c.publisher_admin == c.observer_admin
-            || c.guardian_admin == c.observer_admin {
+            || c.guardian_admin == c.observer_admin
+        {
             return Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT");
         }
         if !c.external_operator_attested {
@@ -212,21 +236,35 @@ mod native {
         assert_eq!(part(&pack, "observer_public").unwrap().trim_end(), OBSERVER);
         let e4 = part(&pack, "epoch4").unwrap();
         assert_eq!(hash(e4.as_bytes()), EPOCH4_SHA);
-        assert!(ssh_verify(e4, part(&pack, "epoch4_guardian_sig").unwrap(),
-                           GUARDIAN, GUARDIAN_ID, GUARDIAN_NS));
-        assert!(ssh_verify(e4, part(&pack, "epoch4_observer_sig").unwrap(),
-                           OBSERVER, OBSERVER_ID, OBSERVER_NS));
+        assert!(ssh_verify(
+            e4,
+            part(&pack, "epoch4_guardian_sig").unwrap(),
+            GUARDIAN,
+            GUARDIAN_ID,
+            GUARDIAN_NS
+        ));
+        assert!(ssh_verify(
+            e4,
+            part(&pack, "epoch4_observer_sig").unwrap(),
+            OBSERVER,
+            OBSERVER_ID,
+            OBSERVER_NS
+        ));
         assert_ne!(GUARDIAN, OBSERVER);
-        assert_eq!(lab_custody_gate(&OperatorClaims::same_repo()),
-                   Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT"));
+        assert_eq!(
+            lab_custody_gate(&OperatorClaims::same_repo()),
+            Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT")
+        );
     }
 
     #[test]
     fn native_second_public_key_under_same_account_is_not_separate_authority() {
         let c = OperatorClaims::same_repo();
         assert_ne!(GUARDIAN, OBSERVER);
-        assert_eq!(lab_custody_gate(&c),
-                   Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT"));
+        assert_eq!(
+            lab_custody_gate(&c),
+            Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT")
+        );
     }
 
     #[test]
@@ -234,7 +272,10 @@ mod native {
         let mut c = OperatorClaims::same_repo();
         c.guardian_admin = "hypothetical-guardian";
         c.observer_admin = "hypothetical-observer";
-        assert_eq!(lab_custody_gate(&c), Err("INDEPENDENT_OPERATOR_NOT_ATTESTED"));
+        assert_eq!(
+            lab_custody_gate(&c),
+            Err("INDEPENDENT_OPERATOR_NOT_ATTESTED")
+        );
     }
 
     #[test]
@@ -243,7 +284,10 @@ mod native {
         c.guardian_admin = "hypothetical-guardian";
         c.observer_admin = "hypothetical-observer";
         c.external_operator_attested = true;
-        assert_eq!(lab_custody_gate(&c), Err("OWNER_TRUST_ROOT_NOT_OUT_OF_BAND"));
+        assert_eq!(
+            lab_custody_gate(&c),
+            Err("OWNER_TRUST_ROOT_NOT_OUT_OF_BAND")
+        );
     }
 
     #[test]
@@ -253,7 +297,10 @@ mod native {
         c.observer_admin = "hypothetical-observer";
         c.external_operator_attested = true;
         c.owner_pin_out_of_band_verified = true;
-        assert_eq!(lab_custody_gate(&c), Err("REMOTE_MONOTONIC_HEAD_NOT_ATTESTED"));
+        assert_eq!(
+            lab_custody_gate(&c),
+            Err("REMOTE_MONOTONIC_HEAD_NOT_ATTESTED")
+        );
     }
 
     #[test]
@@ -289,8 +336,10 @@ mod native {
         c.append_only_remote_head_attested = true;
         c.verifier_install_protected = true;
         c.recovery_reviewed = true;
-        assert_eq!(lab_custody_gate(&c),
-                   Err("EXTERNAL_CUSTODY_PROVENANCE_UNAVAILABLE_IN_RESEARCH"));
+        assert_eq!(
+            lab_custody_gate(&c),
+            Err("EXTERNAL_CUSTODY_PROVENANCE_UNAVAILABLE_IN_RESEARCH")
+        );
     }
 
     #[test]
@@ -298,31 +347,52 @@ mod native {
         let c = OperatorClaims::same_repo();
         assert!(URL.contains("eddarsglobal/nordoi.git"));
         assert!(OBSERVER_REF.contains("evidence/g03-r4u"));
-        assert_eq!(lab_custody_gate(&c),
-                   Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT"));
+        assert_eq!(
+            lab_custody_gate(&c),
+            Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT")
+        );
     }
 
     #[test]
     fn native_authentic_old_observer_receipt_remains_signed_but_not_current() {
         let pack = live_public_pack().expect("fresh GitHub ref before custody review");
         let e3 = part(&pack, "epoch3").unwrap();
-        assert!(ssh_verify(e3, part(&pack, "epoch3_observer_sig").unwrap(),
-                           OBSERVER, OBSERVER_ID, OBSERVER_NS));
+        assert!(ssh_verify(
+            e3,
+            part(&pack, "epoch3_observer_sig").unwrap(),
+            OBSERVER,
+            OBSERVER_ID,
+            OBSERVER_NS
+        ));
         assert_ne!(hash(e3.as_bytes()), EPOCH4_SHA);
-        assert_eq!(lab_custody_gate(&OperatorClaims::same_repo()),
-                   Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT"));
+        assert_eq!(
+            lab_custody_gate(&OperatorClaims::same_repo()),
+            Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT")
+        );
     }
 
     #[test]
     fn native_guardian_signed_fork_lacks_observer_signature_and_external_operator_proof() {
         let pack = live_public_pack().expect("real GitHub fork evidence");
         let fork = part(&pack, "epoch4_fork").unwrap();
-        assert!(ssh_verify(fork, part(&pack, "epoch4_fork_guardian_sig").unwrap(),
-                           GUARDIAN, GUARDIAN_ID, GUARDIAN_NS));
-        assert!(!ssh_verify(fork, part(&pack, "epoch4_observer_sig").unwrap(),
-                            OBSERVER, OBSERVER_ID, OBSERVER_NS));
-        assert_eq!(lab_custody_gate(&OperatorClaims::same_repo()),
-                   Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT"));
+        assert!(ssh_verify(
+            fork,
+            part(&pack, "epoch4_fork_guardian_sig").unwrap(),
+            GUARDIAN,
+            GUARDIAN_ID,
+            GUARDIAN_NS
+        ));
+        assert!(!ssh_verify(
+            fork,
+            part(&pack, "epoch4_observer_sig").unwrap(),
+            OBSERVER,
+            OBSERVER_ID,
+            OBSERVER_NS
+        ));
+        assert_eq!(
+            lab_custody_gate(&OperatorClaims::same_repo()),
+            Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT")
+        );
     }
 
     #[test]
@@ -330,10 +400,17 @@ mod native {
         let pack = live_public_pack().expect("remote reachable on actual Mac test");
         let e4 = part(&pack, "epoch4").unwrap();
         let observer_sig = part(&pack, "epoch4_observer_sig").unwrap();
-        assert!(!ssh_verify(e4, observer_sig, OBSERVER,
-                            OBSERVER_ID, GUARDIAN_NS));
-        assert_eq!(lab_custody_gate(&OperatorClaims::same_repo()),
-                   Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT"));
+        assert!(!ssh_verify(
+            e4,
+            observer_sig,
+            OBSERVER,
+            OBSERVER_ID,
+            GUARDIAN_NS
+        ));
+        assert_eq!(
+            lab_custody_gate(&OperatorClaims::same_repo()),
+            Err("ADMINISTRATIVE_CONTROLLER_NOT_DISTINCT")
+        );
     }
 }
 
@@ -346,7 +423,13 @@ fn portable_cannot_assert_real_independent_external_operators() {
 #[test]
 fn reference_model_external_io_and_automatic_custody_are_not_authorized() {
     let (mut model, permit) = Model::bootstrap(
-        0x55, ScopeBudget { tasks: 0, resources: 0, children: 0 }, 16
+        0x55,
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
+        16,
     );
     let root = model.root();
     assert_eq!(
