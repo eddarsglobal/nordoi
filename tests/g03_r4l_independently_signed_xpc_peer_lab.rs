@@ -127,6 +127,7 @@ int main(int argc,char **argv) {
 #include <dispatch/dispatch.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -217,6 +218,7 @@ int main(int argc,char **argv) {
     pub struct Lab {
         dir: PathBuf,
         name: String,
+        control_name: String,
     }
     impl Lab {
         pub fn new() -> Self {
@@ -227,6 +229,10 @@ int main(int argc,char **argv) {
                 dir: fs::canonicalize(d).expect("canonical test fixture"),
                 name: format!(
                     "org.eddarsglobal.nordoi.r4l.svc.p{}.n{n}",
+                    std::process::id()
+                ),
+                control_name: format!(
+                    "org.eddarsglobal.nordoi.r4l.open.p{}.n{n}",
                     std::process::id()
                 ),
             }
@@ -249,6 +255,16 @@ int main(int argc,char **argv) {
         }
         fn service_executable(&self) -> PathBuf {
             self.service().join("Contents/MacOS/r4l-service")
+        }
+        fn control_service(&self) -> PathBuf {
+            self.app()
+                .join(format!("Contents/XPCServices/{}.xpc", self.control_name))
+        }
+        fn control_executable(&self) -> PathBuf {
+            self.control_service().join("Contents/MacOS/r4l-service")
+        }
+        fn journal(&self) -> PathBuf {
+            self.dir.join("r4l-handler-receipts.txt")
         }
         fn run_command(path: &str, args: &[&str]) -> std::process::Output {
             Command::new(path).args(args).output().expect("macOS tool")
@@ -315,8 +331,11 @@ int main(int argc,char **argv) {
                 .open(&sentinel)
                 .unwrap();
             f.write_all(b"R4L_OWNER_ONLY\n").unwrap();
+            OpenOptions::new().create_new(true).write(true)
+                .open(self.journal()).expect("fresh empty handler journal");
             fs::create_dir_all(self.app().join("Contents/MacOS")).unwrap();
             fs::create_dir_all(self.service().join("Contents/MacOS")).unwrap();
+            fs::create_dir_all(self.control_service().join("Contents/MacOS")).unwrap();
             let parent = r#"<?xml version="1.0"?><plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>org.eddarsglobal.nordoi.r4l.client</string>
 <key>CFBundleExecutable</key><string>r4l-client</string>
@@ -335,10 +354,19 @@ int main(int argc,char **argv) {
                 self.name
             );
             fs::write(self.app().join("Contents/Info.plist"), parent).unwrap();
-            fs::write(self.service().join("Contents/Info.plist"), svc).unwrap();
+            fs::write(self.service().join("Contents/Info.plist"), &svc).unwrap();
+            fs::write(
+                self.control_service().join("Contents/Info.plist"),
+                svc.replace(&self.name, &self.control_name),
+            ).unwrap();
             let ent = self.dir.join("entitlements.plist");
             fs::write(&ent, ENTITLEMENTS).unwrap();
             self.compile("r4l_service.c", SERVICE, &self.service_executable());
+            self.compile(
+                "r4l_open_service.c",
+                &format!("#define R4L_OPEN_CONTROL 1\n{SERVICE}"),
+                &self.control_executable(),
+            );
             self.compile("r4l_driver.c", DRIVER, &self.client());
             self.compile("r4l_peer.c", PEER, &self.good());
             fs::copy(self.good(), self.bad())
@@ -356,6 +384,7 @@ int main(int argc,char **argv) {
                 None,
             );
             Self::sign(&self.service(), None, Some(&ent));
+            Self::sign(&self.control_service(), None, Some(&ent));
             Self::sign(&self.app(), None, None);
             self.assert_fixture();
         }
@@ -367,6 +396,8 @@ int main(int argc,char **argv) {
                 self.bad(),
                 self.service(),
                 self.service_executable(),
+                self.control_service(),
+                self.control_executable(),
             ] {
                 Self::verify(&p);
             }
@@ -406,6 +437,18 @@ int main(int argc,char **argv) {
                 1,
                 "no sandbox privilege extras"
             );
+            let control = Self::run_command(
+                "/usr/bin/codesign",
+                &[
+                    "--display",
+                    "--entitlements",
+                    ":-",
+                    self.control_service().to_str().unwrap(),
+                ],
+            );
+            assert!(control.status.success(), "signed open-control entitlements");
+            let control_keys=String::from_utf8_lossy(&control.stdout);
+            assert_eq!(control_keys,keys,"open control and protected service must have identical entitlements");
             assert_eq!(
                 fs::read(self.dir.join("sentinel.txt")).unwrap(),
                 b"R4L_OWNER_ONLY\n"
@@ -415,8 +458,10 @@ int main(int argc,char **argv) {
             let mut child = Command::new(self.client())
                 .args([
                     self.name.as_str(),
+                    self.control_name.as_str(),
                     self.good().to_str().unwrap(),
                     self.bad().to_str().unwrap(),
+                    self.journal().to_str().unwrap(),
                 ])
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
@@ -476,35 +521,20 @@ int main(int argc,char **argv) {
     pub fn assert_evidence(w: &Witness) {
         assert!(
             !w.timed_out && w.ok,
-            "strict independent peer admission evidence must succeed: {}",
+            "independent signed peer differential witness must succeed: {}",
             w.stderr
         );
         assert!(w.stdout.len() as u64 <= LIMIT, "bounded stdout");
         let lines: Vec<&str> = w.stdout.lines().collect();
+        assert_eq!(lines.len(), 2, "two exact differential receipt frames");
         assert_eq!(
-            lines.len(),
-            2,
-            "exact two native receipt frames: {}",
-            w.stdout
+            lines[0],
+            "R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED"
         );
-        assert!(lines[0].starts_with("R4L|CLIENT=") && lines[0].contains("|SERVER="));
-        let chunks: Vec<&str> = lines[0].split('|').collect();
-        assert_eq!(chunks.len(), 3);
-        let cp = chunks[1]
-            .strip_prefix("CLIENT=")
-            .unwrap()
-            .parse::<u32>()
-            .unwrap();
-        let sp = chunks[2]
-            .strip_prefix("SERVER=")
-            .unwrap()
-            .parse::<u32>()
-            .unwrap();
-        assert_ne!(cp, sp, "service must be distinct OS process");
-        assert_eq!(
-            lines[1],
-            "R4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=0",
-            "genuine good sibling must succeed and wrong-signed sibling must return the specific XPC signing-error constant"
+        assert!(
+            lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=SILENT_DROP|RECORDS=2"
+             || lines[1]=="R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=XPC_SIGNING_ERROR|RECORDS=2",
+            "negative evidence must be paired with genuine protected and open-control XPC handler records"
         );
     }
     pub fn exercise() {
@@ -512,6 +542,14 @@ int main(int argc,char **argv) {
         lab.prepare();
         let w = lab.execute();
         assert_evidence(&w);
+        let bytes=fs::read_to_string(lab.journal()).expect("read test-only handler receipts");
+        let records:Vec<&str>=bytes.lines().collect();
+        assert_eq!(records.len(),2,"two exact service-origin journal records");
+        for record in records {
+            let pid=record.strip_prefix("R4L|HANDLER|PID=")
+                .and_then(|v|v.parse::<u32>().ok());
+            assert!(pid.is_some_and(|v|v!=0),"actual handler PID marker required");
+        }
         lab.assert_fixture();
     }
 }
@@ -541,9 +579,9 @@ fn forged_and_truncated_inbound_peer_reports_fail_closed() {
     use std::panic::{catch_unwind, AssertUnwindSafe};
     for v in [
         "",
-        "R4L|CLIENT=1|SERVER=1\nR4L|GOOD=ACCEPTED|BAD=XPC_ERROR|BEFORE=0|AFTER_GOOD=1|AFTER_BAD=1\n",
-        "R4L|CLIENT=1|SERVER=2\nR4L|GOOD=ACCEPTED|BAD=ACCEPTED|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=1\n",
-        "R4L|CLIENT=1|SERVER=2\nR4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=1\n",
+        "R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED\n",
+        "R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED\nR4L|GUARDED_BAD=HANDLER_RECORDED|WITNESS=SILENT_DROP|RECORDS=3\n",
+        "R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED\nR4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=GENERIC_ERROR|RECORDS=2\n",
     ] {
         let w=native::Witness{ok:true,timed_out:false,stdout:v.to_string(),stderr:String::new()};
         assert!(catch_unwind(AssertUnwindSafe(||native::assert_evidence(&w))).is_err());
