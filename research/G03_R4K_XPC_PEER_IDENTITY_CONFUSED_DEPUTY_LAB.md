@@ -1,42 +1,43 @@
-# NORDOI G0.3 R4K — XPC peer identity and confused-deputy boundary (research)
+# NORDOI G0.3 R4K FIX1 — Kernel-enforced XPC peer requirements (research)
 
-**DRAFT RESEARCH · NOT PRODUCTION · FAIL CLOSED · NO `.noi` LANGUAGE CHANGE**
+**DRAFT ONLY · FAIL CLOSED · TEST-ONLY AD-HOC SIGNATURES · NO PRODUCTION**
 
-## Provenance
-Exact parent R4J: `5bb3eaeea558e25de82422e9566933493260c923`. R4J owner macOS 14.5 Intel receipt: **98 regular R4A–R4J tests PASS, 3 helper entries ignored, Rustfmt PASS, Clippy PASS**. The stacked R4A–R4J draft PRs #56/#58/#60/#62/#64/#66/#68/#70/#72/#74 remain unmerged. R4K is additive only and targets a new draft PR.
+## Evidence custody
+- Exact parent **R4J** commit: `5bb3eaeea558e25de82422e9566933493260c923`. Local owner macOS 14.5 Intel R4J: **98/98 regular tests PASS, 3 intentionally ignored**, strict format/Clippy PASS.
+- 10 previous R4A–R4J draft PRs (#56/#58/#60/#62/#64/#66/#68/#70/#72/#74) remain unmerged. R4K FIX1 modifies **only the additive R4K research test, this report and its dedicated CI workflow** on draft PR #75.
+- The first R4K attempt called `SecCodeCreateWithXPCMessage` then `SecCodeCheckValidity` **inside the separately sandboxed service**. macOS CI produced **100001** (`EPERM`, `Operation not permitted`) from `SecCodeCheckValidity`. The exact failing OS subsystem has not been independently proven. Initial native tests: 3 PASS, 4 FAIL. The full failure history is retained.
+- R4K FIX1 switches to the **documented connection-level libxpc peer code-signing requirement**, set once on each inbound peer connection **before** `xpc_connection_resume`: `xpc_connection_set_peer_code_signing_requirement(peer, "identifier \\"org.eddarsglobal.nordoi.r4k.client\\"")`. Native XPC enforces this requirement on peer messages. Server does **not** trust a message-provided PID, grant, or identity.
+- The genuine client also opens **a second actual XPC connection** whose peer-signature requirement intentionally names a nonexistent service. Success requires the **explicit** `XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT` result, not a timeout or generic disconnect; the regular connection must still complete the native launchd XPC round trip.
+- Tests also reject unknown `writefile` commands, `grant` and `identity` fields in a `probe` dictionary, and preserve sentinel data against all service read/write/create attempts. A correct service PID must be distinct from the client PID.
+- A separately signed wrong-client helper was investigated in an intermediate commit. It could not establish a distinguishable XPC-signature rejection versus a private service activation limitation (timeout); **this test was not counted as PASS** and was removed from acceptance. Independent wrong-signed client rejection is **still NOT VERIFIED**.
 
-## Hypothesis / test design
-R4J tested genuine independently signed, launchd-activated XPC process and kernel sandbox denial, but **not peer signing identity**. R4K adds a server-side message-bound check using `SecCodeCreateWithXPCMessage(msg, …)`, a designated-client signing identifier requirement, and `SecCodeCheckValidity`. It never trusts a user-supplied PID or identity to establish OS process provenance. It also rejects a `probe` message carrying extra purported `grant`, `authority` or `identity` fields, and keeps unknown operations (including `writefile`) denied. The client and service still have different sandbox privileges; the service must remain unable to read/write/create the disposable owner file. Four exact, unique client receipt lines are expected and a separate service PID is necessary but not sufficient. Any unavailable XPC registration or broken attestation MUST fail the positive test.
+## Security claim boundaries
+- An *ad-hoc* signing **identifier string can be chosen by an attacker**. An identifier-only requirement is useful for exercising OS signature enforcement, **not an unforgeable authentication anchor**. Production requires Developer ID / trusted Team ID or explicit pinning to a securely distributed signer or exact code hash, with a robust update and revocation policy.
+- Client and XPC service are in a disposable `.app` with separately signed `.xpc` helper. Client intentionally **not sandboxed** (positive filesystem control); service App Sandbox has only `com.apple.security.app-sandbox=true`, no expanded securityd exceptions.
+- The probe protocol accepts owner-generated test file paths for OS sandbox denial tests. It is **not** an arbitrary path grant, capability transfer, secure filesystem broker or safe untrusted `.noi` executor. Symlink and TOCTOU resilience, privileged file descriptors, authorization state, confused deputy beyond these two forged fields, and malware-grade substitution remain **UNIMPLEMENTED**.
+- R0.2 `ResourceEffect::ExternalIo` remains default denied. All **12 R11 native gates UNMET**, no merge, release, install or production.
 
-The test app and XPC service are signed ad hoc; this is **not** developer-team identity, trusted release signing, notarization, remote party authorization, or an immutable production trust anchor. In particular an adversary who can replace and re-sign the entire disposable test bundle could mimic the signing identifier. Service identity from the *client* side and an actual independent wrong-signed-client rejection are **not yet covered** in the first candidate and must remain **REMEDIATE** rather than be claimed PASS.
+## Fail-closed acceptance matrix (pending final CI and owner Intel)
+1. macOS 15 Apple Silicon: actual XPC with 8 regular R4K tests, explicit wrong-service XPC signature error, R4A–K cumulative regression, Rustfmt + Clippy **PENDING final head**.
+2. macOS 15 Intel: same native suite **PENDING**.
+3. Windows/Linux: only portable default-denial tests, no XPC claim **PENDING**.
+4. Owner macOS 14.5 Intel exact-head temporary Git clone replay **PENDING**.
+5. Independent wrong-signed client, authenticated permanent production trust anchor and full confused-deputy protection **NOT IMPLEMENTED / NOT VERIFIED**.
 
-## Controls and limitations
-- No external host IO grant and no execution of user-supplied `.noi` code.
-- No arbitrary path authority. Probe accepts paths solely to test OS sandbox denial; it is *not* a safe path-grant protocol. Missing canonicalization, symlink, file-descriptor and TOCTOU defenses are not silently accepted.
-- No networking, sudo, global launchd service, Mac system configuration, unapproved filesystem access or source modifications outside this draft branch.
-- macOS Intel and ARM runners must actually compile and execute the native XPC exchange; Linux/Windows can only assert unsupported behavior and default-denied `ResourceEffect::ExternalIo`.
-- Keep all 12 native admission gates UNMET; no production activation or merge.
-
-## Admission checklist
-1. CI macOS Intel & ARM: genuine XPC reply and signature check **PENDING**.
-2. Legitimate code-signed client: receipt 4 frames, distinct PID, known sandbox-denied OS calls **PENDING**.
-3. Unknown `writefile` and forged grant/identity fields: denied **PENDING**.
-4. Wrong-signed independent client and client-side service authentication **NOT IMPLEMENTED**.
-5. Strict Clippy and Rustfmt; cumulative R4A–R4K full regression; owner macOS 14.5 replay **PENDING**.
-
-## Primary references
-- https://developer.apple.com/documentation/security/seccodecreatewithxpcmessage
-- https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_code_signing_requirement
+## Primary Apple references
 - https://developer.apple.com/forums/thread/681053
+- https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_code_signing_requirement
+- https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements
+- https://developer.apple.com/documentation/xpc/xpc_connection_set_peer_lightweight_code_requirement
 
 ```ini
-G03_R4K=RESEARCH_CANDIDATE
-PARENT_R4J=5bb3eaeea558e25de82422e9566933493260c923
-PEER_MESSAGE_BOUND_SIGNING_CHECK=CI_PENDING
-WRONG_SIGNED_CLIENT_NEGATIVE_TEST=NOT_IMPLEMENTED
-TRUSTED_DEVELOPER_ID=NONE
-CONFUSED_DEPUTY_FULL_HARDENING=NOT_IMPLEMENTED
-OWNER_MAC_INTEL=PENDING
+G03_R4K_FIX1=RESEARCH_CANDIDATE
+PREVIOUS_R4J=PASS_WITH_CONTROLS
+NATIVE_XPC_CODE_SIGNING_REQUIREMENT=CI_PENDING
+CLIENT_SIDE_WRONG_SERVICE_REQUIREMENT=CI_PENDING
+INDEPENDENT_WRONG_SIGNED_CLIENT=NOT_VERIFIED
+AD_HOC_IDENTIFIER=NOT_PRODUCTION_TRUST_ANCHOR
+OWNER_MAC_INTEL_14_5=PENDING
 NATIVE_ADMISSION_GATES=12_UNMET
 MERGE_AUTHORIZATION=NONE
 PRODUCTION=NOT_AUTHORIZED
