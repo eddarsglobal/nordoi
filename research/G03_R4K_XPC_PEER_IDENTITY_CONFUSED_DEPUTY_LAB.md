@@ -42,3 +42,47 @@ NATIVE_ADMISSION_GATES=12_UNMET
 MERGE_AUTHORIZATION=NONE
 PRODUCTION=NOT_AUTHORIZED
 ```
+
+
+---
+
+## FIX2 owner Sonoma incident (2026-11-09) — **REMEDIATE**
+
+Owner Mac Intel `macOS 14.5` verified exact commit `899c716ebf6b388428ff5584913db43ad365d4a9`, with signed ZIP/script, pinned head and Git source blob. R4K native tests: **3 PASS / 5 FAIL**, exit 101; previously verified R4A–R4J 98 PASS, 3 intentionally ignored remained unchanged. Failure is **not** a missing response. The negative client-side XPC connection set a deliberately false service requirement, then actually obtained:
+
+```text
+R4K|WRONG_SERVICE_IDENTITY_NOT_EXPLICITLY_DENIED|TYPE=DICTIONARY|STATUS=probed
+```
+
+The test therefore **cannot claim that the outbound libxpc requirement denied the wrong service identity on macOS 14.5**. CI success on newer macOS 15 is evidence only for those OS environments. Exact kernel/libxpc root cause remains undetermined; owner original worktree and GitHub main remain untouched.
+
+## FIX3 countermeasure candidate — *additional*, not less, verification
+
+The unsandboxed client now checks **the actual XPC message sender** before processing an otherwise valid response via `SecCodeCreateWithXPCMessage`, `SecRequirementCreateWithString`, and `SecCodeCheckValidity` against the service's owner-generated signing identifier. A missing kernel-attributed sender, unparsable requirement, or non-valid legitimate sender **fails closed**.
+
+The intentionally wrong-service-identity connection has two permitted and explicitly distinguished rejection witnesses:
+
+1. `BACKEND=LIBXPC`: the OS itself returned `XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT`, with no service reply exposed.
+2. `BACKEND=MESSAGE_SECURITY`: the OS delivered a reply *despite* the incorrect outgoing requirement; **on that same actual reply** Security.framework must successfully verify the real service identifier **and** reject the intentionally wrong identifier, while observing the `probed` status. If either lookup fails, if wrong ID matches, if the actual ID fails, or if an unexpected reply type/status arrives, fail.
+
+These are **not interchangeable security claims**: `MESSAGE_SECURITY` is post-receipt sender validation, not proof of libxpc's inbound/outbound enforcement on macOS 14.5. Both use signed ad-hoc *identifier text*, which a hostile signer can reproduce; a trusted production identity anchor is still NOT IMPLEMENTED.
+
+The genuine server-side peer requirement is unchanged and installed before resuming inbound connections; the kernel sandbox denial for the service remains active. No XPC service, user source, filesystem grant or public `.noi` language change is authorized.
+
+### Latest exact-head verification scope
+
+- Owner macOS 14.5 FIX2 = **REMEDIATE** (direct unexpected `STATUS=probed` proof).
+- FIX3 Apple Silicon / macOS 15 = **CI PASS** for 106 regular tests and 3 intentionally ignored, plus format/Clippy, observed on code commit `463b008151825f82beeaa4769f5b4c6b38a6732e`.
+- FIX3 macOS 15 Intel / portable / final doc HEAD = verify CI before claiming PASS.
+- FIX3 owner macOS 14.5 Intel = **PENDING**, exact pinned owner-run isolated replay required.
+- Independent wrong-signed client rejection, trusted signer, complete confused-deputy mediation and all 12 native admission gates remain **NOT VERIFIED / UNMET**.
+
+```ini
+G03_R4K_FIX2_OWNER_SONOMA14_5=REMEDIATE
+G03_R4K_FIX3_OWNER_SONOMA14_5=PENDING
+G03_R4K_FIX3=RESEARCH_ONLY
+PRODUCTION_SIGNER_TRUST_ANCHOR=NONE
+NATIVE_ADMISSION_GATES=12_UNMET
+PR75=DRAFT_UNMERGED
+PRODUCTION=NOT_AUTHORIZED
+```
