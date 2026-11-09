@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4W external custodian enrollment research
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4w_external_guardian_enrollment_dossier_lab.rs'
+      - 'research/G03_R4W_EXTERNAL_CUSTODIAN_ENROLLMENT_DOSSIER.md'
+      - '.github/workflows/g03_r4w_external_custodian_enrollment.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-custodian-enrollment-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Real Ed25519 SSHSIG proof of possession, nonce replay and admin provenance denial
+        run: cargo test --offline --release --test g03_r4w_external_guardian_enrollment_dossier_lab -- --nocapture
+      - name: Previous R4V gate and real GitHub proof regression
+        if: always()
+        run: cargo test --offline --release --test g03_r4v_independent_custody_admission_gate_lab
+      - name: Strict Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-default-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: Portable reference external IO denial, no native or independent-operator claims
+        run: cargo test --offline --release --test g03_r4w_external_guardian_enrollment_dossier_lab
