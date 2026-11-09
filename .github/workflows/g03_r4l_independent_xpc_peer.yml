@@ -24,10 +24,13 @@ jobs:
       - name: R4L exact signed peer reachability, XPC denial and handler non-delivery
         run: cargo test --offline --release --test g03_r4l_independently_signed_xpc_peer_lab -- --nocapture
       - name: R4K baseline native parent unaffected
+        if: always()
         run: cargo test --offline --release --test g03_r4k_xpc_peer_identity_confused_deputy_lab
       - name: Strict rustfmt
+        if: always()
         run: cargo fmt --all -- --check
       - name: Strict Clippy
+        if: always()
         run: cargo clippy --offline --all-targets -- -D warnings
   portable-default-denial-only:
     strategy:
@@ -43,23 +46,3 @@ jobs:
       - name: R4L never claims XPC on a non-macOS host
         run: cargo test --offline --release --test g03_r4l_independently_signed_xpc_peer_lab
 
-  format-source-evidence:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.98.1
-          components: rustfmt
-      - name: Generate reproducible formatter output without pushing
-        run: |
-          cargo fmt --all
-          python3 - <<'PY'
-          from pathlib import Path
-          import base64
-          b = Path("tests/g03_r4l_independently_signed_xpc_peer_lab.rs").read_bytes()
-          s = base64.b64encode(b).decode("ascii")
-          for i in range(0, len(s), 100):
-              print("R4L_FORMAT_CHUNK=" + s[i:i+100])
-          print("R4L_FORMAT_SOURCE_BYTES=" + str(len(b)))
-          PY
