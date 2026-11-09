@@ -433,7 +433,7 @@ mod native {
         );
         lab.install_external_head(&b2);
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Ok(v2.cursor)
         );
     }
@@ -466,7 +466,7 @@ mod native {
         lab.install_external_head(&b2);
         let a3 = lab.publish("malicious-a3", &v3, 0);
         assert_eq!(
-            lab.verify_admission(&a3, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a3, &[v2.cursor; 2]),
             Err("RELEASE_NOT_CURRENTLY_WITNESSED")
         );
     }
@@ -479,7 +479,7 @@ mod native {
         lab.install_external_head(&b2);
         let forged = lab.publish("malicious-signer", &v2, 2);
         assert_eq!(
-            lab.verify_admission(&forged, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&forged, &[v2.cursor; 2]),
             Err("REPOSITORY_RELEASE_SIGNER_NOT_APPROVED")
         );
     }
@@ -498,7 +498,7 @@ mod native {
         );
         lab.install_external_head(&forged);
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Err("EXTERNAL_SIGNATURE_NOT_TRUSTED")
         );
         let wrong = lab.attest(
@@ -510,7 +510,7 @@ mod native {
         );
         lab.install_external_head(&wrong);
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Err("EXTERNAL_SIGNATURE_NOT_TRUSTED")
         );
     }
@@ -521,19 +521,19 @@ mod native {
         let v2 = lab.version(2, 2);
         let a2 = lab.publish("a2", &v2, 0);
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Err("EXTERNAL_WITNESS_REQUIRED")
         );
         let b2 = lab.attest("b2", &v2, &lab.publisher_key(false), false, WITNESS_NS);
         lab.install_external_head(&b2);
         lab.corrupt_current();
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Err("EXTERNAL_SIGNATURE_NOT_TRUSTED")
         );
         lab.remove_current();
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Err("EXTERNAL_WITNESS_REQUIRED")
         );
     }
@@ -546,12 +546,12 @@ mod native {
         lab.install_external_head(&b3);
         let approved_next = lab.publish("approved-next", &v3, 1);
         assert_eq!(
-            lab.verify_admission(&approved_next, &[v3.cursor.clone(); 2]),
-            Ok(v3.cursor.clone())
+            lab.verify_admission(&approved_next, &[v3.cursor; 2]),
+            Ok(v3.cursor)
         );
         let former_key = lab.publish("formerly-allowed", &v3, 0);
         assert_eq!(
-            lab.verify_admission(&former_key, &[v3.cursor.clone(); 2]),
+            lab.verify_admission(&former_key, &[v3.cursor; 2]),
             Err("REPOSITORY_RELEASE_SIGNER_NOT_APPROVED")
         );
     }
@@ -564,7 +564,7 @@ mod native {
         lab.install_external_head(&b2);
         let a2 = lab.publish("a2", &v2, 0);
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(), Cursor { epoch: 1, seq: 1 }]),
+            lab.verify_admission(&a2, &[v2.cursor, Cursor { epoch: 1, seq: 1 }]),
             Err("LOCAL_COPIES_DIVERGED")
         );
     }
@@ -577,7 +577,7 @@ mod native {
         lab.install_external_head(&b2);
         let a2 = lab.publish("a2", &v2, 0);
         assert_eq!(
-            lab.verify_admission(&a2, &[v2.cursor.clone(); 2]),
+            lab.verify_admission(&a2, &[v2.cursor; 2]),
             Ok(v2.cursor)
         );
         let v1 = lab.version(1, 1);
@@ -588,7 +588,7 @@ mod native {
         // provide NO hardware-protected monotonicity guarantee.
         lab.install_external_head(&b1);
         assert_eq!(
-            lab.verify_admission(&a1, &[v1.cursor.clone(); 2]),
+            lab.verify_admission(&a1, &[v1.cursor; 2]),
             Ok(v1.cursor)
         );
     }
