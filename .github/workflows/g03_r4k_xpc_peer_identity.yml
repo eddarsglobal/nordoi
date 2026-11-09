@@ -21,8 +21,20 @@ jobs:
         with:
           toolchain: 1.98.1
           components: rustfmt, clippy
-      - name: R4K genuine private XPC and message-bound Security.framework peer check
-        run: cargo test --offline --release --test g03_r4k_xpc_peer_identity_confused_deputy_lab -- --nocapture
+      - name: R4A–R4K native regression, both XPC signing directions and OS sandbox evidence
+        run: |
+          cargo test --offline --release \
+            --test g03_r4a_structured_native_lab \
+            --test g03_r4b_native_cancel_authority_lab \
+            --test g03_r4c_native_file_resource_lab \
+            --test g03_r4d_governed_host_adapter_lab \
+            --test g03_r4e_cross_process_host_boundary_lab \
+            --test g03_r4f_linux_landlock_boundary_lab \
+            --test g03_r4g_macos_seatbelt_boundary_lab \
+            --test g03_r4h_signed_app_sandbox_helper_lab \
+            --test g03_r4i_inherited_app_sandbox_helper_lab \
+            --test g03_r4j_xpc_service_sandbox_boundary_lab \
+            --test g03_r4k_xpc_peer_identity_confused_deputy_lab -- --nocapture
       - name: Strict format
         run: cargo fmt --all -- --check
       - name: Strict Clippy
