@@ -296,12 +296,16 @@ mod native {
         for file in ["local_state", "secondary_state"] {
             fs::write(temp.0.join(file), b"epoch=1\nsequence=1\n").unwrap();
         }
+        // Recontact the actual GitHub branch AFTER the malicious restore.
+        // Never infer the remote's current head only from a process cache.
+        let reloaded = fetch_live().expect("fresh external GitHub witness after local restore");
+        assert_eq!(verified_remote(&reloaded), Ok(v2));
         assert_eq!(
-            admit(Some(remote), &read_both(&temp.0), v1),
+            admit(Some(&reloaded), &read_both(&temp.0), v1),
             Err("REMOTE_AND_LOCAL_HEAD_DIVERGED")
         );
         assert_eq!(
-            admit(Some(remote), &read_both(&temp.0), v2),
+            admit(Some(&reloaded), &read_both(&temp.0), v2),
             Err("REMOTE_AND_LOCAL_HEAD_DIVERGED")
         );
     }
