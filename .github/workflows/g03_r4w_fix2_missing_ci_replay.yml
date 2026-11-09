@@ -1,0 +1,52 @@
+name: NORDOI G0.3 R4W FIX2 missing-job replay
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/g03_r4w_fix2_missing_ci_replay.yml'
+      - 'research/G03_R4W_FIX2_MISSING_CI_JOBS_RECONCILIATION.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  missing-original-macos-intel:
+    name: FIX2 dedicated Intel source-pinned R4W replay
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Confirm original validated R4W and R4V source blobs unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:tests/g03_r4w_external_guardian_enrollment_dossier_lab.rs)" = "e885d0768f87f12ec4604e062eccb8abd3168053"
+          test "$(git rev-parse HEAD:tests/g03_r4v_independent_custody_admission_gate_lab.rs)" = "46b2934d795eb4cc56a6cb883c2ec2da14e22706"
+          test "$(git rev-parse HEAD:.github/workflows/ci.yml)" = "1eae37c4860bf47f16b7faa6b5616d33b3c455d2"
+          echo "R4W_FIX2_PINNED_R4W_R4V_CI_BLOBS=PASS"
+      - name: Recheck missing Intel native R4W 14 regular controls
+        run: cargo test --offline --release --test g03_r4w_external_guardian_enrollment_dossier_lab -- --nocapture
+      - name: Recheck R4V regression 13 regular controls
+        run: cargo test --offline --release --test g03_r4v_independent_custody_admission_gate_lab
+      - name: Recheck strict Rustfmt
+        run: cargo fmt --all -- --check
+      - name: Recheck strict Clippy
+        run: cargo clippy --offline --all-targets -- -D warnings
+  missing-original-general-check:
+    name: FIX2 general Linux cargo Check source-pinned replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Confirm original NORDOI general Check and native R4W source unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD:.github/workflows/ci.yml)" = "1eae37c4860bf47f16b7faa6b5616d33b3c455d2"
+          test "$(git rev-parse HEAD:tests/g03_r4w_external_guardian_enrollment_dossier_lab.rs)" = "e885d0768f87f12ec4604e062eccb8abd3168053"
+          echo "R4W_FIX2_GENERAL_CHECK_SOURCE_PIN=PASS"
+      - name: Recheck exact general cargo check --all-targets
+        run: cargo check --all-targets
