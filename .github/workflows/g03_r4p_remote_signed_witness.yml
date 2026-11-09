@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4P remote signed checkpoint
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4p_remote_signed_monotonic_witness_lab.rs'
+      - 'research/G03_R4P_REMOTE_SIGNED_MONOTONIC_WITNESS_LAB.md'
+      - '.github/workflows/g03_r4p_remote_signed_witness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-macos-external-witness:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Live GitHub ref, signed Ed25519 external checkpoint and double-restore denial
+        run: cargo test --offline --release --test g03_r4p_remote_signed_monotonic_witness_lab -- --nocapture
+      - name: Parent R4O negative counterexample remains explicit
+        if: always()
+        run: cargo test --offline --release --test g03_r4o_owner_pinned_root_two_witness_lab
+      - name: Strict Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-default-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: No native external witness or macOS claim on portable hosts
+        run: cargo test --offline --release --test g03_r4p_remote_signed_monotonic_witness_lab
