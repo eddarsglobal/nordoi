@@ -384,6 +384,7 @@ fn macos_fail_closed_forged_ipc_receipts_and_duplicate_server_frame() {
 #[cfg(target_os="macos")]
 #[test]
 fn macos_unsandboxed_test_driver_keeps_fresh_sentinel_ownership() {
+    use std::fs::OpenOptions;
     use std::io::Write;
     let lab=macos::Lab::new();
     lab.prepare();
