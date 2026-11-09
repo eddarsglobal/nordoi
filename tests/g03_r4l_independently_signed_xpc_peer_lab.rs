@@ -31,8 +31,10 @@ mod native {
 static _Atomic unsigned long long accepted = 0;
 static const char *CLIENT_REQ = "identifier \"org.eddarsglobal.nordoi.r4l.client\"";
 static void accept_peer(xpc_connection_t peer) {
+#ifndef R4L_OPEN_CONTROL
     int status=xpc_connection_set_peer_code_signing_requirement(peer, CLIENT_REQ);
     if(status!=0) { xpc_connection_cancel(peer); return; }
+#endif
     xpc_connection_set_event_handler(peer, ^(xpc_object_t msg) {
         if(xpc_get_type(msg)!=XPC_TYPE_DICTIONARY) return;
         xpc_object_t reply=xpc_dictionary_create_reply(msg);
@@ -45,12 +47,28 @@ static void accept_peer(xpc_connection_t peer) {
                 atomic_load_explicit(&accepted,memory_order_relaxed));
             xpc_dictionary_set_int64(reply,"pid",(int64_t)getpid());
         } else if(op && strcmp(op,"ping")==0 &&
-                  xpc_dictionary_get_count(msg)==2 &&
+                  xpc_dictionary_get_count(msg)==3 &&
                   xpc_dictionary_get_string(msg,"nonce") &&
                   strcmp(xpc_dictionary_get_string(msg,"nonce"),"r4l-fixed-probe")==0) {
-            atomic_fetch_add_explicit(&accepted,1,memory_order_relaxed);
-            xpc_dictionary_set_string(reply,"status","pong");
-            xpc_dictionary_set_int64(reply,"pid",(int64_t)getpid());
+            // Only the actual XPC handler writes a test-only marker, via a
+            // precise disposable descriptor the initiating peer passed.
+            int fd=xpc_dictionary_dup_fd(msg,"receipt_fd");
+            if(fd<0) {
+                xpc_dictionary_set_string(reply,"status","denied");
+            } else {
+                char marker[80];
+                int count=snprintf(marker,sizeof(marker),
+                    "R4L|HANDLER|PID=%ld\n",(long)getpid());
+                ssize_t written=(count>0 && count<(int)sizeof(marker))
+                    ? write(fd,marker,(size_t)count) : -1;
+                int synced=(written==(ssize_t)count) ? fsync(fd) : -1;
+                close(fd);
+                if(written==(ssize_t)count && synced==0) {
+                    atomic_fetch_add_explicit(&accepted,1,memory_order_relaxed);
+                    xpc_dictionary_set_string(reply,"status","pong");
+                    xpc_dictionary_set_int64(reply,"pid",(int64_t)getpid());
+                } else xpc_dictionary_set_string(reply,"status","denied");
+            }
         } else {
             xpc_dictionary_set_string(reply,"status","denied");
         }
@@ -67,9 +85,11 @@ int main(void) { xpc_main(accept_peer); return 0; }
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
+#include <fcntl.h>
 int main(int argc,char **argv) {
-    if(argc!=4) return 70;
-    if(strcmp(argv[3],"good")!=0 && strcmp(argv[3],"bad")!=0) return 71;
+    if(argc!=5) return 70;
+    if(strcmp(argv[3],"good")!=0 && strcmp(argv[3],"bad")!=0 &&
+       strcmp(argv[3],"control")!=0) return 71;
     alarm(4);
     xpc_connection_t c=xpc_connection_create(argv[1],NULL);
     if(!c) return 72;
@@ -78,13 +98,17 @@ int main(int argc,char **argv) {
     xpc_object_t req=xpc_dictionary_create(NULL,NULL,0);
     xpc_dictionary_set_string(req,"op","ping");
     xpc_dictionary_set_string(req,"nonce",argv[2]);
+    int fd=open(argv[4],O_WRONLY|O_APPEND|O_CLOEXEC);
+    if(fd<0) return 76;
+    xpc_dictionary_set_fd(req,"receipt_fd",fd);
+    close(fd);
     xpc_object_t resp=xpc_connection_send_message_with_reply_sync(c,req);
     xpc_release(req);
     int result=73;
     if(resp && xpc_get_type(resp)==XPC_TYPE_DICTIONARY) {
         const char *s=xpc_dictionary_get_string(resp,"status");
         if(s && strcmp(s,"pong")==0) {
-            result=(strcmp(argv[3],"good")==0)?0:74;
+            result=(strcmp(argv[3],"bad")==0)?74:0;
         }
     } else if(resp==XPC_ERROR_PEER_CODE_SIGNING_REQUIREMENT) {
         result=(strcmp(argv[3],"bad")==0)?7:75;
@@ -103,81 +127,86 @@ int main(int argc,char **argv) {
 #include <dispatch/dispatch.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 extern char **environ;
-static int count(xpc_connection_t c, uint64_t *n, int64_t *pid) {
-    xpc_object_t q=xpc_dictionary_create(NULL,NULL,0);
-    xpc_dictionary_set_string(q,"op","count");
-    xpc_object_t r=xpc_connection_send_message_with_reply_sync(c,q);
-    xpc_release(q);
-    if(!r || xpc_get_type(r)!=XPC_TYPE_DICTIONARY) {
-        fprintf(stderr,"R4L|COUNTER_NOT_DICTIONARY|IS_NULL=%d|IS_ERROR=%d\n",
-            r==NULL,r && xpc_get_type(r)==XPC_TYPE_ERROR);
-        if(r) xpc_release(r);
-        return 0;
+static int journal(char *path, unsigned long *first, unsigned long *second) {
+    char data[256] = {0};
+    int fd = open(path,O_RDONLY);
+    if(fd<0) return -1;
+    ssize_t n = read(fd,data,sizeof(data)-1);
+    close(fd);
+    if(n<0 || n>=(ssize_t)sizeof(data)-1) return -1;
+    int lines=0;
+    char *cursor=data;
+    while(*cursor) {
+        char *end=strchr(cursor,'\n');
+        if(!end || end==cursor) return -1;
+        *end='\0';
+        unsigned long pid=0;
+        char trailer='\0';
+        if(sscanf(cursor,"R4L|HANDLER|PID=%lu%c",&pid,&trailer)!=1 || pid==0) return -1;
+        if(lines==0 && first) *first=pid;
+        if(lines==1 && second) *second=pid;
+        if(++lines>2) return -1;
+        cursor=end+1;
     }
-    const char *s=xpc_dictionary_get_string(r,"status");
-    int valid=s && strcmp(s,"counted")==0;
-    if(!valid) {
-        fprintf(stderr,"R4L|COUNTER_BAD_STATUS|VALUE=%.60s|KEYS=%zu\n",
-                s?s:"NULL",xpc_dictionary_get_count(r));
-    }
-    if(valid) {
-        *n=xpc_dictionary_get_uint64(r,"accepted");
-        *pid=xpc_dictionary_get_int64(r,"pid");
-    }
-    xpc_release(r);
-    return valid;
+    return lines;
 }
-static int run_peer(char *exe,char *svc,char *mode) {
+static int run_peer(char *exe,char *svc,char *mode,char *journal_path) {
     pid_t pid=0;
-    char *const args[]={exe,svc,"r4l-fixed-probe",mode,NULL};
+    char *const args[]={exe,svc,"r4l-fixed-probe",mode,journal_path,NULL};
     if(posix_spawn(&pid,exe,NULL,NULL,args,environ)!=0) return -1;
     int status=0;
     if(waitpid(pid,&status,0)!=pid) return -2;
     if(WIFEXITED(status)) return WEXITSTATUS(status);
-    fprintf(stderr,"R4L|PEER_SIGNAL_EXIT|SIGNAL=%d\n",
+    if(WIFSIGNALED(status) && WTERMSIG(status)==SIGALRM) return 14;
+    fprintf(stderr,"R4L|UNEXPECTED_PEER_SIGNAL|SIGNAL=%d\n",
             WIFSIGNALED(status)?WTERMSIG(status):-1);
     return -3;
 }
 int main(int argc,char **argv) {
-    if(argc!=4) return 80;
-    xpc_connection_t c=xpc_connection_create(argv[1],NULL);
-    if(!c) return 81;
-    xpc_connection_set_event_handler(c,^(xpc_object_t m){(void)m;});
-    xpc_connection_resume(c);
-    uint64_t before=999,after_good=999,after_bad=999;
-    int64_t p0=0,p1=0,p2=0;
-    if(!count(c,&before,&p0) || before!=0 || p0<=0 || p0==getpid()) {
-        fprintf(stderr,"R4L|BASELINE_COUNT_FAILED|COUNTER=%llu|PID=%lld\n",
-                (unsigned long long)before,(long long)p0);
+    if(argc!=6) return 80;
+    unsigned long good_pid=0,ctrl_pid=0;
+    if(journal(argv[5],NULL,NULL)!=0) return 81;
+
+    // Signed positive peer MUST reach the protected service and cause a real
+    // service-origin marker in a disposable fd passed over XPC.
+    int good=run_peer(argv[3],argv[1],"good",argv[5]);
+    if(good!=0 || journal(argv[5],&good_pid,NULL)!=1 || good_pid==getpid()) {
+        fprintf(stderr,"R4L|PROTECTED_GOOD_CONTROL_FAILED|EXIT=%d\n",good);
         return 82;
     }
-    int good=run_peer(argv[2],argv[1],"good");
-    if(good!=0) {fprintf(stderr,"R4L|GOOD_SIBLING_UNREACHABLE|EXIT=%d\n",good);return 83;}
-    if(!count(c,&after_good,&p1) || after_good!=0 || p1!=p0) {
-        fprintf(stderr,"R4L|COORDINATOR_INSTANCE_CHANGED|COUNTER=%llu|PID=%lld|BASEPID=%lld\n",
-                (unsigned long long)after_good,(long long)p1,(long long)p0);
+
+    // Same maliciously identified executable MUST be able to reach the
+    // identically sandboxed, separately bundled unfiltered control service.
+    int bad_open=run_peer(argv[4],argv[2],"control",argv[5]);
+    if(bad_open!=0 || journal(argv[5],&good_pid,&ctrl_pid)!=2
+       || ctrl_pid==0 || ctrl_pid==getpid()) {
+        fprintf(stderr,"R4L|BAD_PEER_OPEN_CONTROL_FAILED|EXIT=%d\n",bad_open);
+        return 83;
+    }
+
+    // Differential proof: same bad executable and bundle, only the service
+    // admission signing requirement differs; kernel may silently drop it.
+    int bad_guarded=run_peer(argv[4],argv[1],"bad",argv[5]);
+    if(bad_guarded!=14 && bad_guarded!=7) {
+        fprintf(stderr,"R4L|BAD_GUARDED_UNEXPECTED_EXIT|EXIT=%d\n",bad_guarded);
         return 84;
     }
-    int bad=run_peer(argv[3],argv[1],"bad");
-    if(bad!=7) {fprintf(stderr,"R4L|BAD_SIBLING_NOT_EXPLICIT_SIGNATURE_ERROR|EXIT=%d\n",bad);return 85;}
-    if(!count(c,&after_bad,&p2) || after_bad!=0 || p2!=p0) {
-        fprintf(stderr,"R4L|COORDINATOR_INSTANCE_COUNTER_CHANGED|COUNT=%llu\n",
-                (unsigned long long)after_bad);
-        return 86;
+    if(journal(argv[5],NULL,NULL)!=2) {
+        fprintf(stderr,"R4L|BAD_GUARDED_REACHED_HANDLER\n");
+        return 85;
     }
-    printf("R4L|CLIENT=%ld|SERVER=%lld\n",(long)getpid(),(long long)p0);
-    printf("R4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=%llu|AFTER_GOOD=%llu|AFTER_BAD=%llu\n",
-           (unsigned long long)before,(unsigned long long)after_good,
-           (unsigned long long)after_bad);
+    printf("R4L|GUARDED_GOOD=HANDLER_RECORDED|OPEN_BAD=HANDLER_RECORDED\n");
+    printf("R4L|GUARDED_BAD=NO_HANDLER_RECORD|WITNESS=%s|RECORDS=2\n",
+           bad_guarded==14?"SILENT_DROP":"XPC_SIGNING_ERROR");
     fflush(stdout);
-    xpc_connection_cancel(c);
-    xpc_release(c);
     return 0;
 }
 "#;
