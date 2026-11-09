@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4M exact CDHash peer identity research
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4m_pinned_code_identity_lab.rs'
+      - 'research/G03_R4M_PINNED_CRYPTOGRAPHIC_CODE_IDENTITY_LAB.md'
+      - '.github/workflows/g03_r4m_pinned_cdhash_identity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-native-macos-cdhash-gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: R4M genuine XPC same identifier but different CodeDirectory hash
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture
+      - name: R4L predecessor unchanged
+        if: always()
+        run: cargo test --offline --release --test g03_r4l_independently_signed_xpc_peer_lab
+      - name: Exact Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  non-macos-model-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: Non-native host never claims CDHash or XPC evidence
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab
