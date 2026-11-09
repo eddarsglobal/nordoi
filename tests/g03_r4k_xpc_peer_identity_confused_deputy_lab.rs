@@ -34,15 +34,16 @@ mod macos {
 #include <stdlib.h>
 #include <Security/Security.h>
 
-static int authenticated_peer(xpc_object_t msg) {
+static int authenticated_peer(xpc_object_t msg, OSStatus *code_status) {
     SecCodeRef code = NULL;
     SecRequirementRef req = NULL;
     OSStatus s = SecCodeCreateWithXPCMessage(msg, kSecCSDefaultFlags, &code);
-    if (s != errSecSuccess || !code) return 0;
+    if (s != errSecSuccess || !code) { *code_status = s; return 0; }
     s = SecRequirementCreateWithString(CFSTR("identifier \"org.eddarsglobal.nordoi.r4k.client\""), kSecCSDefaultFlags, &req);
     if (s == errSecSuccess && req) s = SecCodeCheckValidity(code, kSecCSDefaultFlags, req);
     if (req) CFRelease(req);
     CFRelease(code);
+    *code_status = s;
     return s == errSecSuccess;
 }
 
@@ -62,8 +63,10 @@ static void accept_peer(xpc_connection_t peer) {
         xpc_object_t reply = xpc_dictionary_create_reply(msg);
         if (!reply) return;
         const char *op = xpc_dictionary_get_string(msg, "op");
-        if (!authenticated_peer(msg)) {
+        OSStatus auth_error = 0;
+        if (!authenticated_peer(msg, &auth_error)) {
             xpc_dictionary_set_string(reply, "status", "unauthenticated");
+            xpc_dictionary_set_int64(reply, "auth_error", (int64_t)auth_error);
         } else if (!op || strcmp(op, "probe") != 0 ||
                    xpc_dictionary_get_value(msg, "grant") != NULL ||
                    xpc_dictionary_get_value(msg, "authority") != NULL ||
@@ -138,6 +141,8 @@ int main(int argc, char **argv) {
     int64_t w=xpc_dictionary_get_int64(result,"write");
     int64_t c=xpc_dictionary_get_int64(result,"create");
     if(!status || strcmp(status,"probed") || pid<=0 || pid==getpid()) {
+        fprintf(stderr, "R4K|AUTH_DIAGNOSTIC|STATUS=%s|OSSTATUS=%" PRId64 "\\n",
+                status?status:"NULL", xpc_dictionary_get_int64(result,"auth_error"));
         xpc_release(result);
         xpc_connection_cancel(con);
         xpc_release(con);
