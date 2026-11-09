@@ -777,7 +777,7 @@ mod native {
     }
 
     #[test]
-    fn native_r4r_restored_B_with_fresh_valid_signature_fails_remote_high_water() {
+    fn native_r4r_restored_b_with_fresh_valid_signature_fails_remote_high_water() {
         let lab = Lab::new();
         let previous = lab.version(1, 1);
         let latest = lab.version(2, 2);
