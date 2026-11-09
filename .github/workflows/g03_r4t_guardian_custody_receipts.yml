@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R4T owner-enrolled custodian receipt research
+on:
+  pull_request:
+    paths:
+      - 'tests/g03_r4t_owner_enrolled_custodian_receipts_lab.rs'
+      - 'research/G03_R4T_OWNER_ENROLLED_CUSTODIAN_RECEIPTS_LAB.md'
+      - '.github/workflows/g03_r4t_guardian_custody_receipts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  macos-owner-pin-and-guardian-receipts:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+          components: rustfmt, clippy
+      - name: Native root enrollment, signed highwater, revocation and double-rollback counterexample
+        run: cargo test --offline --release --test g03_r4t_owner_enrolled_custodian_receipts_lab -- --nocapture
+      - name: R4S guardian continuity and key rotation regression
+        if: always()
+        run: cargo test --offline --release --test g03_r4s_guardian_checkpoint_chain_protocol_lab
+      - name: Strict Rustfmt
+        if: always()
+        run: cargo fmt --all -- --check
+      - name: Strict Clippy
+        if: always()
+        run: cargo clippy --offline --all-targets -- -D warnings
+  portable-no-independent-admin-claim:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.98.1
+      - name: Reference permission remains denied without native external custodian
+        run: cargo test --offline --release --test g03_r4t_owner_enrolled_custodian_receipts_lab
