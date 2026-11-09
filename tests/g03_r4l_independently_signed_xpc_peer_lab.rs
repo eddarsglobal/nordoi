@@ -185,156 +185,293 @@ int main(int argc,char **argv) {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict><key>com.apple.security.app-sandbox</key><true/></dict></plist>
 "#;
-    pub struct Lab { dir: PathBuf, name: String }
+    pub struct Lab {
+        dir: PathBuf,
+        name: String,
+    }
     impl Lab {
         pub fn new() -> Self {
-            let n=SERIAL.fetch_add(1,Ordering::Relaxed);
-            let d=env::temp_dir().join(format!("nordoi-r4l-{}-{n}",std::process::id()));
+            let n = SERIAL.fetch_add(1, Ordering::Relaxed);
+            let d = env::temp_dir().join(format!("nordoi-r4l-{}-{n}", std::process::id()));
             fs::create_dir(&d).expect("fresh disposable test directory");
             Self {
-                dir:fs::canonicalize(d).expect("canonical test fixture"),
-                name:format!("org.eddarsglobal.nordoi.r4l.svc.p{}.n{n}",std::process::id())
+                dir: fs::canonicalize(d).expect("canonical test fixture"),
+                name: format!(
+                    "org.eddarsglobal.nordoi.r4l.svc.p{}.n{n}",
+                    std::process::id()
+                ),
             }
         }
-        fn app(&self)->PathBuf {self.dir.join("R4LClient.app")}
-        fn client(&self)->PathBuf {self.app().join("Contents/MacOS/r4l-client")}
-        fn good(&self)->PathBuf {self.app().join("Contents/MacOS/r4l-good")}
-        fn bad(&self)->PathBuf {self.app().join("Contents/MacOS/r4l-bad")}
-        fn service(&self)->PathBuf {self.app().join(format!("Contents/XPCServices/{}.xpc",self.name))}
-        fn service_executable(&self)->PathBuf {self.service().join("Contents/MacOS/r4l-service")}
-        fn run_command(path:&str,args:&[&str])->std::process::Output {
+        fn app(&self) -> PathBuf {
+            self.dir.join("R4LClient.app")
+        }
+        fn client(&self) -> PathBuf {
+            self.app().join("Contents/MacOS/r4l-client")
+        }
+        fn good(&self) -> PathBuf {
+            self.app().join("Contents/MacOS/r4l-good")
+        }
+        fn bad(&self) -> PathBuf {
+            self.app().join("Contents/MacOS/r4l-bad")
+        }
+        fn service(&self) -> PathBuf {
+            self.app()
+                .join(format!("Contents/XPCServices/{}.xpc", self.name))
+        }
+        fn service_executable(&self) -> PathBuf {
+            self.service().join("Contents/MacOS/r4l-service")
+        }
+        fn run_command(path: &str, args: &[&str]) -> std::process::Output {
             Command::new(path).args(args).output().expect("macOS tool")
         }
-        fn compile(&self,label:&str,src:&str,output:&Path) {
-            let input=self.dir.join(label);
-            fs::write(&input,src).expect("write test-only C source");
-            let result=Command::new("/usr/bin/cc")
-                .args(["-O2","-std=c11","-fblocks","-x","c"]).arg(&input)
-                .arg("-o").arg(output)
-                .args(["-framework","Foundation"])
-                .output().expect("Apple C compiler");
-            assert!(result.status.success(),"native C build: {}",String::from_utf8_lossy(&result.stderr));
+        fn compile(&self, label: &str, src: &str, output: &Path) {
+            let input = self.dir.join(label);
+            fs::write(&input, src).expect("write test-only C source");
+            let result = Command::new("/usr/bin/cc")
+                .args(["-O2", "-std=c11", "-fblocks", "-x", "c"])
+                .arg(&input)
+                .arg("-o")
+                .arg(output)
+                .args(["-framework", "Foundation"])
+                .output()
+                .expect("Apple C compiler");
+            assert!(
+                result.status.success(),
+                "native C build: {}",
+                String::from_utf8_lossy(&result.stderr)
+            );
         }
-        fn sign(path:&Path,identifier:Option<&str>,ents:Option<&Path>) {
-            let mut cmd=Command::new("/usr/bin/codesign");
-            cmd.args(["--force","--sign","-"]);
-            if let Some(id)=identifier {cmd.arg("--identifier").arg(id);}
-            if let Some(ent)=ents {cmd.arg("--entitlements").arg(ent);}
-            let r=cmd.arg(path).output().expect("codesign");
-            assert!(r.status.success(),"ad-hoc signing: {}",String::from_utf8_lossy(&r.stderr));
+        fn sign(path: &Path, identifier: Option<&str>, ents: Option<&Path>) {
+            let mut cmd = Command::new("/usr/bin/codesign");
+            cmd.args(["--force", "--sign", "-"]);
+            if let Some(id) = identifier {
+                cmd.arg("--identifier").arg(id);
+            }
+            if let Some(ent) = ents {
+                cmd.arg("--entitlements").arg(ent);
+            }
+            let r = cmd.arg(path).output().expect("codesign");
+            assert!(
+                r.status.success(),
+                "ad-hoc signing: {}",
+                String::from_utf8_lossy(&r.stderr)
+            );
         }
-        fn verify(path:&Path) {
-            let r=Command::new("/usr/bin/codesign")
-                .args(["--verify","--strict"]).arg(path).output().expect("codesign verify");
-            assert!(r.status.success(),"signature integrity: {}",String::from_utf8_lossy(&r.stderr));
+        fn verify(path: &Path) {
+            let r = Command::new("/usr/bin/codesign")
+                .args(["--verify", "--strict"])
+                .arg(path)
+                .output()
+                .expect("codesign verify");
+            assert!(
+                r.status.success(),
+                "signature integrity: {}",
+                String::from_utf8_lossy(&r.stderr)
+            );
         }
-        fn identity(path:&Path)->String {
-            let r=Command::new("/usr/bin/codesign")
-                .args(["--display","--verbose=2"]).arg(path).output().expect("codesign display");
-            assert!(r.status.success(),"identity inspect failed");
+        fn identity(path: &Path) -> String {
+            let r = Command::new("/usr/bin/codesign")
+                .args(["--display", "--verbose=2"])
+                .arg(path)
+                .output()
+                .expect("codesign display");
+            assert!(r.status.success(), "identity inspect failed");
             String::from_utf8_lossy(&r.stderr).into_owned()
         }
         pub fn prepare(&self) {
-            let sentinel=self.dir.join("sentinel.txt");
-            let mut f=OpenOptions::new().create_new(true).write(true).open(&sentinel).unwrap();
+            let sentinel = self.dir.join("sentinel.txt");
+            let mut f = OpenOptions::new()
+                .create_new(true)
+                .write(true)
+                .open(&sentinel)
+                .unwrap();
             f.write_all(b"R4L_OWNER_ONLY\n").unwrap();
             fs::create_dir_all(self.app().join("Contents/MacOS")).unwrap();
             fs::create_dir_all(self.service().join("Contents/MacOS")).unwrap();
-            let parent=r#"<?xml version="1.0"?><plist version="1.0"><dict>
+            let parent = r#"<?xml version="1.0"?><plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>org.eddarsglobal.nordoi.r4l.client</string>
 <key>CFBundleExecutable</key><string>r4l-client</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>LSBackgroundOnly</key><true/>
 </dict></plist>"#;
-            let svc=format!(r#"<?xml version="1.0"?><plist version="1.0"><dict>
+            let svc = format!(
+                r#"<?xml version="1.0"?><plist version="1.0"><dict>
 <key>CFBundleIdentifier</key><string>{}</string>
 <key>CFBundleExecutable</key><string>r4l-service</string>
 <key>CFBundlePackageType</key><string>XPC!</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>XPCService</key><dict><key>RunLoopType</key><string>dispatch_main</string></dict>
-</dict></plist>"#,self.name);
-            fs::write(self.app().join("Contents/Info.plist"),parent).unwrap();
-            fs::write(self.service().join("Contents/Info.plist"),svc).unwrap();
-            let ent=self.dir.join("entitlements.plist");
-            fs::write(&ent,ENTITLEMENTS).unwrap();
-            self.compile("r4l_service.c",SERVICE,&self.service_executable());
-            self.compile("r4l_driver.c",DRIVER,&self.client());
-            self.compile("r4l_peer.c",PEER,&self.good());
-            fs::copy(self.good(),self.bad()).expect("copy IDENTICAL C source executable for adversary");
+</dict></plist>"#,
+                self.name
+            );
+            fs::write(self.app().join("Contents/Info.plist"), parent).unwrap();
+            fs::write(self.service().join("Contents/Info.plist"), svc).unwrap();
+            let ent = self.dir.join("entitlements.plist");
+            fs::write(&ent, ENTITLEMENTS).unwrap();
+            self.compile("r4l_service.c", SERVICE, &self.service_executable());
+            self.compile("r4l_driver.c", DRIVER, &self.client());
+            self.compile("r4l_peer.c", PEER, &self.good());
+            fs::copy(self.good(), self.bad())
+                .expect("copy IDENTICAL C source executable for adversary");
             // A normal signed sibling and an impostor from the SAME bundle,
             // directory, source bytes and account, with distinct signing IDs.
-            Self::sign(&self.good(),Some("org.eddarsglobal.nordoi.r4l.client"),None);
-            Self::sign(&self.bad(),Some("org.eddarsglobal.nordoi.r4l.impostor"),None);
-            Self::sign(&self.service(),None,Some(&ent));
-            Self::sign(&self.app(),None,None);
+            Self::sign(
+                &self.good(),
+                Some("org.eddarsglobal.nordoi.r4l.client"),
+                None,
+            );
+            Self::sign(
+                &self.bad(),
+                Some("org.eddarsglobal.nordoi.r4l.impostor"),
+                None,
+            );
+            Self::sign(&self.service(), None, Some(&ent));
+            Self::sign(&self.app(), None, None);
             self.assert_fixture();
         }
         pub fn assert_fixture(&self) {
-            for p in [self.app(),self.client(),self.good(),self.bad(),
-                      self.service(),self.service_executable()] {Self::verify(&p);}
-            let main=Self::identity(&self.app());
-            let g=Self::identity(&self.good());
-            let b=Self::identity(&self.bad());
+            for p in [
+                self.app(),
+                self.client(),
+                self.good(),
+                self.bad(),
+                self.service(),
+                self.service_executable(),
+            ] {
+                Self::verify(&p);
+            }
+            let main = Self::identity(&self.app());
+            let g = Self::identity(&self.good());
+            let b = Self::identity(&self.bad());
             assert!(
                 main.contains("Identifier=org.eddarsglobal.nordoi.r4l.client"),
                 "main app signature identity must match admitted peer"
             );
-            assert!(g.contains("Identifier=org.eddarsglobal.nordoi.r4l.client"),"valid peer identity");
-            assert!(b.contains("Identifier=org.eddarsglobal.nordoi.r4l.impostor"),"wrong peer identity");
-            assert_ne!(g,b,"two distinct independently signed identities");
-            let s=Self::run_command("/usr/bin/codesign",&[
-                "--display","--entitlements",":-",self.service().to_str().unwrap()]);
-            assert!(s.status.success(),"XPC service signed entitlements");
-            let keys=String::from_utf8_lossy(&s.stdout);
-            assert!(keys.contains("com.apple.security.app-sandbox"),"real sandbox");
-            assert_eq!(keys.matches("<key>").count(),1,"no sandbox privilege extras");
-            assert_eq!(fs::read(self.dir.join("sentinel.txt")).unwrap(),b"R4L_OWNER_ONLY\n");
+            assert!(
+                g.contains("Identifier=org.eddarsglobal.nordoi.r4l.client"),
+                "valid peer identity"
+            );
+            assert!(
+                b.contains("Identifier=org.eddarsglobal.nordoi.r4l.impostor"),
+                "wrong peer identity"
+            );
+            assert_ne!(g, b, "two distinct independently signed identities");
+            let s = Self::run_command(
+                "/usr/bin/codesign",
+                &[
+                    "--display",
+                    "--entitlements",
+                    ":-",
+                    self.service().to_str().unwrap(),
+                ],
+            );
+            assert!(s.status.success(), "XPC service signed entitlements");
+            let keys = String::from_utf8_lossy(&s.stdout);
+            assert!(
+                keys.contains("com.apple.security.app-sandbox"),
+                "real sandbox"
+            );
+            assert_eq!(
+                keys.matches("<key>").count(),
+                1,
+                "no sandbox privilege extras"
+            );
+            assert_eq!(
+                fs::read(self.dir.join("sentinel.txt")).unwrap(),
+                b"R4L_OWNER_ONLY\n"
+            );
         }
-        pub fn execute(&self)->Witness {
-            let mut child=Command::new(self.client())
-                .args([self.name.as_str(),self.good().to_str().unwrap(),self.bad().to_str().unwrap()])
-                .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
-                .spawn().expect("run signed test app");
-            let (ok,timed_out)=reap(&mut child);
-            let mut out=String::new();
-            let mut err=String::new();
-            child.stdout.take().unwrap().take(LIMIT+1).read_to_string(&mut out).unwrap();
-            child.stderr.take().unwrap().take(LIMIT+1).read_to_string(&mut err).unwrap();
-            Witness{ok,timed_out,stdout:out,stderr:err}
+        pub fn execute(&self) -> Witness {
+            let mut child = Command::new(self.client())
+                .args([
+                    self.name.as_str(),
+                    self.good().to_str().unwrap(),
+                    self.bad().to_str().unwrap(),
+                ])
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .expect("run signed test app");
+            let (ok, timed_out) = reap(&mut child);
+            let mut out = String::new();
+            let mut err = String::new();
+            child
+                .stdout
+                .take()
+                .unwrap()
+                .take(LIMIT + 1)
+                .read_to_string(&mut out)
+                .unwrap();
+            child
+                .stderr
+                .take()
+                .unwrap()
+                .take(LIMIT + 1)
+                .read_to_string(&mut err)
+                .unwrap();
+            Witness {
+                ok,
+                timed_out,
+                stdout: out,
+                stderr: err,
+            }
         }
     }
     impl Drop for Lab {
-        fn drop(&mut self) {fs::remove_dir_all(&self.dir).expect("remove test fixture only");}
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.dir).expect("remove test fixture only");
+        }
     }
     pub struct Witness {
-        pub ok:bool,pub timed_out:bool,pub stdout:String,pub stderr:String
+        pub ok: bool,
+        pub timed_out: bool,
+        pub stdout: String,
+        pub stderr: String,
     }
-    fn reap(child:&mut Child)->(bool,bool) {
-        let start=Instant::now();
+    fn reap(child: &mut Child) -> (bool, bool) {
+        let start = Instant::now();
         loop {
-            if let Some(status)=child.try_wait().expect("child poll") {
-                return (status.success(),false);
+            if let Some(status) = child.try_wait().expect("child poll") {
+                return (status.success(), false);
             }
-            if start.elapsed()>Duration::from_secs(15) {
-                let _=child.kill();
+            if start.elapsed() > Duration::from_secs(15) {
+                let _ = child.kill();
                 child.wait().expect("child reap");
-                return (false,true);
+                return (false, true);
             }
             thread::sleep(Duration::from_millis(10));
         }
     }
-    pub fn assert_evidence(w:&Witness) {
-        assert!(!w.timed_out && w.ok,"native signed peer run MUST succeed: {}",w.stderr);
-        assert!(w.stdout.len() as u64<=LIMIT,"bounded stdout");
-        let lines:Vec<&str>=w.stdout.lines().collect();
-        assert_eq!(lines.len(),2,"exact two native receipt frames: {}",w.stdout);
+    pub fn assert_evidence(w: &Witness) {
+        assert!(
+            !w.timed_out && w.ok,
+            "native signed peer run MUST succeed: {}",
+            w.stderr
+        );
+        assert!(w.stdout.len() as u64 <= LIMIT, "bounded stdout");
+        let lines: Vec<&str> = w.stdout.lines().collect();
+        assert_eq!(
+            lines.len(),
+            2,
+            "exact two native receipt frames: {}",
+            w.stdout
+        );
         assert!(lines[0].starts_with("R4L|CLIENT=") && lines[0].contains("|SERVER="));
-        let chunks:Vec<&str>=lines[0].split('|').collect();
-        assert_eq!(chunks.len(),3);
-        let cp=chunks[1].strip_prefix("CLIENT=").unwrap().parse::<u32>().unwrap();
-        let sp=chunks[2].strip_prefix("SERVER=").unwrap().parse::<u32>().unwrap();
-        assert_ne!(cp,sp,"service must be distinct OS process");
+        let chunks: Vec<&str> = lines[0].split('|').collect();
+        assert_eq!(chunks.len(), 3);
+        let cp = chunks[1]
+            .strip_prefix("CLIENT=")
+            .unwrap()
+            .parse::<u32>()
+            .unwrap();
+        let sp = chunks[2]
+            .strip_prefix("SERVER=")
+            .unwrap()
+            .parse::<u32>()
+            .unwrap();
+        assert_ne!(cp, sp, "service must be distinct OS process");
         assert_eq!(
             lines[1],
             "R4L|GOOD=ACCEPTED|BAD=EXPLICIT_SIGNING_ERROR|BEFORE=0|AFTER_GOOD=0|AFTER_BAD=0",
@@ -342,35 +479,37 @@ int main(int argc,char **argv) {
         );
     }
     pub fn exercise() {
-        let lab=Lab::new();
+        let lab = Lab::new();
         lab.prepare();
-        let w=lab.execute();
+        let w = lab.execute();
         assert_evidence(&w);
         lab.assert_fixture();
     }
 }
 
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn native_two_independently_signed_peers_same_bundle_positive_and_negative() {
     native::exercise();
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn native_repeated_signed_peers_do_not_reach_unauthorized_handler() {
-    for _ in 0..2 { native::exercise(); }
+    for _ in 0..2 {
+        native::exercise();
+    }
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn native_identity_signatures_and_sandbox_entitlements_are_distinct() {
-    let lab=native::Lab::new();
+    let lab = native::Lab::new();
     lab.prepare();
     lab.assert_fixture();
 }
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[test]
 fn forged_and_truncated_inbound_peer_reports_fail_closed() {
-    use std::panic::{catch_unwind,AssertUnwindSafe};
+    use std::panic::{catch_unwind, AssertUnwindSafe};
     for v in [
         "",
         "R4L|CLIENT=1|SERVER=1\nR4L|GOOD=ACCEPTED|BAD=XPC_ERROR|BEFORE=0|AFTER_GOOD=1|AFTER_BAD=1\n",
@@ -381,17 +520,26 @@ fn forged_and_truncated_inbound_peer_reports_fail_closed() {
         assert!(catch_unwind(AssertUnwindSafe(||native::assert_evidence(&w))).is_err());
     }
 }
-#[cfg(not(target_os="macos"))]
+#[cfg(not(target_os = "macos"))]
 #[test]
 fn non_macos_never_claims_native_xpc_peer_code_signing() {
-    assert_ne!(std::env::consts::OS,"macos");
+    assert_ne!(std::env::consts::OS, "macos");
 }
 #[test]
 fn reference_model_external_io_still_denied() {
-    let (mut model,permit)=Model::bootstrap(0x4c,
-        ScopeBudget{tasks:0,resources:0,children:0},16);
-    let root=model.root();
-    assert_eq!(model.host_grant(&permit,root,ResourceEffect::ExternalIo),
-               Err(ModelError::UnsupportedEffect));
-    assert_eq!(model.event_count(),0);
+    let (mut model, permit) = Model::bootstrap(
+        0x4c,
+        ScopeBudget {
+            tasks: 0,
+            resources: 0,
+            children: 0,
+        },
+        16,
+    );
+    let root = model.root();
+    assert_eq!(
+        model.host_grant(&permit, root, ResourceEffect::ExternalIo),
+        Err(ModelError::UnsupportedEffect)
+    );
+    assert_eq!(model.event_count(), 0);
 }
