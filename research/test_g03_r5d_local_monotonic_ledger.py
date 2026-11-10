@@ -37,6 +37,14 @@ class SQLiteDurabilityControls(unittest.TestCase):
                            payload=payload,epoch=epoch,expected_prev=prev))
     def inspect(self):
         return self.blocked(lab.execute(self.root,"inspect"))
+    def sql_mutate(self, sql, params=()):
+        """Connection context alone does not close SQLite on Windows."""
+        conn = sqlite3.connect(self.root/lab.DATABASE)
+        try:
+            with conn:
+                conn.execute(sql, params)
+        finally:
+            conn.close()
     def test_01_initial_real_sqlite_genesis_is_not_external_highwater(self):
         x=self.inspect()
         self.assertEqual(x["local_height"],0)
@@ -92,26 +100,22 @@ class SQLiteDurabilityControls(unittest.TestCase):
         self.assertEqual(self.append(prev="bad")["status"],"BLOCK")
     def test_13_mutated_actual_sqlite_chain_detected_on_reopen(self):
         self.append()
-        with sqlite3.connect(self.root/lab.DATABASE) as c:
-            c.execute("UPDATE events SET payload_sha=? WHERE seq=1",(E,))
+        self.sql_mutate("UPDATE events SET payload_sha=? WHERE seq=1",(E,))
         y=self.inspect()
         self.assertIn("LOCAL_LEDGER_CHAIN_CORRUPTED",y["detail"])
     def test_14_mutated_actual_sqlite_metadata_detected(self):
         self.append()
-        with sqlite3.connect(self.root/lab.DATABASE) as c:
-            c.execute("UPDATE metadata SET height=88")
+        self.sql_mutate("UPDATE metadata SET height=88")
         y=self.inspect()
         self.assertIn("METADATA_DOES_NOT_MATCH_CHAIN",y["detail"])
     def test_15_deleted_local_history_refused_against_metadata(self):
         self.append()
-        with sqlite3.connect(self.root/lab.DATABASE) as c:
-            c.execute("DELETE FROM events WHERE seq=1")
+        self.sql_mutate("DELETE FROM events WHERE seq=1")
         y=self.inspect()
         self.assertIn("METADATA_DOES_NOT_MATCH_CHAIN",y["detail"])
     def test_16_added_unlinked_sqlite_event_refused(self):
         self.append()
-        with sqlite3.connect(self.root/lab.DATABASE) as c:
-            c.execute("INSERT INTO events(seq,epoch,nonce,payload_sha,prev,head) VALUES(2,4,?,?,?,?)",(C,D,lab.GENESIS,E))
+        self.sql_mutate("INSERT INTO events(seq,epoch,nonce,payload_sha,prev,head) VALUES(2,4,?,?,?,?)",(C,D,lab.GENESIS,E))
         y=self.inspect()
         self.assertIn("LOCAL_LEDGER_CHAIN_CORRUPTED",y["detail"])
     def test_17_real_db_snapshot_rollback_is_NOT_detectable_without_external_anchor(self):
