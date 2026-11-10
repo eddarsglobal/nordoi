@@ -1,0 +1,17 @@
+{
+  "protocol": "NORDOI-G03-R5G-EFFECTIVE-CONTROL-RESEARCH-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5f_head": "b84f49ce1c993f2c1f770a8d9882bb38b188aaae",
+  "actual_lab": "REAL_TWO_SQLITE_DATABASES_TWO_SAME_UID_OS_PROCESSES",
+  "actual_read_only_mode_reversal": "OBSERVED_ON_POSIX_LAB",
+  "joint_restore_is_detectable": false,
+  "same_administrator_domains": "NEGATIVE_INDEPENDENCE_EVIDENCE",
+  "external_independent_guardian": null,
+  "verified_external_administrative_control": null,
+  "owner_authenticated_oob_trust_root": null,
+  "protected_external_monotonic_highwater": null,
+  "globally_durable_nonce_ledger": null,
+  "independent_revocation_and_recovery": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
