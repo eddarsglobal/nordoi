@@ -1,0 +1,38 @@
+name: NORDOI G0.3 R4Z offline guardian handoff preflight (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r4z_handoff.py'
+      - 'research/test_g03_r4z_handoff.py'
+      - 'research/G03_R4Z_OFFLINE_EXTERNAL_GUARDIAN_HANDOFF.md'
+      - '.github/workflows/g03_r4z_offline_guardian_handoff.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-handoff-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Cross-platform adverse handoff tests, no real custodian
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y prior external evidence intake regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Verify no handoff or empty intake can grant authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import sys,json;sys.path.insert(0,"research"); import g03_r4z_handoff as r; a=r.make_request("eddarsglobal","1"*64,"2"*64); x=r.assessment(a); assert x["status"]=="BLOCK" and x["admission"]=="NOT_AUTHORIZED"'
+          set +e
+          python -B research/g03_r4y_external_custody_intake.py --manifest research/G03_R4Y_EXTERNAL_CUSTODY_EMPTY_INTAKE.json > r4y_deny.json
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          python -B -c 'import json; x=json.load(open("r4y_deny.json")); assert x["status"]=="BLOCK" and x["admission"]=="NOT_AUTHORIZED"'
