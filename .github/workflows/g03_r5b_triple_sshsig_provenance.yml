@@ -1,0 +1,37 @@
+name: NORDOI G0.3 R5B actual triple SSHSIG provenance lab (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5b_triple_sshsig_verifier.py'
+      - 'research/test_g03_r5b_triple_sshsig_verifier.py'
+      - 'research/G03_R5B_NO_EXTERNAL_AUTHORITY.json'
+      - 'research/G03_R5B_THREE_ROLE_CRYPTOGRAPHIC_PROVENANCE_LAB.md'
+      - '.github/workflows/g03_r5b_triple_sshsig_provenance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  three-role-sshsig-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5B 24 cases including actual three-role OpenSSH signing on macOS only
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: Previous R5A operator evidence admission denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: Previous R4Z offline guardian handoff refusal regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: Previous R4Y external custody evidence refusal regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Verify no real enrolled external operator or production authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; r=json.load(open("research/G03_R5B_NO_EXTERNAL_AUTHORITY.json", encoding="utf-8")); assert r["real_independent_operator"] is None and r["owner_out_of_band_root"] is None and r["independently_protected_witness"] is None and r["durable_nonce_ledger"] is None and r["production"] == "NOT_AUTHORIZED"'
