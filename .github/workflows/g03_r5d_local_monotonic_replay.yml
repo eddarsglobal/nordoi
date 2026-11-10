@@ -1,0 +1,41 @@
+name: NORDOI G0.3 R5D actual SQLite replay and rollback limits (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5d_local_monotonic_ledger.py'
+      - 'research/test_g03_r5d_local_monotonic_ledger.py'
+      - 'research/G03_R5D_NO_EXTERNAL_MONOTONIC_WITNESS.json'
+      - 'research/G03_R5D_REAL_LOCAL_MONOTONIC_LEDGER_LIMITS.md'
+      - '.github/workflows/g03_r5d_local_monotonic_replay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-local-sqlite-with-no-external-admission:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5D real disk SQLite durable nonce, two processes and rollback limitation
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner OOB root consistency regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B three genuine SSHSIG native on macOS only
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A independent operator denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y evidence intake denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Assert actual external witness and trust root remain absent
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5D_NO_EXTERNAL_MONOTONIC_WITNESS.json", encoding="utf-8")); assert x["remote_independent_witness"] is None and x["externally_protected_highwater"] is None and x["durable_external_nonce_ledger"] is None and x["owner_oob_trust_root"] is None and x["independent_external_custodian"] is None and x["global_monotonic_antirollback"]=="NOT_IMPLEMENTED" and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'

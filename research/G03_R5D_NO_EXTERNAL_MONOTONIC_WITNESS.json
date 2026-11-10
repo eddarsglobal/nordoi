@@ -1,0 +1,14 @@
+{
+  "protocol": "NORDOI-G03-R5D-LOCAL-MONOTONIC-LAB-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5c_head": "639272ce393f6005a93cf08da95e76859851e0f4",
+  "laboratory_storage": "ACTUAL_LOCAL_SQLITE",
+  "remote_independent_witness": null,
+  "externally_protected_highwater": null,
+  "durable_external_nonce_ledger": null,
+  "owner_oob_trust_root": null,
+  "independent_external_custodian": null,
+  "global_monotonic_antirollback": "NOT_IMPLEMENTED",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
