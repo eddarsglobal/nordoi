@@ -1,0 +1,15 @@
+{
+  "protocol": "NORDOI-G03-R5E-SECOND-LOCAL-WITNESS-LAB-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5d_head": "f870bc0a869d0dcf478a02c7ad1df87122135125",
+  "local_secondary_witness": "REAL_SQLITE_SAME_ADMINISTRATIVE_DOMAIN",
+  "publisher_only_rollback_detection": "LAB_ONLY_WHEN_SECOND_STORE_INTACT",
+  "both_stores_snapshot_rollback": "UNDETECTABLE_WITHOUT_EXTERNAL_PROTECTED_ROOT",
+  "owner_authenticated_oob_root": null,
+  "real_independent_custodian": null,
+  "independently_protected_monotonic_witness": null,
+  "global_durable_nonce_consumption": null,
+  "global_monotonic_antirollback": "NOT_IMPLEMENTED",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
