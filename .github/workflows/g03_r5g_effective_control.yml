@@ -1,0 +1,47 @@
+name: NORDOI G0.3 R5G effective same-UID custody control (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5g_effective_control_lab.py'
+      - 'research/test_g03_r5g_effective_control_lab.py'
+      - 'research/G03_R5G_NO_EXTERNAL_CONTROL_PROOF.json'
+      - 'research/G03_R5G_EFFECTIVE_CONTROL_AND_OOB_PROVENANCE.md'
+      - '.github/workflows/g03_r5g_effective_control.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  effective-control-counterexample-no-external-admission:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5G actual second-process same-UID chmod and two-SQLite restore lab
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F real OS custody disqualifier regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E real two-store local rollback counterexample
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D actual local SQLite nonce replay regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C claimed OOB root does not enroll custody
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B genuine native SSHSIG possession does not enroll custody
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A claimed independent operator cannot admit
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z external handoff refusal regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y external evidence intake refusal regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Explicitly verify no genuine independent custody or owner OOB trust
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5G_NO_EXTERNAL_CONTROL_PROOF.json", encoding="utf-8")); assert x["external_independent_guardian"] is None and x["verified_external_administrative_control"] is None and x["owner_authenticated_oob_trust_root"] is None and x["protected_external_monotonic_highwater"] is None and x["globally_durable_nonce_ledger"] is None and x["independent_revocation_and_recovery"] is None and x["native_admission_gates_unmet"] == 12 and x["production"] == "NOT_AUTHORIZED"'
