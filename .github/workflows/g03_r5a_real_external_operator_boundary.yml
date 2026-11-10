@@ -1,0 +1,39 @@
+name: NORDOI G0.3 R5A real external operator evidence boundary (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5a_external_operator_preflight.py'
+      - 'research/test_g03_r5a_external_operator_preflight.py'
+      - 'research/G03_R5A_NO_EXTERNAL_CUSTODIAN.json'
+      - 'research/G03_R5A_REAL_OPERATOR_INDEPENDENCE_EVIDENCE.md'
+      - '.github/workflows/g03_r5a_real_external_operator_boundary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-operator-claims-must-not-admit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5A adversarial real operator evidence boundary tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z offline handoff regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y external evidence intake regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Actual empty custody manifest must return BLOCK with exit 2
+        shell: bash
+        run: |
+          set +e
+          python -B research/g03_r5a_external_operator_preflight.py --manifest research/G03_R5A_NO_EXTERNAL_CUSTODIAN.json > r5a_result.json
+          rc=$?
+          set -e
+          test "$rc" -eq 2
+          python -B -c 'import json; a=json.load(open("r5a_result.json", encoding="utf-8")); assert a["status"]=="BLOCK" and a["admission"]=="NOT_AUTHORIZED" and a["reason"]=="NO_REAL_EXTERNAL_CUSTODIAN_EVIDENCE"'
