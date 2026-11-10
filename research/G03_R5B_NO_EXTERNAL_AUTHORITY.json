@@ -1,0 +1,10 @@
+{
+  "protocol": "NORDOI-G03-R5B-TRIPLE-SSHSIG-PROVENANCE-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5a_head": "3f03f119fe00756d89b610295de23479d433c6a1",
+  "real_independent_operator": null,
+  "owner_out_of_band_root": null,
+  "independently_protected_witness": null,
+  "durable_nonce_ledger": null,
+  "production": "NOT_AUTHORIZED"
+}
