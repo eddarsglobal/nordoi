@@ -117,9 +117,13 @@ def assess(data):
             "independent_recovery": "NOT_VERIFIED"}
 
 def read_regular(path):
-    if stat.S_ISLNK(os.lstat(path).st_mode):
+    mode = os.lstat(path).st_mode
+    if stat.S_ISLNK(mode):
         raise InvalidEvidence("SYMLINK_INPUT_FORBIDDEN")
-    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+    if not stat.S_ISREG(mode):
+        raise InvalidEvidence("NOT_REGULAR_FILE")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_NONBLOCK", 0)
+    fd = os.open(path, flags)
     try:
         meta = os.fstat(fd)
         if not stat.S_ISREG(meta.st_mode) or meta.st_size > MAX_BYTES:
