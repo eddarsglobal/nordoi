@@ -1,0 +1,43 @@
+name: NORDOI G0.3 R5E actual two-store monotonic witness limits (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5e_second_store_witness.py'
+      - 'research/test_g03_r5e_second_store_witness.py'
+      - 'research/G03_R5E_NO_INDEPENDENT_WITNESS.json'
+      - 'research/G03_R5E_TWO_STORE_WITNESS_ROLLBACK_LIMITS.md'
+      - '.github/workflows/g03_r5e_second_store_witness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-two-store-sqlite-local-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5E actual second SQLite store, rollback and two-process race, 24 cases
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D actual SQLite local nonce and rollback counterexample regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner-OOB key consistency denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B real three-role SSHSIG denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A real external operator evidence refusal regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z external handoff denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y independent custody evidence refusal regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: No real independent custodian, owner root or operational antirollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5E_NO_INDEPENDENT_WITNESS.json", encoding="utf-8")); assert x["real_independent_custodian"] is None and x["owner_authenticated_oob_root"] is None and x["independently_protected_monotonic_witness"] is None and x["global_durable_nonce_consumption"] is None and x["global_monotonic_antirollback"]=="NOT_IMPLEMENTED" and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
