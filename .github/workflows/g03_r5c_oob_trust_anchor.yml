@@ -1,0 +1,39 @@
+name: NORDOI G0.3 R5C offline root consistency (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5c_oob_root_consistency.py'
+      - 'research/test_g03_r5c_oob_root_consistency.py'
+      - 'research/G03_R5C_NO_OOB_TRUST_ANCHOR.json'
+      - 'research/G03_R5C_OOB_TRUST_ANCHOR_SEPARATION.md'
+      - '.github/workflows/g03_r5c_oob_trust_anchor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  oob-root-must-not-admit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5C 24 OOB proof consistency adversaries must all stay BLOCK
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B real triple SSHSIG denial regression (native macOS only)
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external operator evidence regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y intake regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Assert no actual OOB trust-root, custodian or production approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5C_NO_OOB_TRUST_ANCHOR.json", encoding="utf-8")); assert x["owner_authenticated_oob_anchor"] is None and x["real_independent_guardian"] is None and x["real_independent_witness"] is None and x["protected_monotonic_ledger"] is None and x["durably_consumed_nonce"] is None and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
