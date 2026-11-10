@@ -1,0 +1,16 @@
+{
+  "protocol": "NORDOI-G03-R5F-ADMIN-CUSTODY-NEGATIVE-CONTROL-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5e_head": "04e5670cdfe9682e2d467c9f3678ba2b069afd54",
+  "published_evidence_holder": "eddarsglobal",
+  "local_r5d_and_r5e_os_custody": "SAME_OWNER_LAB_NOT_INDEPENDENT",
+  "actual_independent_external_operator": null,
+  "independent_external_os_or_service_account_attestation": null,
+  "owner_authenticated_out_of_band_trust_root": null,
+  "external_protected_monotonic_highwater": null,
+  "global_durable_spent_nonce_ledger": null,
+  "independently_governed_recovery_and_revocation": null,
+  "operational_admission": "BLOCK",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
