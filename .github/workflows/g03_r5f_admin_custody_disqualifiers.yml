@@ -1,0 +1,45 @@
+name: NORDOI G0.3 R5F real local administrative custody disqualifiers (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5f_admin_custody_disqualifiers.py'
+      - 'research/test_g03_r5f_admin_custody_disqualifiers.py'
+      - 'research/G03_R5F_NO_INDEPENDENT_ADMINISTRATION.json'
+      - 'research/G03_R5F_ADMIN_CUSTODY_DISQUALIFICATION.md'
+      - '.github/workflows/g03_r5f_admin_custody_disqualifiers.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  true-os-owner-inference-must-not-grant-custody:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5F 24 real R5D-R5E SQLite owner/control disqualifier checks
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E two-file SQLite rollback and joint rollback counterexample
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local SQLite nonce replay research
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner OOB claim is not genuine root enrollment
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B triple OpenSSH SSHSIG lab (macOS native)
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external operator evidence remains denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z guardian handoff remains denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y independent evidence intake remains denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Assert no independently authenticated external authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5F_NO_INDEPENDENT_ADMINISTRATION.json", encoding="utf-8")); assert x["actual_independent_external_operator"] is None and x["independent_external_os_or_service_account_attestation"] is None and x["owner_authenticated_out_of_band_trust_root"] is None and x["external_protected_monotonic_highwater"] is None and x["global_durable_spent_nonce_ledger"] is None and x["independently_governed_recovery_and_revocation"] is None and x["native_admission_gates_unmet"]==12 and x["operational_admission"]=="BLOCK" and x["production"]=="NOT_AUTHORIZED"'
