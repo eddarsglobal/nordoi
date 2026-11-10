@@ -1,0 +1,12 @@
+{
+  "protocol": "NORDOI-G03-R5C-OOB-ROOT-CUSTODY-STATUS-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5b_head": "2752eb9f5fe71ce212d9728c43a4fc486728e86c",
+  "owner_authenticated_oob_anchor": null,
+  "real_independent_guardian": null,
+  "real_independent_witness": null,
+  "protected_monotonic_ledger": null,
+  "durably_consumed_nonce": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
