@@ -5,6 +5,7 @@ No outside independently controlled witness. Valid matching old primary+proof
 can be restored together by the same owner. Every output denies admission.
 """
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -93,7 +94,7 @@ def primary_state(path):
     digest=hashlib.sha256(raw).hexdigest()
     uri="file:"+quote(str(path),safe="/")+ "?mode=ro"
     try:
-        with sqlite3.connect(uri,uri=True,timeout=5.0) as con:
+        with closing(sqlite3.connect(uri,uri=True,timeout=5.0)) as con:
             con.execute("PRAGMA query_only=ON")
             con.execute("BEGIN")
             if con.execute("PRAGMA quick_check").fetchone()!=("ok",):
@@ -163,7 +164,7 @@ def advance(primary_dir,witness_dir):
         raise Refused("WITNESS_FLOOR_NOT_ADVANCING")
     # Prove the old hash-chain head remains at the old witness height.
     uri="file:"+quote(str(db),safe="/")+ "?mode=ro"
-    with sqlite3.connect(uri,uri=True,timeout=5.0) as con:
+    with closing(sqlite3.connect(uri,uri=True,timeout=5.0)) as con:
         old=con.execute("SELECT head FROM denials WHERE seq=?",
                         (prior["height"],)).fetchone()
     if old!=(prior["head"],):
