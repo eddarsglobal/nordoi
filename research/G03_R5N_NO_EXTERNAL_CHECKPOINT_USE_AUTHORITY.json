@@ -1,0 +1,20 @@
+{
+  "protocol": "NORDOI-G03-R5N-INTERRUPTED-CHECKPOINT-USE-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5m_parent_sha": "e1073d35bb13a61ebe97d20968dbc2abbb28dba5",
+  "actual_r5l_denial_journal": "REAL_SAME_ADMIN_SQLITE",
+  "actual_r5m_preserved_witness": "REAL_SAME_ADMIN_LOCAL_FILE",
+  "valid_local_checkpoint_reuse": "ONLY_A_DURABLE_LOCAL_DENIAL_NOT_ADMISSION",
+  "nonce_replay": "BLOCK_WHEN_LOCAL_DENIAL_JOURNAL_RETAINED",
+  "actual_os_kill_before_denial_commit": "UNCOMMITTED_LOCAL_ROW_ROLLED_BACK",
+  "second_process_file_truncation_between_checks": "BLOCK",
+  "second_process_witness_swap_before_local_denial_record": "BLOCK",
+  "same_admin_restores_all_old_local_evidence": "NOT_GLOBALLY_DETECTABLE",
+  "real_external_independent_guardian": null,
+  "owner_authenticated_out_of_band_root": null,
+  "independently_protected_monotonic_witness": null,
+  "global_durable_consumed_nonce_ledger": null,
+  "independent_recovery_and_rotation_operator": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
