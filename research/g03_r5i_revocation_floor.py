@@ -51,6 +51,8 @@ def private_dirs(primary_dir,checkpoint_dir):
 class Checkpoint:
     def __init__(self,primary_dir,checkpoint_dir):
         self.primary,self.path=private_dirs(primary_dir,checkpoint_dir)
+        # Reopening an existing, corrupted floor must NEVER silently create new genesis.
+        creating_new=not self.path.exists()
         self.db=sqlite3.connect(str(self.path),isolation_level=None,timeout=10.0)
         try:
             self.db.execute("PRAGMA busy_timeout=10000")
@@ -59,7 +61,8 @@ class Checkpoint:
             self.db.execute("BEGIN IMMEDIATE")
             self.db.execute("CREATE TABLE IF NOT EXISTS state (id INTEGER PRIMARY KEY CHECK(id=1), height INTEGER NOT NULL, epoch INTEGER NOT NULL, primary_head TEXT NOT NULL, floor_head TEXT NOT NULL)")
             self.db.execute("CREATE TABLE IF NOT EXISTS checkpoints (height INTEGER PRIMARY KEY,epoch INTEGER NOT NULL,nonce TEXT NOT NULL UNIQUE,packet_sha TEXT NOT NULL,primary_prev TEXT NOT NULL,primary_head TEXT NOT NULL,floor_prev TEXT NOT NULL,floor_head TEXT NOT NULL)")
-            self.db.execute("INSERT OR IGNORE INTO state VALUES(1,0,4,?,?)",(rev.GENESIS,GENESIS))
+            if creating_new:
+                self.db.execute("INSERT INTO state VALUES(1,0,4,?,?)",(rev.GENESIS,GENESIS))
             self._verify()
             self.db.execute("COMMIT")
             os.chmod(self.path,0o600)
