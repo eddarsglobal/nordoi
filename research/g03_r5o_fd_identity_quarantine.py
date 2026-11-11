@@ -98,10 +98,15 @@ class OpenSnapshot:
         if self.fd is None:raise Refused("FD_CLOSED")
         if self.path.is_symlink() or not self.path.is_file():
             raise Refused("PATH_DISAPPEARED_DURING_OBSERVATION")
+        # Atomic replacement may change old inode ctime/link metadata even
+        # while its already-open FD still points to the same old inode.
+        # Qualify a pathname swap first, then check surviving FD metadata.
+        if self.identity(os.lstat(self.path))[:2]!=self.before[:2]:
+            raise Refused("OPEN_FD_AND_CURRENT_PATH_DIVERGED")
         if self.identity(os.fstat(self.fd))!=self.before:
             raise Refused("OPEN_FD_MODIFIED_DURING_OBSERVATION")
         if self.identity(os.lstat(self.path))!=self.before:
-            raise Refused("OPEN_FD_AND_CURRENT_PATH_DIVERGED")
+            raise Refused("PATH_METADATA_CHANGED_DURING_OBSERVATION")
         if os.name!="nt" and self.before[2]&0o077:
             raise Refused("FILE_MODE_NOT_PRIVATE")
     def close(self):
