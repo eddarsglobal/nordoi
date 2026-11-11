@@ -116,7 +116,7 @@ class PortableUseQuarantine(unittest.TestCase):
                       "real POSIX Unix/OpenSSH process termination and replacement required")
 class NativeInterruptedUse(unittest.TestCase):
     def setUp(self):
-        self.tmp=tempfile.TemporaryDirectory(prefix="nordoi-r5n-native-")
+        self.tmp=tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5n-native-")
         self.root=Path(self.tmp.name);os.chmod(self.root,0o700)
         self.a=self.root/"primary";self.b=self.root/"witness";self.c=self.root/"journal"
         for d in (self.a,self.b,self.c):
