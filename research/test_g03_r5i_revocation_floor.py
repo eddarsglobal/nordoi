@@ -134,7 +134,9 @@ class NativeSignedRevocationFloor(unittest.TestCase):
         shutil.copy2(self.second/floor.NAME,self.floor_genesis)
     def tearDown(self):self.temp.cleanup()
     def revoke(self,nonce="a"*64):
-        pkt=signed.make_packet(self.private,self.pub,self.keydir,nonce=nonce)
+        # Never reuse an OpenSSH .sig output path across distinct signed packets.
+        with tempfile.TemporaryDirectory(prefix="nordoi-r5i-new-sig-") as d:
+            pkt=signed.make_packet(self.private,self.pub,Path(d),nonce=nonce)
         with signed.RevocationLedger(self.primary) as db:
             out=db.revoke(pkt,self.pub,1800000060)
         self.assertEqual(out["status"],"LAB_LOCAL_REVOKE_COMMIT")
