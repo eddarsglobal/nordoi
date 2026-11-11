@@ -1,0 +1,63 @@
+name: NORDOI G0.3 R5O real FD/inode atomic file replacement quarantine
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5o_fd_identity_quarantine.py'
+      - 'research/test_g03_r5o_fd_identity_quarantine.py'
+      - 'research/G03_R5O_NO_EXTERNAL_FD_IDENTITY_AUTHORITY.json'
+      - 'research/G03_R5O_ATOMIC_FD_IDENTITY_LIMITS.md'
+      - '.github/workflows/g03_r5o_fd_identity_quarantine.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-open-fd-and-atomic-replace-identity-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5O real held open file descriptor and same-byte atomic rename
+        run: python -B -m unittest discover -s research -p 'test_g03_r5o_fd_identity_quarantine.py' -v
+      - name: R5N interrupted checkpoint-use quarantine
+        run: python -B -m unittest discover -s research -p 'test_g03_r5n_checkpoint_use_quarantine.py' -v
+      - name: R5M real SQLite file damage and preserved witness
+        run: python -B -m unittest discover -s research -p 'test_g03_r5m_file_integrity_quarantine.py' -v
+      - name: R5L actual SIGKILL persistent SQLite restart
+        run: python -B -m unittest discover -s research -p 'test_g03_r5l_crash_restart_denial_journal.py' -v
+      - name: R5K two native signed intents and real subprocess TOCTOU
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J real signed fixture recovery quarantine
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I separate local revocation floor
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H native SSHSIG signed local revocation
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G same admin control
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F real OS UID disqualifier
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E local two-store rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local nonce replay ledger
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C missing owner OOB root
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B real triple SSHSIG fixture
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external guardian absence
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z no independent handoff
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y missing custody
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Absent global external authority and safe production
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5O_NO_EXTERNAL_FD_IDENTITY_AUTHORITY.json",encoding="utf-8")); assert x["independent_external_guardian"] is None and x["owner_authenticated_out_of_band_root"] is None and x["independently_protected_global_monotonic_floor"] is None and x["globally_durable_spent_nonce_register"] is None and x["independent_recovery_and_rotation_operator"] is None and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
