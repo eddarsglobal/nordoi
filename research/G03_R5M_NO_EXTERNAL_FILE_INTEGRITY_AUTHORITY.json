@@ -1,0 +1,20 @@
+{
+  "protocol": "NORDOI-G03-R5M-LOCAL-SQLITE-INTEGRITY-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5l_fix1_parent": "db80d370bdd3ec6acebe01fb1f752b819412062b",
+  "actual_r5l_denial_sqlite": "REAL_LOCAL_SQLITE_ONLY",
+  "preserved_sha256_witness": "SECOND_REAL_LOCAL_FILE_SAME_ADMIN",
+  "actual_sqlite_truncation": "BLOCK_IF_PRESENTED",
+  "deleted_primary_or_witness": "BLOCK_NO_SILENT_REINITIALIZATION",
+  "sqlite_chain_corruption": "BLOCK_IF_PRESENTED",
+  "primary_old_snapshot_with_preserved_new_witness": "BLOCK_DETECTED_LOCALLY",
+  "witness_replaced_between_observations": "BLOCK_DETECTED_LOCALLY",
+  "same_administrator_restores_both_old_matching_files": "LOCAL_MATCH_UNDETECTABLE_WITHOUT_EXTERNAL_ROOT",
+  "independent_external_guardian": null,
+  "owner_authenticated_oob_trust_root": null,
+  "independently_protected_monotonic_witness": null,
+  "globally_durable_spent_nonce_register": null,
+  "independent_recovery_and_rotation": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
