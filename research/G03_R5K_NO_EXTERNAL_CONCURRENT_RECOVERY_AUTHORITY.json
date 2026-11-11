@@ -1,0 +1,20 @@
+{
+  "protocol": "NORDOI-G03-R5K-CONCURRENT-RECOVERY-QUARANTINE-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5j_parent_sha": "b348fac65dbe91dec958878f868fe47118a68f44",
+  "two_real_distinct_ed25519_keys": "TEMPORARY_SAME_ADMIN_TEST_FIXTURES_ONLY",
+  "two_valid_parallel_signed_recovery_intents": "BLOCKED",
+  "duplicate_signed_intent": "BLOCKED",
+  "same_signer_or_nonce_collision": "BLOCKED",
+  "actual_separate_process_primary_rollback_between_reads": "BLOCKED",
+  "actual_separate_process_joint_snapshot_restore_between_reads": "BLOCKED_IF_PRIOR_INTENT_AND_PREVIOUS_READ_RETAINED",
+  "all_same_admin_artifacts_restored_without_external_anchor": "NOT_GLOBALLY_DETECTABLE",
+  "independent_external_guardian_enrolled": null,
+  "owner_authenticated_oob_trust_root": null,
+  "third_party_custody_of_recovery_keys": null,
+  "independently_protected_global_revocation_floor": null,
+  "global_durable_replay_register": null,
+  "independent_recovery_operator": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
