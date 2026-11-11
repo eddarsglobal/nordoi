@@ -5,6 +5,7 @@ process-kill/concurrency tests; Unix-only tests skipped, never faked, on Windows
 All reports BLOCK/NOT_AUTHORIZED, no independent custodian or production grant.
 """
 import json
+from contextlib import closing
 import os
 from pathlib import Path
 import shutil
@@ -76,20 +77,20 @@ class PortableActualJournal(unittest.TestCase):
         for role in ("guardian","admin","APPROVE",None):
             self.rejected(nonce=FIRST,claim_sha=CLAIM,role=role)
     def test_09_existing_deleted_state_must_not_recreate_genesis(self):
-        with sqlite3.connect(self.path/lab.NAME) as c:
+        with closing(sqlite3.connect(self.path/lab.NAME)) as c, c:
             c.execute("DELETE FROM state")
         r=lab.execute(self.path,"audit")
         self.assertEqual(r["reason"],"LOCAL_DENIAL_JOURNAL_REFUSED")
         self.assertIn("LOCAL_DENIAL_STATE_MISSING",r["detail"])
     def test_10_tampered_state_height_detected(self):
         self.accepted_deny()
-        with sqlite3.connect(self.path/lab.NAME) as c:
+        with closing(sqlite3.connect(self.path/lab.NAME)) as c, c:
             c.execute("UPDATE state SET height=99 WHERE id=1")
         self.assertIn("LOCAL_DENIAL_METADATA_MISMATCH",
                       lab.execute(self.path,"audit")["detail"])
     def test_11_tampered_real_chain_head_detected(self):
         self.accepted_deny()
-        with sqlite3.connect(self.path/lab.NAME) as c:
+        with closing(sqlite3.connect(self.path/lab.NAME)) as c, c:
             c.execute("UPDATE denials SET head=? WHERE seq=1",("e"*64,))
         self.assertIn("LOCAL_DENIAL_CHAIN_INVALID",
                       lab.execute(self.path,"audit")["detail"])
