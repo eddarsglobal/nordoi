@@ -107,7 +107,7 @@ class PortableIdentity(unittest.TestCase):
                       "POSIX real old-descriptor and atomic os.replace experiment")
 class NativeIdentityReplacement(unittest.TestCase):
     def setUp(self):
-        self.tmp=tempfile.TemporaryDirectory(prefix="nordoi-r5o-native-")
+        self.tmp=tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5o-native-")
         self.root=Path(self.tmp.name);os.chmod(self.root,0o700)
         self.a,self.b,self.j=(self.root/"primary",self.root/"witness",self.root/"journal")
         for d in (self.a,self.b,self.j):d.mkdir(mode=0o700);os.chmod(d,0o700)
