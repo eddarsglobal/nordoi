@@ -1,0 +1,59 @@
+name: NORDOI G0.3 R5M real SQLite file integrity and preserved local witness (research only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5m_file_integrity_quarantine.py'
+      - 'research/test_g03_r5m_file_integrity_quarantine.py'
+      - 'research/G03_R5M_NO_EXTERNAL_FILE_INTEGRITY_AUTHORITY.json'
+      - 'research/G03_R5M_SQLITE_INTEGRITY_AND_RESTORE_LIMITS.md'
+      - '.github/workflows/g03_r5m_sqlite_integrity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-sqlite-corruption-and-second-os-process-replacement:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5M actual SQLite truncation corruption deletion replacement with local witness
+        run: python -B -m unittest discover -s research -p 'test_g03_r5m_file_integrity_quarantine.py' -v
+      - name: R5L genuine SIGKILL SQLite process crash and restart denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5l_crash_restart_denial_journal.py' -v
+      - name: R5K actual dual signed intents and second process TOCTOU
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J native OpenSSH signed recovery quarantine
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I actual second SQLite revocation floor
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H native signed revocation and SQLite rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G OS process ownership boundary
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F admin custody disqualifier
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E local witness rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local spent nonce ledger
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner OOB root missing
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B triple native OpenSSH test key possession
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external operator missing
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff not authorized
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y external custody missing
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Strict absence of external antirollback and production
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5M_NO_EXTERNAL_FILE_INTEGRITY_AUTHORITY.json",encoding="utf-8")); assert x["independent_external_guardian"] is None and x["owner_authenticated_oob_trust_root"] is None and x["independently_protected_monotonic_witness"] is None and x["globally_durable_spent_nonce_register"] is None and x["independent_recovery_and_rotation"] is None and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
