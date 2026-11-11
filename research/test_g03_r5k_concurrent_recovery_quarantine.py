@@ -170,7 +170,7 @@ class NativeConcurrentRealSQLite(unittest.TestCase):
     def test_23_real_second_process_joint_rollback_between_checks_quarantined(self):
         r=self.decision(after_first_read=lambda:gate._child_restore([
             (self.old_a,self.a/rev.DB_NAME),(self.old_b,self.b/floor.NAME)]))
-        self.assertIn("CHECKPOINT_CHANGED_DURING_VALIDATION",r["detail"])
+        self.assertIn("PRE_REVOCATION_OR_UNALIGNED_HISTORY",r["detail"])
         self.assertEqual(r["protected_global_recovery_ledger"],"NOT_IMPLEMENTED")
     def test_24_native_cli_full_real_concurrent_recovery_replay_exits_two(self):
         p=subprocess.run([sys.executable,"-B",str(Path(gate.__file__)),"--exercise"],
