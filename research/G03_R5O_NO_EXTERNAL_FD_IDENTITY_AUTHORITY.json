@@ -1,0 +1,20 @@
+{
+  "protocol": "NORDOI-G03-R5O-FD-PATH-IDENTITY-QUARANTINE-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5n_owner_validated_parent": "b997d84e3a17dec010a3ec801e67ac0ce7f3b47f",
+  "genuine_open_fd_observation": "REAL_SAME_ADMIN_LOCAL_FILE_DESCRIPTORS",
+  "genuine_atomic_path_replacement": "REAL_SEPARATE_OS_PROCESS_OS_REPLACE",
+  "same_byte_primary_new_inode": "BLOCK_IF_ORIGINAL_FD_RETAINED",
+  "same_byte_witness_new_inode": "BLOCK_IF_ORIGINAL_FD_RETAINED",
+  "fd_open_before_path_replacement": "OLD_FILE_PRESERVED_NEW_PATH_INODE_DIFFERS",
+  "local_valid_matching_proof": "DENIAL_RECORD_ONLY_NO_NATIVE_AUTHORITY",
+  "all_same_admin_files_replaced_and_claim_regenerated": "NO_GLOBAL_ANTIROLLBACK",
+  "global_power_loss_or_remote_custody_verified": false,
+  "independent_external_guardian": null,
+  "owner_authenticated_out_of_band_root": null,
+  "independently_protected_global_monotonic_floor": null,
+  "globally_durable_spent_nonce_register": null,
+  "independent_recovery_and_rotation_operator": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
