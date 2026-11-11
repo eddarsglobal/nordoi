@@ -1,0 +1,18 @@
+{
+  "protocol": "NORDOI-G03-R5I-LOCAL-REVOCATION-CHECKPOINT-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5h_head": "43192354c023cf7f952f0d09a6f7c68e97a7f03f",
+  "actual_signed_revocation": "REAL_TEMPORARY_LAB_ED25519",
+  "actual_second_checkpoint": "SECOND_REAL_LOCAL_SQLITE",
+  "primary_revocation_rollback": "DETECTABLE_IF_SECOND_LOCAL_FLOOR_PRESERVED",
+  "both_sqlite_snapshots_restored": "UNDETECTABLE_WITHOUT_INDEPENDENT_EXTERNAL_ANCHOR",
+  "externally_independent_guardian": null,
+  "owner_authenticated_oob_root": null,
+  "independently_held_revocation_private_key": null,
+  "protected_external_monotonic_floor": null,
+  "globally_durable_revocation_and_spent_nonce_history": null,
+  "independent_revocation_recovery": null,
+  "global_antirollback": "NOT_IMPLEMENTED",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
