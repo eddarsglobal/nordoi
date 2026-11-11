@@ -1,0 +1,19 @@
+{
+  "protocol": "NORDOI-G03-R5L-CRASH-RESTART-DENIAL-JOURNAL-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5k_parent_sha": "7a22152f5bc4c74f014601bfd56338195d78a647",
+  "actual_file_backed_sqlite_journal": "REAL_DENY_ONLY_WITH_SYNCHRONOUS_FULL",
+  "actual_process_terminated_with_sigkill": "REAL_UNCOMMITTED_TRANSACTION_ROLLED_BACK",
+  "pre_crash_committed_denial": "PERSISTS_IN_LOCAL_SQLITE",
+  "new_process_replay_spent_nonce": "BLOCK_WITH_UNRESTORED_LOCAL_DB",
+  "parallel_same_nonce_processes": "ONE_LOCAL_DENIAL_RECORD_ONE_REPLAY_BLOCK",
+  "rollback_all_local_denial_and_revocation_evidence": "UNDETECTABLE_WITHOUT_INDEPENDENT_EXTERNAL_ANCHOR",
+  "native_admission": "ALWAYS_BLOCK",
+  "real_independent_guardian": null,
+  "owner_authenticated_oob_trust_root": null,
+  "externally_protected_monotonic_witness": null,
+  "globally_durable_spent_nonce_register": null,
+  "independent_recovery_and_rotation_custodian": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
