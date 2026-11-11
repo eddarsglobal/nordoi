@@ -1,0 +1,19 @@
+{
+  "protocol": "NORDOI-G03-R5P-CLOSE-REOPEN-IDENTITY-EPOCH-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5o_validated_parent": "d97886abdf2b57324d7e05cd73182837dd112917",
+  "actual_file_close_and_reopen": "REAL_OS_DESCRIPTORS_LOCAL_ONLY",
+  "real_second_process_atomic_swap": "ACTUAL_OS_REPLACE_IDENTICAL_BYTES",
+  "sequential_same_content_atomic_swaps": "REAL_OPERATIONS_NOT_ATOMIC_IDENTITY_ROOT",
+  "bounded_inode_reuse_probe": "OBSERVATION_ONLY_REUSE_NOT_REQUIRED_OR_TRUSTED",
+  "inode_can_be_reused": "YES_NOT_GLOBALLY_UNIQUE",
+  "inode_ctime_mtime_size_sha256": "LOCAL_SNAPSHOT_OBSERVATION_NOT_PROTECTED_IDENTITY",
+  "independent_protected_generation_counter": null,
+  "real_independent_external_guardian": null,
+  "owner_authenticated_out_of_band_root": null,
+  "global_monotonic_antirollback": null,
+  "global_durable_spent_nonce_register": null,
+  "independently_authorized_recovery_and_rotation": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}

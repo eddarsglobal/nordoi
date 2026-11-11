@@ -1,0 +1,69 @@
+name: NORDOI G0.3 R5P real close reopen identity and bounded inode reuse
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5p_reopen_identity_continuity.py'
+      - 'research/test_g03_r5p_reopen_identity_continuity.py'
+      - 'research/G03_R5P_NO_EXTERNAL_REOPEN_IDENTITY_AUTHORITY.json'
+      - 'research/G03_R5P_CLOSE_REOPEN_INODE_REUSE_LIMITS.md'
+      - '.github/workflows/g03_r5p_reopen_inode_continuity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-close-reopen-replacement-and-inode-reuse-observation:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5P real close reopen sequential file swap and bounded inode reuse
+        run: python -B -m unittest discover -s research -p 'test_g03_r5p_reopen_identity_continuity.py' -v
+      - name: R4M genuine macOS native XPC CDHash adversarial witness serialized
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: R5O old held file descriptor with atomic same-byte os.replace
+        run: python -B -m unittest discover -s research -p 'test_g03_r5o_fd_identity_quarantine.py' -v
+      - name: R5N actual interruption between checkpoint verification and denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5n_checkpoint_use_quarantine.py' -v
+      - name: R5M actual SQLite file corruption and preserved local SHA witness
+        run: python -B -m unittest discover -s research -p 'test_g03_r5m_file_integrity_quarantine.py' -v
+      - name: R5L real SIGKILL uncommitted SQLite transaction
+        run: python -B -m unittest discover -s research -p 'test_g03_r5l_crash_restart_denial_journal.py' -v
+      - name: R5K real concurrent signed recovery refusal
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J native OpenSSH recovery-intent signature still denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I second local revocation floor
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H signed local revocation rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G effective same admin control
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F OS UID disqualifier
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E two local stores rollback limitations
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D actual local nonce ledger
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C absent owner out-of-band root
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B native triple SSHSIG keys
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A missing external operator
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff still blocked
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y no external custody
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Real custodian missing - protected root never claimed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5P_NO_EXTERNAL_REOPEN_IDENTITY_AUTHORITY.json",encoding="utf-8")); assert x["independent_protected_generation_counter"] is None and x["real_independent_external_guardian"] is None and x["owner_authenticated_out_of_band_root"] is None and x["global_monotonic_antirollback"] is None and x["global_durable_spent_nonce_register"] is None and x["independently_authorized_recovery_and_rotation"] is None and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
