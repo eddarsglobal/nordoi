@@ -1,0 +1,53 @@
+name: NORDOI G0.3 R5J signed recovery intent and divergent history quarantine (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5j_signed_recovery_quarantine.py'
+      - 'research/test_g03_r5j_signed_recovery_quarantine.py'
+      - 'research/G03_R5J_NO_EXTERNAL_RECOVERY_AUTHORITY.json'
+      - 'research/G03_R5J_SIGNED_RECOVERY_DIVERGENCE_LIMITS.md'
+      - '.github/workflows/g03_r5j_recovery_quarantine.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-signed-recovery-intent-still-no-external-admission:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5J real SSHSIG signed recovery and R5H/R5I divergent local histories
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I real signed revocation second-store floor and joint rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H genuine Ed25519 revocation and local ledger rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G same UID effective-control regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F OS administrative ownership negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E local second-store rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local spent-nonce ledger
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner OOB root absence
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B actual native triple-role SSHSIG fixture
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external guardian missing
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z external guardian handoff no-authority
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y empty independent custody intake
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: No independent recovery, OOB trusted keys, or production
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5J_NO_EXTERNAL_RECOVERY_AUTHORITY.json", encoding="utf-8")); assert x["authenticated_independent_external_guardian"] is None and x["owner_authenticated_out_of_band_key_root"] is None and x["independently_custodied_recovery_private_key"] is None and x["externally_protected_durable_revocation_and_nonce_history"] is None and x["independent_recovery_and_rotation_operator"] is None and x["native_admission_gates_unmet"]==12 and x["production_authorization"]=="NOT_AUTHORIZED"'
