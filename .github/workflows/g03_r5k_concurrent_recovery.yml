@@ -1,0 +1,55 @@
+name: NORDOI G0.3 R5K concurrent signed recovery and time-of-check denial (research only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5k_concurrent_recovery_quarantine.py'
+      - 'research/test_g03_r5k_concurrent_recovery_quarantine.py'
+      - 'research/G03_R5K_NO_EXTERNAL_CONCURRENT_RECOVERY_AUTHORITY.json'
+      - 'research/G03_R5K_CONCURRENT_RECOVERY_QUARANTINE_LIMITS.md'
+      - '.github/workflows/g03_r5k_concurrent_recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  two-signed-intents-and-real-separate-process-sqlite-rollback:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5K actual double signed recovery and second-process TOCTOU denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J actual SSHSIG signed recovery quarantine
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I real signed revocation floor
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H real SSHSIG signed revocation and rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G same UID actual write-control counterexample
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F real OS admin control negative
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E genuine two-store rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local SQLite nonce and replay
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C OOB root absence
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B genuine triple OpenSSH SSHSIG fixture
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external operator not enrolled
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff not authorized
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y external custody evidence absent
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: No actual independently held recovery keys or global authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5K_NO_EXTERNAL_CONCURRENT_RECOVERY_AUTHORITY.json",encoding="utf-8")); assert x["independent_external_guardian_enrolled"] is None and x["owner_authenticated_oob_trust_root"] is None and x["third_party_custody_of_recovery_keys"] is None and x["independently_protected_global_revocation_floor"] is None and x["global_durable_replay_register"] is None and x["independent_recovery_operator"] is None and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
