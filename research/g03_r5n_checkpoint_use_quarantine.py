@@ -132,7 +132,7 @@ def evaluate(raw,primary_dir,witness_dir,journal_dir,
 def native_exercise():
     if os.name=="nt":
         return block("POSIX_REAL_PROCESS_EXERCISE_UNAVAILABLE",native_authority_granted=False)
-    with tempfile.TemporaryDirectory(prefix="nordoi-r5n-native-") as td:
+    with tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5n-native-") as td:
         root=Path(td)
         os.chmod(root,0o700)
         p,w,j=(root/"primary",root/"witness",root/"journal")
