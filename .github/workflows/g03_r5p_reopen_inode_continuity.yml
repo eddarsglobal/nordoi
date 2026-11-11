@@ -24,6 +24,10 @@ jobs:
           python-version: '3.11'
       - name: R5P real close reopen sequential file swap and bounded inode reuse
         run: python -B -m unittest discover -s research -p 'test_g03_r5p_reopen_identity_continuity.py' -v
+      - name: R4M genuine macOS native XPC CDHash adversarial witness serialized
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
       - name: R5O old held file descriptor with atomic same-byte os.replace
         run: python -B -m unittest discover -s research -p 'test_g03_r5o_fd_identity_quarantine.py' -v
       - name: R5N actual interruption between checkpoint verification and denial
