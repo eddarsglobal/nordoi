@@ -1,0 +1,61 @@
+name: NORDOI G0.3 R5N checkpoint use interruption (research only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5n_checkpoint_use_quarantine.py'
+      - 'research/test_g03_r5n_checkpoint_use_quarantine.py'
+      - 'research/G03_R5N_NO_EXTERNAL_CHECKPOINT_USE_AUTHORITY.json'
+      - 'research/G03_R5N_CHECKPOINT_USE_INTERRUPTION_LIMITS.md'
+      - '.github/workflows/g03_r5n_checkpoint_use_interruption.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-file-verification-then-mutation-before-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5N actual R5M witness interrupted between verify and deny-only use
+        run: python -B -m unittest discover -s research -p 'test_g03_r5n_checkpoint_use_quarantine.py' -v
+      - name: R5M actual SQLite file damage and separately retained local proof
+        run: python -B -m unittest discover -s research -p 'test_g03_r5m_file_integrity_quarantine.py' -v
+      - name: R5L real SIGKILL and persistent SQLite replay denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5l_crash_restart_denial_journal.py' -v
+      - name: R5K real double SSHSIG intent and second process rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J genuine native recovery-intent signature still blocked
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I genuine separate local revocation floor
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H real local SSHSIG signed revocation rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G same UID admin control
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F OS UID custody disqualification
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E real two local store rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D actual local nonce ledger
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner OOB root missing
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B native triple-signature fixtures
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external operator not enrolled
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y missing independent custody evidence
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Absent external authority and global antirollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5N_NO_EXTERNAL_CHECKPOINT_USE_AUTHORITY.json",encoding="utf-8")); assert x["real_external_independent_guardian"] is None and x["owner_authenticated_out_of_band_root"] is None and x["independently_protected_monotonic_witness"] is None and x["global_durable_consumed_nonce_ledger"] is None and x["independent_recovery_and_rotation_operator"] is None and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
