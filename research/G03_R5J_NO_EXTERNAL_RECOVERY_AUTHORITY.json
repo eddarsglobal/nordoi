@@ -1,0 +1,24 @@
+{
+  "protocol": "NORDOI-G03-R5J-SIGNED-RECOVERY-QUARANTINE-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5i_fix1_parent": "32cdb98628f35cf08a965e1a2efe37bdd64e4d7b",
+  "native_fixture_recovery_signature": "REAL_EPHEMERAL_ED25519_KEY_POSSESSION_ONLY",
+  "read_only_observed_sources": [
+    "R5H_LOCAL_SIGNED_REVOCATION_SQLITE",
+    "R5I_SECOND_LOCAL_REVOCATION_CHECKPOINT_SQLITE"
+  ],
+  "correctly_signed_matching_local_recovery_intent": "BLOCKED_NO_EXTERNAL_AUTHORITY",
+  "expired_signed_intent": "BLOCKED",
+  "substituted_signer_or_tampered_message": "BLOCKED",
+  "preserved_floor_primary_revocation_rollback": "BLOCKED_DIVERGENT_HISTORY",
+  "same_height_signed_revocation_fork": "BLOCKED_DIVERGENT_HISTORY",
+  "both_old_same_admin_snapshots_with_preserved_signed_intent": "BLOCKED_PRE_REVOCATION",
+  "both_old_snapshots_without_independent_anchor": "NO_GLOBAL_ROLLBACK_GUARANTEE",
+  "authenticated_independent_external_guardian": null,
+  "owner_authenticated_out_of_band_key_root": null,
+  "independently_custodied_recovery_private_key": null,
+  "externally_protected_durable_revocation_and_nonce_history": null,
+  "independent_recovery_and_rotation_operator": null,
+  "production_authorization": "NOT_AUTHORIZED",
+  "native_admission_gates_unmet": 12
+}
