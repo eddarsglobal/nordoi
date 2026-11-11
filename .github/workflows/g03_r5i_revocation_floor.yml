@@ -1,0 +1,51 @@
+name: NORDOI G0.3 R5I preserved local revocation floor and joint rollback (deny-only)
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5i_revocation_floor.py'
+      - 'research/test_g03_r5i_revocation_floor.py'
+      - 'research/G03_R5I_NO_EXTERNAL_REVOCATION_FLOOR.json'
+      - 'research/G03_R5I_LOCAL_REVOCATION_CHECKPOINT_LIMITS.md'
+      - '.github/workflows/g03_r5i_revocation_floor.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-signed-revocation-and-second-sqlite-floor:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5I real signed revocation floor and both-databases rollback experiment
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H actual SSHSIG signed revoke and rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G same-UID process protected-write negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F actual OS custody disqualification
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E local two-store rollback lab
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local SQLite nonce/replay
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C OOB trust root absence
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B actual native triple SSHSIG fixture
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A external operator absence
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z guardian handoff absence
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y external custody evidence refusal
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Explicit no external guardian or durable independent revocation ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5I_NO_EXTERNAL_REVOCATION_FLOOR.json", encoding="utf-8")); assert x["externally_independent_guardian"] is None and x["owner_authenticated_oob_root"] is None and x["independently_held_revocation_private_key"] is None and x["protected_external_monotonic_floor"] is None and x["globally_durable_revocation_and_spent_nonce_history"] is None and x["independent_revocation_recovery"] is None and x["global_antirollback"]=="NOT_IMPLEMENTED" and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
