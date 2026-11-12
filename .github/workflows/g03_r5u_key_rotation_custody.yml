@@ -1,0 +1,85 @@
+name: NORDOI G0.3 R5U real dual-signature local key rotation and revocation boundaries
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5u_key_rotation_custody.py'
+      - 'research/test_g03_r5u_key_rotation_custody.py'
+      - 'research/G03_R5U_KEY_CUSTODY_EXTERNAL_AUTHORITY_ABSENT.json'
+      - 'research/G03_R5U_KEY_ROTATION_REVOCATION_CUSTODY_LIMITS.md'
+      - '.github/workflows/g03_r5u_key_rotation_custody.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-dual-signature-key-rotation-revocation-and-same-admin-rollback:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5U dual real Ed25519 signatures, revoked successor, SQLite key lineage and old-key restoration
+        run: python -B -m unittest discover -s research -p 'test_g03_r5u_key_rotation_custody.py' -v
+      - name: R5T real OpenSSH Ed25519 signed local receipt, nonce replay and antirollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5t_signed_receipt_provenance.py' -v
+      - name: R4M genuine macOS CodeDirectory XPC six signed adversarial peer tests — serial once no retries
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: R5S genuine ZIP transport and local spent challenge replay
+        run: python -B -m unittest discover -s research -p 'test_g03_r5s_challenge_bound_handoff.py' -v
+      - name: R5R genuine local Ed25519 signer not independent external custody
+        run: python -B -m unittest discover -s research -p 'test_g03_r5r_independent_history_preflight.py' -v
+      - name: R5Q real two locally indistinguishable SQLite history states
+        run: python -B -m unittest discover -s research -p 'test_g03_r5q_coherent_local_rollback.py' -v
+      - name: R5P real close and reopen inode identity
+        run: python -B -m unittest discover -s research -p 'test_g03_r5p_reopen_identity_continuity.py' -v
+      - name: R5O real held descriptor and atomic path inode replacement
+        run: python -B -m unittest discover -s research -p 'test_g03_r5o_fd_identity_quarantine.py' -v
+      - name: R5N real interrupted checkpoint denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5n_checkpoint_use_quarantine.py' -v
+      - name: R5M real damaged SQLite with retained local witness
+        run: python -B -m unittest discover -s research -p 'test_g03_r5m_file_integrity_quarantine.py' -v
+      - name: R5L real SIGKILL durable SQLite denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5l_crash_restart_denial_journal.py' -v
+      - name: R5K real two signed recovery intents denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J real signed recovery intent refused
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I real revocation floor rollback local
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H local signed revocation rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G real effective admin domain boundary
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F same-UID independent operator disqualification
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E genuine two local stores rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local durable nonce register
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner OOB trust root not established
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B genuine local SSHSIG fixture key custody limits
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A genuine external operator not enrolled
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff not independently authorized
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y independent third-party custody intake absent
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Exact twelve external custody gates remain unmet and no guardian receipt exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; x=json.load(open("research/G03_R5T_SIGNED_RECEIPT_NO_EXTERNAL_AUTHORITY.json",encoding="utf-8")); assert len(x["required_external_authority_gates"])==12 and len({y["id"] for y in x["required_external_authority_gates"]})==12 and all(y["status"]=="UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE" for y in x["required_external_authority_gates"]) and x["actual_external_guardian_signed_receipt"] is None and x["owner_authenticated_oob_root"] is None and x["independently_authenticated_guardian"] is False and x["native_admission_gates_unmet"]==12 and x["production"]=="NOT_AUTHORIZED"'
+
+      - name: Check R5U independent key custody not enrolled and twelve native gates unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; d=json.load(open("research/G03_R5U_KEY_CUSTODY_EXTERNAL_AUTHORITY_ABSENT.json",encoding="utf-8")); a=d["required_gates"]; assert len(a)==12 and len({x["id"] for x in a})==12 and all(x["status"]=="UNMET_EXTERNAL_EVIDENCE" for x in a); assert d["external_independent_key_provenance_verified"] is False and d["owner_oob_root_enrolled"] is False and d["globally_durable_revocation_verified"] is False and d["native_admission_gates_unmet"]==12 and d["production"]=="NOT_AUTHORIZED"'
