@@ -94,7 +94,7 @@ def projection(primary_dir,witness_dir,journal_dir):
         raise Refused("LOCAL_SPENT_NONCE_COUNT_CHANGED")
     if rows and rows[-1][-1]!=journal["local_head"]:
         raise Refused("LOCAL_SPENT_NONCE_CHAIN_HEAD_CHANGED")
-    if db.read_bytes()!=db.read_bytes() or wp.read_bytes()!=wbytes:
+    if hashlib.sha256(db.read_bytes()).hexdigest()!=present["db_sha256"] or wp.read_bytes()!=wbytes:
         raise Refused("LOCAL_BYTES_CHANGED_DURING_READ")
     return {
         "protocol":PROTOCOL,
