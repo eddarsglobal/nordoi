@@ -172,7 +172,7 @@ def decode_package(binary,expected_challenge,now):
     except (zipfile.BadZipFile,RuntimeError,EOFError,KeyError) as exc:
         raise Refused("TRANSFER_ZIP_INVALID:"+type(exc).__name__) from exc
     if manifest["challenge"]!=expected_challenge:
-        raise Refused("SIGNED_RECEIVER_CHALLENGE_MISMATCH")
+        raise Refused("RECEIVER_CHALLENGE_MISMATCH")
     if not manifest["created_at"]<=now<=manifest["expires_at"]:
         raise Refused("LOCAL_UNTRUSTED_TIMEBOX_EXPIRED_OR_FUTURE")
     if any(sha(data)!=manifest["asset_sha256"][key] for key,data in blobs.items()):
