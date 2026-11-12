@@ -110,7 +110,7 @@ def create_same_admin_key(root,key_name="self_signer"):
     """Genuine local Ed25519 test key, not external operator enrollment."""
     root=Path(root)
     key=root/key_name
-    if not root.is_dir() or not root.name.startswith("nordoi-r5l-r5q-r5t-") or \
+    if not root.is_dir() or not root.name.startswith("nordoi-r5l-r5q-r5s-r5t-") or \
        (os.name!="nt" and root.stat().st_mode&0o077) or \
        key.exists() or (root/(key_name+".pub")).exists():
         raise Refused("ONLY_NEW_DISPOSABLE_SAME_ADMIN_FIXTURE_KEYS")
@@ -206,7 +206,7 @@ def second_process_check(receipt,sig,allowed,bundle,challenge,now,ledger=None):
 
 def native_exercise():
     if os.name=="nt":return block("POSIX_REAL_RECEIPT_CRYPTO_UNAVAILABLE")
-    with tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5q-r5t-native-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5q-r5s-r5t-native-") as tmp:
         root=Path(tmp);os.chmod(root,0o700)
         a,b,j=history.fixture(root)
         package=root/"handoff.zip"
