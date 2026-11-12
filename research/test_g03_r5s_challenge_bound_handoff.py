@@ -116,9 +116,10 @@ class PortableTransfer(unittest.TestCase):
             for k,v in entries.items():z.writestr(k,v)
         self.assertIn("EXACT_FOUR_FIXED_NAMES",self.check()["detail"])
     def test_14_archive_with_traversal_path_never_extracts(self):
+        manifest=self.manifest()
         with zipfile.ZipFile(self.archive,"w") as z:
             z.writestr("../escape",b"escape")
-            z.writestr("manifest.json",lab.canonical(self.manifest()))
+            z.writestr("manifest.json",lab.canonical(manifest))
         self.assertEqual(self.check()["reason"],"HANDOFF_TRANSFER_QUARANTINED")
         self.assertFalse((self.root.parent/"escape").exists())
     def test_15_valid_hash_manifest_cannot_make_corrupt_sqlite_consistent(self):
