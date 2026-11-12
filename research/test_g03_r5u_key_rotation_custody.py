@@ -86,7 +86,11 @@ class PortableLocalCustody(unittest.TestCase):
         with self.assertRaises(lab.Refused):lab.audit(self.root)
     def test_14_genesis_invalid_hash_or_truncated_event_chain_refused(self):
         # This changes real SQLite, not a fabricated status JSON.
-        with sqlite3.connect(str(self.root/lab.LEDGER_NAME)) as db:
+        # sqlite3.Connection.__exit__ commits, but does not close the
+        # handle on Windows; the real negative test must release it before
+        # TemporaryDirectory cleanup without weakening the audit assertion.
+        from contextlib import closing
+        with closing(sqlite3.connect(str(self.root/lab.LEDGER_NAME))) as db:
             db.execute("UPDATE meta SET initial='NOT_A_SHA256'")
             db.commit()
         with self.assertRaises(lab.Refused):lab.audit(self.root)
