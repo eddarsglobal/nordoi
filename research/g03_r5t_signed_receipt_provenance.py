@@ -223,9 +223,16 @@ def native_exercise():
         if wrong.get("reason")!="SIGNED_RECEIPT_QUARANTINED":
             raise Refused("RECEIPT_CHALLENGE_MISMATCH_NOT_REFUSED")
         changed=receipt.read_bytes()
-        receipt.write_bytes(changed+b"tampered")
-        if inspect(receipt,sig,allowed,package,"a"*64,1100)["reason"]!="SIGNED_RECEIPT_QUARANTINED":
-            raise Refused("TAMPERED_RECEIPT_NOT_REFUSED")
+        # Change ONLY the locally claimed receipt time. The new JSON is
+        # canonical, time-valid and still bound to the real R5S archive;
+        # its genuine Ed25519 SSHSIG MUST fail, not an earlier parse gate.
+        altered=parse(changed)
+        altered["received_at"]=1101
+        receipt.write_bytes(canonical(altered))
+        tampered=inspect(receipt,sig,allowed,package,"a"*64,1101)
+        if (tampered.get("reason")!="SIGNED_RECEIPT_QUARANTINED" or
+            "REAL_SSHSIG_SIGNATURE_INVALID" not in tampered.get("detail","")):
+            raise Refused("TAMPERED_CANONICAL_RECEIPT_SSHSIG_NOT_REJECTED")
         receipt.write_bytes(changed)
         # New local denial register is still a same-admin file.
         nonce_dir=root/"spent_receipts"
