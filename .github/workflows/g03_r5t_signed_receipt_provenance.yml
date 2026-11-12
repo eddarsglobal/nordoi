@@ -4,6 +4,7 @@ on:
     paths:
       - 'research/g03_r5t_signed_receipt_provenance.py'
       - 'research/test_g03_r5t_signed_receipt_provenance.py'
+      - 'research/test_g03_r5s_challenge_bound_handoff.py'
       - 'research/G03_R5T_SIGNED_RECEIPT_NO_EXTERNAL_AUTHORITY.json'
       - 'research/G03_R5T_RECEIPT_PROVENANCE_REPLAY_LIMITS.md'
       - '.github/workflows/g03_r5t_signed_receipt_provenance.yml'
