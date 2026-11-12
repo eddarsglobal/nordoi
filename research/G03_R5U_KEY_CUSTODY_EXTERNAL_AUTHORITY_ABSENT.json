@@ -1,0 +1,82 @@
+{
+  "protocol": "NORDOI-G03-R5U-LOCAL-KEY-CUSTODY-CONTINUITY-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5t_fix2_owner_mac_intel_verified": "3372ddbd691d5c6102bd395b4589c7a27ec030b3",
+  "research_only": true,
+  "cryptographic_engine": "REAL_SYSTEM_OPENSSH_ED25519_SSHSIG",
+  "signer_key_creation": "EPHEMERAL_SAME_ADMIN_TEST_KEYS",
+  "trust_store": "SAME_ADMIN_ALLOWED_SIGNERS_NOT_OWNER_AUTHENTICATED_OOB",
+  "signed_local_rotation": "REQUIRES_BOTH_ACTUAL_OLD_AND_NEW_ED25519_SIGNATURES",
+  "signed_local_revocation": "REQUIRES_CURRENT_ACTIVE_KEY_SIGNATURE",
+  "local_sqlite_lineage": "REAL_HASH_CHAIN_AND_DURABLE_NONCE_SET_OWNER_ROLLBACKABLE",
+  "same_admin_prior_snapshot_recovery": "ROLLBACK_CAN_REACTIVATE_PRIOR_OR_REVOKED_LOCAL_KEYS_AS_DENIAL_ONLY",
+  "external_independent_key_provenance_verified": false,
+  "owner_oob_root_enrolled": false,
+  "external_monotonic_signed_key_epoch_verified": false,
+  "globally_durable_revocation_verified": false,
+  "global_nonce_history_verified": false,
+  "production": "NOT_AUTHORIZED",
+  "native_admission_gates_unmet": 12,
+  "required_gates": [
+    {
+      "id": "owner_authenticated_out_of_band_root",
+      "criterion": "Owner pins trusted root through a genuinely independent OOB channel",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_legal_identity_verified",
+      "criterion": "Real accountable external custodian verified",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_administrative_control_separated",
+      "criterion": "Distinct effective administrative owner/UID/host domain proven",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_public_key_independently_pinned",
+      "criterion": "Authenticated guardian signer key outside same-admin allowlist",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_live_signed_transition_verified",
+      "criterion": "Actual guardian-signed transition not merely local SSHSIG fixture",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "fresh_owner_challenge_receipt_bound",
+      "criterion": "Fresh owner-authenticated challenge and response bound to actual transition",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_signed_key_epoch_chain",
+      "criterion": "Independently attested monotonic sequence for successive key epochs",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_protected_monotonic_height",
+      "criterion": "Protected independent epoch high-water survives owner rollback",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_protected_revocation_floor",
+      "criterion": "Revocation remains enforceable after local coherent snapshot rollback",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_protected_spent_nonce_floor",
+      "criterion": "Used rotation/recovery challenge nonces stay consumed globally",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum_and_collusion_controls",
+      "criterion": "Distinct verified quorum and operational noncollusion",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_key_recovery_rotation_compromise",
+      "criterion": "Custodian-run recovery, rotation, compromise and revocation procedures",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    }
+  ]
+}
