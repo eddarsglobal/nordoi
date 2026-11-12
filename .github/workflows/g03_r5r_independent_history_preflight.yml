@@ -1,0 +1,73 @@
+name: NORDOI G0.3 R5R independent historical authority real preflight — deny only
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5r_independent_history_preflight.py'
+      - 'research/test_g03_r5r_independent_history_preflight.py'
+      - 'research/G03_R5R_EXTERNAL_HISTORY_AUTHORITY_REQUIREMENTS.json'
+      - 'research/G03_R5R_AUTHORITY_BOUNDARY_AND_EVIDENCE.md'
+      - '.github/workflows/g03_r5r_independent_history_preflight.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  authenticated-external-custody-absent-real-same-uid-crypto:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5R real local Ed25519 signature cannot qualify independent external guardian
+        run: python -B -m unittest discover -s research -p 'test_g03_r5r_independent_history_preflight.py' -v
+      - name: R4M genuine native macOS XPC peer CDHash six adversarial tests — serial no retries
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: R5Q real two local histories three-file rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5q_coherent_local_rollback.py' -v
+      - name: R5P real close reopen inode continuity
+        run: python -B -m unittest discover -s research -p 'test_g03_r5p_reopen_identity_continuity.py' -v
+      - name: R5O held FD and atomic pathname replacement
+        run: python -B -m unittest discover -s research -p 'test_g03_r5o_fd_identity_quarantine.py' -v
+      - name: R5N interrupted checkpoint-use refusal
+        run: python -B -m unittest discover -s research -p 'test_g03_r5n_checkpoint_use_quarantine.py' -v
+      - name: R5M real SQLite damage retained local witness
+        run: python -B -m unittest discover -s research -p 'test_g03_r5m_file_integrity_quarantine.py' -v
+      - name: R5L genuine SIGKILL restart durable SQLite denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5l_crash_restart_denial_journal.py' -v
+      - name: R5K actual double signed recovery intent denied
+        run: python -B -m unittest discover -s research -p 'test_g03_r5k_concurrent_recovery_quarantine.py' -v
+      - name: R5J genuine signed recovery refused
+        run: python -B -m unittest discover -s research -p 'test_g03_r5j_signed_recovery_quarantine.py' -v
+      - name: R5I independently protected revocation floor absent
+        run: python -B -m unittest discover -s research -p 'test_g03_r5i_revocation_floor.py' -v
+      - name: R5H signed local revocation rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5h_signed_revocation_lab.py' -v
+      - name: R5G effective same user control
+        run: python -B -m unittest discover -s research -p 'test_g03_r5g_effective_control_lab.py' -v
+      - name: R5F actual same UID cannot qualify independent operator
+        run: python -B -m unittest discover -s research -p 'test_g03_r5f_admin_custody_disqualifiers.py' -v
+      - name: R5E two local stores rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5e_second_store_witness.py' -v
+      - name: R5D local durable nonce ledger
+        run: python -B -m unittest discover -s research -p 'test_g03_r5d_local_monotonic_ledger.py' -v
+      - name: R5C owner authenticated OOB root absent
+        run: python -B -m unittest discover -s research -p 'test_g03_r5c_oob_root_consistency.py' -v
+      - name: R5B native local SSHSIG test keys are not independent guardian
+        run: python -B -m unittest discover -s research -p 'test_g03_r5b_triple_sshsig_verifier.py' -v
+      - name: R5A independent operator not enrolled
+        run: python -B -m unittest discover -s research -p 'test_g03_r5a_external_operator_preflight.py' -v
+      - name: R4Z handoff cannot grant native admission
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y independent custody intake missing
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Verify exactly twelve unmet third-party authority requirements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -c 'import json; p=json.load(open("research/G03_R5R_EXTERNAL_HISTORY_AUTHORITY_REQUIREMENTS.json",encoding="utf-8")); assert len(p["required_gates"])==12 and len({x["id"] for x in p["required_gates"]})==12 and all(x["status"]=="UNMET_EXTERNAL_EVIDENCE" for x in p["required_gates"]) and p["external_independent_authority_verified"] is False and p["owner_oob_root_authenticated"] is False and p["global_external_height_monotonic_proven"] is False and p["globally_spent_nonce_proven"] is False and p["native_admission_gates_unmet"]==12 and p["production"]=="NOT_AUTHORIZED"'
