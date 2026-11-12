@@ -70,7 +70,7 @@ class PortableLocalCustody(unittest.TestCase):
             self.refuse(lab.canonical({**lab.parse_intent(self.payload),field:value}))
     def test_10_unknown_and_missing_fields_disqualify_proof(self):
         self.refuse(lab.canonical({**lab.parse_intent(self.payload),"external_grant":True}))
-        x=lab.parse_intent(self.payload);del x["challenge"] if "challenge" in x else x["nonce"]
+        x=lab.parse_intent(self.payload);del x["nonce"]
         self.refuse(lab.canonical(x))
     def test_11_duplicate_noncanonical_or_invalid_utf8_disallowed(self):
         self.refuse(self.payload.replace(b'"project":',b'"project":"fake","project":'))
