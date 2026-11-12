@@ -1,0 +1,84 @@
+{
+  "protocol": "NORDOI-G03-R5V-ADMIN-SEPARATION-EVIDENCE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5u_owner_mac_intel_verified": "e2138af4c1a2dd3964d5ebdd9bf669129b63cfb1",
+  "research_only": true,
+  "real_observations": [
+    "separate actual subprocess PIDs",
+    "os.getuid getgid geteuid getegid where available",
+    "real different Ed25519 local keypairs",
+    "actual R5U signed rotation/revocation and SQLite state"
+  ],
+  "observed_distinct_pids_not_independence": true,
+  "observed_real_same_uid_euid": "DISQUALIFIED",
+  "synthetic_claimed_different_uids": "NOT_EXTERNAL_EVIDENCE",
+  "same_admin_allow_signers": "NOT_OWNER_OOB",
+  "real_separation_between_independent_operator_accounts": "NOT_TESTED_OR_ENROLLED",
+  "external_os_identity_attestor": "NONE",
+  "external_guardian": "NOT_ENROLLED",
+  "protected_key_revocation_history": "NOT_VERIFIED",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "description": "Owner root independently authenticated out of band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "description": "Real accountable independent operator with verifiable identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "description": "Different effective administrative control, not just two processes or labels",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "description": "Independent guardian key pinned via trusted owner root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "description": "OS identity attestation by external trusted independent source",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "description": "Independent signature over fresh challenge and historical state",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "description": "External witness verifies real administrative domain and host",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "description": "Externally guarded key high-water not same-admin rollbackable",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "description": "Revocation retained by independent custodian across local rollback",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "description": "Nonce ledger independent of local same-admin snapshots",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "description": "Noncolluding custodians with independent trusted enrollment",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "description": "External key-rotation, recovery and compromise response authority",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ]
+}
