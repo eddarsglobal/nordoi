@@ -54,3 +54,9 @@ PROTECTED_GLOBAL_KEY_EPOCH_AND_REVOCATION_FLOOR=NOT_VERIFIED
 NATIVE_ADMISSION_GATES=12_UNMET
 PRODUCTION=NOT_AUTHORIZED
 ```
+
+## FIX1 — Windows real SQLite cleanup handle, without weakening negative control
+
+The first R5U dedicated four-OS workflow at commit `d76d3e4f24af1cc0f9a00c41ca0c95e2903e79bf` showed **Ubuntu actual R5U 24/24 PASS** and genuine macOS native R5U controls advancing. **Windows FAILED** solely in `test_14_genesis_invalid_hash_or_truncated_event_chain_refused`, where a temporary **real SQLite** `sqlite3.connect()` handle was committed but **not explicitly closed**: `sqlite3.Connection.__exit__` does *not* close the database; Windows file locking raised `PermissionError: [WinError 32]` during `TemporaryDirectory.cleanup()`. This was a **real red CI job**, not an R5U admission rejection failure and must not be reported as PASS.
+
+R5U **FIX1** changes the *new R5U test only* to use `contextlib.closing(sqlite3.connect(...))`, preserving the actual deliberate SQL genesis corruption and **exact required `Refused` audit assertion**. The test remains enabled and runs once on all OS; no XFAIL/skip, no local security acceptance weakening, no prior source/test modification, no production change. The new CI must run at the **new exact R5U FIX1 source commit** before a 4/4 or 5/5 status is claimed. R5T FIX2 owner-qualified source pins remain unchanged; R5U still adds exactly five new research-only files. The owner's Mac replay kit must pin the post-FIX1 R5U test Git blob. Full owner hardware execution remains PENDING until owner-provided Terminal results.
