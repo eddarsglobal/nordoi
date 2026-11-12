@@ -1,0 +1,77 @@
+{
+  "protocol": "NORDOI-G03-R5R-INDEPENDENT-HISTORY-PREFLIGHT-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5q_exact_owner_validated_parent": "8d15f9661d97a8cc30a1eca66322be28ca500abc",
+  "purpose": "DENY_ONLY_QUALIFY_EXTERNAL_HISTORICAL_AUTHORITY",
+  "local_self_assertion_is_never_enrollment": true,
+  "local_possession_of_ed25519_key_is_never_independent_guardian": true,
+  "external_independent_authority_verified": false,
+  "owner_oob_root_authenticated": false,
+  "independent_custody_proven": false,
+  "global_external_height_monotonic_proven": false,
+  "globally_spent_nonce_proven": false,
+  "required_gates": [
+    {
+      "id": "owner_oob_root_authenticated",
+      "requirement": "Owner-verified trust root through out-of-band authentic channel",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_legal_identity_established",
+      "requirement": "Legally identified external custodian with independent attestation",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_administrative_control_separated",
+      "requirement": "Actual operational/administrative separation from owner security domain",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_through_owner_oob",
+      "requirement": "External guardian public key authenticated against owner OOB pinned trust root",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "live_guardian_signature_independently_verified",
+      "requirement": "Cryptographically verified live guardian signature against independently authenticated key",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_owner_challenge_bound",
+      "requirement": "Owner-controlled fresh challenge, expiry and request binding signed by guardian",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_checkpoint_chain_history_bound",
+      "requirement": "Cross-signed immutable checkpoint SHA chain and exact source lineage",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "external_monotonic_height_protected",
+      "requirement": "Custodian-protected monotonic externally persisted height/antirollback watermark",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "external_revocation_floor_protected",
+      "requirement": "Independent globally durable signed revocation floor",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "external_spent_nonce_ledger_protected",
+      "requirement": "Independent persistent consumed-nonce register with replay prevention",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum_proven",
+      "requirement": "Independent quorum with collusion/disaster threat and at least two real control domains",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_revocation_proven",
+      "requirement": "Externally governed recovery/rotation/compromise/revocation rights and audit",
+      "status": "UNMET_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
