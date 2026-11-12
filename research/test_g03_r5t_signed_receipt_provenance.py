@@ -140,11 +140,17 @@ class NativeSignedReceipt(unittest.TestCase):
         self.assertFalse(r["independently_authenticated_signer"])
         self.assertEqual(r["independent_custodian"],"NOT_ENROLLED")
     def test_18_tampered_genuine_signed_receipt_fails_signature(self):
-        self.receipt.write_bytes(self.receipt.read_bytes().replace(
-            b'"local_primary_height":1',b'"local_primary_height":2'))
-        r=self.check()
+        # Keep JSON canonical, ZIP SHA, actual SQLite history, challenge and
+        # time window valid; only change one signed field. This forces
+        # REAL Ed25519 SSHSIG verification to reject, not a parse mismatch.
+        obj=lab.parse(self.receipt.read_bytes())
+        obj["received_at"]=1101
+        self.receipt.write_bytes(lab.canonical(obj))
+        r=lab.inspect(self.receipt,self.sig,self.allowed,self.bundle,"a"*64,1101)
         self.assertEqual(r["reason"],"SIGNED_RECEIPT_QUARANTINED")
-        self.assertIn("RECEIPT_SIGNED_CONTEXT_NOT_BOUND_TO_TRANSFER",r["detail"])
+        self.assertIn("REAL_SSHSIG_SIGNATURE_INVALID",r["detail"])
+        self.assertEqual(r["admission"],"NOT_AUTHORIZED")
+        self.assertFalse(r["native_authority_granted"])
     def test_19_real_wrong_local_key_is_not_signature_authority(self):
         _,other_allowed=lab.create_same_admin_key(self.root,"other_signer")
         r=lab.inspect(self.receipt,self.sig,other_allowed,self.bundle,"a"*64,1100)
