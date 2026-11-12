@@ -1,0 +1,25 @@
+{
+  "protocol": "NORDOI-G03-R5Q-COHERENT-LOCAL-ROLLBACK-V1",
+  "project": "eddarsglobal/nordoi",
+  "r5p_fix1_owner_validated_parent": "a9968141e628ec4ccfae560830414c9c8cb5dd92",
+  "evidence_assets": [
+    "REAL_R5L_SQLITE_DENIAL_JOURNAL",
+    "REAL_R5M_JSON_LOCAL_CHECKPOINT",
+    "REAL_R5L_SQLITE_SPENT_NONCE_JOURNAL"
+  ],
+  "single_old_primary_with_new_checkpoint": "QUARANTINE",
+  "old_checkpoint_with_new_primary": "QUARANTINE",
+  "old_local_nonce_register_with_other_newer_evidence": "NO_EXTERNAL_PROTECTED_FLOOR_TO_DETECT",
+  "same_admin_all_three_old_files_restored": "APPLICATION_PROJECTION_MATCHES_PREVIOUS_OLD_HISTORY",
+  "local_os_inode_ctime_differences": "OBSERVABLE_BUT_NOT_PROTECTED_MONOTONIC_HISTORICAL_ROOT",
+  "new_os_process_after_coherent_restore": "ONLY_SEES_CURRENT_OLD_LOCAL_HISTORY",
+  "nonce_spent_before_coherent_restore": "CAN_BE_REISSUED_AS_LOCAL_DENIAL_AFTER_RESTORE",
+  "nonce_reissue_result": "BLOCK_NOT_NATIVE_ADMISSION",
+  "global_spent_nonce_replay_prevention": "NOT_IMPLEMENTED",
+  "real_independent_external_guardian": null,
+  "owner_authenticated_out_of_band_root": null,
+  "protected_monotonic_external_highwater": null,
+  "independent_recovery_and_rotation_operator": null,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
