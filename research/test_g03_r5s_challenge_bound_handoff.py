@@ -114,7 +114,19 @@ class PortableTransfer(unittest.TestCase):
             entries={k:z.read(k) for k in lab.ENTRIES if k!=lab.ASSETS[1]}
         with zipfile.ZipFile(self.archive,"w") as z:
             for k,v in entries.items():z.writestr(k,v)
-        self.assertIn("EXACT_FOUR_FIXED_NAMES",self.check()["detail"])
+        # Pure archive decoder must reject the malformed entry set for the
+        # exact protocol reason. A second opened-FD read can instead detect a
+        # Windows file-change race first; both outcomes must remain BLOCK.
+        with self.assertRaises(lab.Refused) as shape:
+            lab.decode_package(self.archive.read_bytes(),self.nonce,self.now)
+        self.assertIn("EXACT_FOUR_FIXED_NAMES",str(shape.exception))
+        receipt=self.check()
+        self.assertEqual(receipt["reason"],"HANDOFF_TRANSFER_QUARANTINED")
+        self.assertIn(receipt["detail"],(
+            "ARCHIVE_MUST_CONTAIN_EXACT_FOUR_FIXED_NAMES",
+            "TRANSFER_FILE_CHANGED_WHILE_READING"))
+        self.assertEqual(receipt["admission"],"NOT_AUTHORIZED")
+        self.assertFalse(receipt["native_authority_granted"])
     def test_14_archive_with_traversal_path_never_extracts(self):
         manifest=self.manifest()
         with zipfile.ZipFile(self.archive,"w") as z:

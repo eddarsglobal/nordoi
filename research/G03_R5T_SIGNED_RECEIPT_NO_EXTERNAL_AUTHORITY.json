@@ -1,0 +1,79 @@
+{
+  "protocol": "NORDOI-G03-R5T-SIGNED-LOCAL-RECEIPT-V1",
+  "project": "eddarsglobal/nordoi",
+  "owner_validated_parent": "ebe695680e1992261f55a7d534fa9505c9133bc5",
+  "research_receipt_operation": "SIGNED_LOCAL_RECEIPT_BLOCK_ONLY",
+  "local_signer_identity": "same-admin-research-fixture",
+  "ssh_sig_namespace": "nordoi-r5t",
+  "actual_cryptography": "REAL_POSIX_OPENSSH_ED25519_SSHSIG",
+  "signing_key_administrative_control": "SAME_ADMIN_TEST_FIXTURE_ONLY",
+  "allowed_signers_trust_source": "SAME_ADMIN_LOCALLY_GENERATED_NOT_OOB_AUTHENTICATED",
+  "bound_context": [
+    "exact_parent_git_sha",
+    "challenge_64_lowercase_hex",
+    "r5s_zip_sha256",
+    "r5s_canonical_manifest_sha256",
+    "r5q_application_projection_sha256",
+    "real_primary_sqlite_height",
+    "untrusted_local_receipt_timebox"
+  ],
+  "independently_authenticated_guardian": false,
+  "actual_external_guardian_signed_receipt": null,
+  "owner_authenticated_oob_root": null,
+  "protected_external_monotonic_history": null,
+  "protected_external_spent_nonce_registry": null,
+  "same_admin_receipt_nonce_register": "DURABLE_LOCAL_ONLY_CAN_BE_ROLLED_BACK",
+  "old_signed_bundle_after_history_advance": "LOCALLY_VERIFIABLE_NO_REMOTE_HIGHWATER",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_external_authority_gates": [
+    {
+      "id": "owner_authenticated_out_of_band_root",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "guardian_legal_identity_and_real_control",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "guardian_admin_domain_independence",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "guardian_public_key_pinned_out_of_band",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "genuine_guardian_signed_receipt_verified",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "signed_receipt_binds_fresh_owner_challenge",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "signed_receipt_binds_exact_historical_checkpoint",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "protected_external_monotonic_highwater",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "protected_external_revocation_floor",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "durable_external_spent_receipt_nonce_ledger",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "proven_independent_noncolluding_quorum",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_and_compromise_process",
+      "status": "UNMET_NO_EXTERNAL_AUTHENTICATED_EVIDENCE"
+    }
+  ]
+}
