@@ -124,7 +124,7 @@ def prepare(a,b,j,challenge,created_at,expiry,output):
     if not issha(challenge):raise Refused("INVALID_EXPORT_CHALLENGE")
     base=Path(output)
     if not base.is_absolute() or base.is_symlink() or base.exists() or \
-       not any(x.startswith("nordoi-r5l-r5s-") for x in base.parts) or \
+       not any(x.startswith("nordoi-r5l-r5q-r5s-") for x in base.parts) or \
        not base.parent.is_dir():
         raise Refused("ONLY_NEW_DISPOSABLE_LAB_EXPORT_ALLOWED")
     if os.name!="nt" and base.parent.stat().st_mode&0o077:
@@ -244,7 +244,7 @@ def second_process_inspection(path,nonce,now,ledger_dir=None):
     return json.loads(p.stdout)
 
 def native_exercise():
-    with tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5s-native-") as tmp:
+    with tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5q-r5s-native-") as tmp:
         root=Path(tmp)
         if os.name!="nt":os.chmod(root,0o700)
         a,b,j=history.fixture(root)
