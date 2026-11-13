@@ -1,0 +1,59 @@
+name: NORDOI G0.3 R6B real signed candidate response provenance deny only
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6b_signed_response_provenance.py'
+      - 'research/test_g03_r6b_signed_response_provenance.py'
+      - 'research/G03_R6B_SIGNED_RESPONSE_NO_EXTERNAL_AUTHORITY.json'
+      - 'research/G03_R6B_SIGNED_RESPONSE_PROVENANCE_QUALIFICATION.md'
+      - '.github/workflows/g03_r6b_signed_response_provenance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  actual-signed-external-response-provenance-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R6B genuine OpenSSH signed response and exact R6A witness/challenge provenance
+        run: python -B -m unittest discover -s research -p 'test_g03_r6b_signed_response_provenance.py' -v
+      - name: R6A exact source-bound challenge negative regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r6a_oob_witness_challenge.py' -v
+      - name: R5A through R5Z all original signed research negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Z original independently signed handoff negative regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y original external custody intake negative regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original genuine R4M native signed XPC CDHash six tests serial once no waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: R6B exact twelve externally independent native admission gates still unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          older=json.load(open('research/G03_R6A_OOB_WITNESS_NO_AUTHORITY.json',encoding='utf-8'))
+          fresh=json.load(open('research/G03_R6B_SIGNED_RESPONSE_NO_EXTERNAL_AUTHORITY.json',encoding='utf-8'))
+          a,b=older['required_gates'],fresh['required_gates']
+          assert len(a)==len(b)==12
+          assert [x['id'] for x in a]==[x['id'] for x in b]
+          assert all(x['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' for x in b)
+          assert fresh['native_admission_gates_unmet']==12
+          assert fresh['independent_external_custodian'] is None
+          assert fresh['owner_authenticated_oob_root'] is None
+          assert fresh['independently_managed_guardian_private_key'] is False
+          assert fresh['independent_remote_quorum'] is False
+          assert fresh['global_monotonic_antirollback'] is False
+          assert fresh['production']=='NOT_AUTHORIZED'
+          print('R6B_ALL_12_NATIVE_GATES=UNMET; INDEPENDENT_EXTERNAL_CUSTODY=NOT_PROVEN')
+          PY
