@@ -1,0 +1,56 @@
+name: NORDOI G0.3 R5W external administrative custody intake negative evidence
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5w_external_admin_intake.py'
+      - 'research/test_g03_r5w_external_admin_intake.py'
+      - 'research/G03_R5W_EXTERNAL_ADMIN_INTAKE_NO_AUTHORITY.json'
+      - 'research/G03_R5W_EXTERNAL_ADMIN_INTAKE_QUALIFICATION.md'
+      - '.github/workflows/g03_r5w_external_admin_intake.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  external-admin-intake-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5W strict external admin evidence binding and real local OpenSSH negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r5w_external_admin_intake.py' -v
+      - name: R5V through R5A genuine OS, revocation, rollback and provenance regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y independent third-party custody intake negative regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original R4M native signed XPC CDHash six genuine cases serial once no waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: All 12 actual independent external authority prerequisites remain unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          old=json.load(open("research/G03_R5V_ADMIN_SEPARATION_NO_INDEPENDENT_AUTHORITY.json",encoding="utf-8"))
+          new=json.load(open("research/G03_R5W_EXTERNAL_ADMIN_INTAKE_NO_AUTHORITY.json",encoding="utf-8"))
+          a,b=old["required_gates"],new["required_gates"]
+          assert len(a)==len(b)==12
+          assert [x["id"] for x in a]==[x["id"] for x in b]
+          assert all(x["status"]=="UNMET_INDEPENDENT_EXTERNAL_EVIDENCE" for x in b)
+          assert new["native_admission_gates_unmet"]==12
+          assert new["actual_external_independent_custodian_enrolled"] is False
+          assert new["owner_authenticated_oob_root"] is None
+          assert new["externally_pinned_guardian_key"] is None
+          assert new["global_monotonic_key_epoch_proven"] is False
+          assert new["protected_independent_revocation_floor"] is None
+          assert new["protected_independent_spent_nonce_floor"] is None
+          assert new["production"]=="NOT_AUTHORIZED"
+          print("R5W_EXTERNAL_AUTHORITY=NONE; ALL_12_NATIVE_GATES=UNMET; PRODUCTION=NOT_AUTHORIZED")
+          PY
