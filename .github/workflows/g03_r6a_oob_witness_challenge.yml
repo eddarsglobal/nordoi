@@ -1,0 +1,57 @@
+name: NORDOI G0.3 R6A genuine OOB witness candidate challenge denial
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6a_oob_witness_challenge.py'
+      - 'research/test_g03_r6a_oob_witness_challenge.py'
+      - 'research/G03_R6A_OOB_WITNESS_NO_AUTHORITY.json'
+      - 'research/G03_R6A_EXTERNAL_WITNESS_CHALLENGE_QUALIFICATION.md'
+      - '.github/workflows/g03_r6a_oob_witness_challenge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  external-witness-candidate-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R6A real 256-bit challenge source-bound witness and genuine OpenSSH candidate
+        run: python -B -m unittest discover -s research -p 'test_g03_r6a_oob_witness_challenge.py' -v
+      - name: Full R5A through R5Z original negative-control research regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Z external handoff original negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y independent custodian intake original negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original real R4M signed XPC CDHash six native tests serial once no waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Strict original twelve external administrative gates remain unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          prior=json.load(open('research/G03_R5Z_PRESERVED_WITNESS_NO_INDEPENDENT_AUTHORITY.json',encoding='utf-8'))
+          fresh=json.load(open('research/G03_R6A_OOB_WITNESS_NO_AUTHORITY.json',encoding='utf-8'))
+          a,b=prior['required_gates'],fresh['required_gates']
+          assert len(a)==len(b)==12
+          assert [x['id'] for x in a]==[x['id'] for x in b]
+          assert all(x['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' for x in b)
+          assert fresh['native_admission_gates_unmet']==12
+          assert fresh['owner_out_of_band_root'] is None
+          assert fresh['independent_external_operator'] is None
+          assert fresh['independently_managed_guardian_private_key'] is False
+          assert fresh['independently_authenticated_challenge_receipt'] is None
+          assert fresh['independent_quorum'] is False
+          assert fresh['production']=='NOT_AUTHORIZED'
+          print('R6A_EXACT_12_NATIVE_GATES=UNMET; EXTERNAL_TRUST=NOT_ENROLLED; PRODUCTION=NOT_AUTHORIZED')
+          PY

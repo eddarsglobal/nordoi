@@ -1,0 +1,84 @@
+{
+  "protocol": "NORDOI-G03-R6A-EXTERNAL-WITNESS-CHALLENGE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5z_owner_mac_intel_verified": "381d0fd785ab7c572f133355cc482ca34e1a0a7f",
+  "research_only": true,
+  "method": "REAL_OS_RANDOM_256_BIT_REQUEST_BOUND_TO_REAL_R5Z_LOCAL_SIGNED_WITNESS",
+  "candidate_signature": "OPENSSH_ED25519_SAME_ADMIN_KEY_POSSESSION_ONLY",
+  "owner_out_of_band_root": null,
+  "independent_external_operator": null,
+  "independently_managed_guardian_private_key": false,
+  "independently_attested_admin_domain": null,
+  "independently_authenticated_challenge_receipt": null,
+  "externally_monotonic_revocation_floor": null,
+  "externally_monotonic_spent_nonce_floor": null,
+  "remotely_protected_history_anchor": null,
+  "independent_quorum": false,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "evidence_limitations": [
+    "A random 256-bit challenge is locally fresh but cannot prove global freshness without authenticated external witness state",
+    "Correct SSHSIG verification proves possession of the same-admin signing key, not external independent authority",
+    "Hashes of claimed external roots, guardian domains and historical anchors are attacker-controlled input until separately authenticated",
+    "A local challenge cache and a locally stored high-water record remain coherently rollbackable",
+    "No real external operator, legal custodian identity, remote host attestation or independent quorum was supplied"
+  ],
+  "next_nonlocal_prerequisites": [
+    "Obtain separately authorized actual guardian and verify real administrative control independently",
+    "Owner must authenticate guardian public key fingerprint over a secure out-of-band channel",
+    "Independent witness must retain protected non-rollbackable challenge, key epoch, nonce and revocation high-water state",
+    "Bureau must review independent identity, control separation, incident recovery and quorum before any admission"
+  ],
+  "owner_mac_intel_replay": "PENDING",
+  "bureau_formal_certification": "PENDING"
+}
