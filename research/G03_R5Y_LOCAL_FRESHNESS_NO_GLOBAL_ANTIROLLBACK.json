@@ -1,0 +1,81 @@
+{
+  "protocol": "NORDOI-G03-R5Y-LOCAL-FRESHNESS-ROLLBACK-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5x_owner_mac_intel_verified": "fbef91f4dccc22d3a73a8cb4f466e738d3bedbdf",
+  "scope": "REAL_SAME_ADMIN_LOCAL_RESEARCH_DENY_ONLY",
+  "research_only": true,
+  "real_local_sqlite_durable_nonce_commit": "EXPERIMENTAL_LOCAL_DENIAL",
+  "genuine_openssh_ed25519_signed_receipt": "SAME_ADMIN_KEY_POSSESSION_ONLY",
+  "real_second_os_process_atomic_history_restore": "LOCAL_COUNTEREXAMPLE",
+  "local_signed_nonce_after_coherent_restore": "CAN_BE_REISSUED",
+  "externally_independent_monotonic_nonce_history": "NOT_ENROLLED",
+  "globally_protected_revocation_floor": "NOT_VERIFIED",
+  "authenticated_external_custodian": null,
+  "owner_authenticated_oob_root": null,
+  "independent_external_guardian_enrolled": false,
+  "independently_protected_global_history": false,
+  "external_quorum": false,
+  "signed_receipt_production_admission": false,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "no_claims": [
+    "fresh challenge seen only by a local SQLite database is not globally single-use",
+    "local file permissions do not prove external independent administrative custody",
+    "coherent backup restores can discard previously recorded local deny-only events",
+    "valid Ed25519 signature remains mathematically verifiable after local rollback",
+    "local wall-clock freshness is not independently authenticated time",
+    "no signed external nonce register, guardian, owner OOB root or quorum is enrolled"
+  ],
+  "bureau_formal_certification": "PENDING",
+  "owner_mac_intel_replay": "PENDING"
+}
