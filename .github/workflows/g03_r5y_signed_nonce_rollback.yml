@@ -1,0 +1,57 @@
+name: NORDOI G0.3 R5Y genuine local signed nonce rollback evidence
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5y_signed_nonce_rollback.py'
+      - 'research/test_g03_r5y_signed_nonce_rollback.py'
+      - 'research/G03_R5Y_LOCAL_FRESHNESS_NO_GLOBAL_ANTIROLLBACK.json'
+      - 'research/G03_R5Y_REAL_LOCAL_FRESHNESS_ROLLBACK_QUALIFICATION.md'
+      - '.github/workflows/g03_r5y_signed_nonce_rollback.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-signed-nonce-sqlite-same-admin-rollback-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5Y actual SQLite nonce and local floor with genuine POSIX SSHSIG rollback experiment
+        run: python -B -m unittest discover -s research -p 'test_g03_r5y_signed_nonce_rollback.py' -v
+      - name: R5A through R5Y all previous Python negative-research regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Z previously pinned independent handoff negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y previously pinned external custodian intake negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original genuine signed native R4M XPC CDHash six serial without retry or waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: All twelve independent external admission conditions must remain unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          old=json.load(open('research/G03_R5X_SIGNED_PROVENANCE_NO_EXTERNAL_AUTHORITY.json',encoding='utf-8'))
+          cur=json.load(open('research/G03_R5Y_LOCAL_FRESHNESS_NO_GLOBAL_ANTIROLLBACK.json',encoding='utf-8'))
+          a,b=old['required_gates'],cur['required_gates']
+          assert len(a)==len(b)==12
+          assert [x['id'] for x in a]==[x['id'] for x in b]
+          assert all(x['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' for x in b)
+          assert cur['native_admission_gates_unmet']==12
+          assert cur['authenticated_external_custodian'] is None
+          assert cur['owner_authenticated_oob_root'] is None
+          assert cur['independent_external_guardian_enrolled'] is False
+          assert cur['independently_protected_global_history'] is False
+          assert cur['globally_protected_revocation_floor']=='NOT_VERIFIED'
+          assert cur['production']=='NOT_AUTHORIZED'
+          print('R5Y_NO_GLOBAL_MONOTONICITY=PASS; ALL_12_NATIVE_GATES=UNMET; PRODUCTION=NOT_AUTHORIZED')
+          PY
