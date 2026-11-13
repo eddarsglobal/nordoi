@@ -225,7 +225,7 @@ def restore_lab_snapshot(root, source):
     root = private_root(root)
     snapshot = Path(source)
     if (not snapshot.is_absolute() or snapshot.is_symlink() or
-        snapshot.parent != root or snapshot.name != "before_second.sqlite3" or
+        snapshot.parent.resolve(strict=True) != root or snapshot.name != "before_second.sqlite3" or
         not snapshot.is_file() or snapshot.stat().st_mode & 0o077):
         raise Refused("RESTORE_SOURCE_OUTSIDE_LAB_FORBIDDEN")
     target = db_path(root)
