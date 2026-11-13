@@ -1,0 +1,42 @@
+{
+  "protocol": "NORDOI-G03-R5W-EXTERNAL-ADMIN-INTAKE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5v_owner_mac_intel_verified": "5f39b6f3553f3e3c0578c978f8b5da7a22aaeba3",
+  "scope": "OFFLINE_RESEARCH_PRE_ENROLLMENT_ONLY",
+  "research_only": true,
+  "actual_external_independent_custodian_enrolled": false,
+  "owner_authenticated_oob_root": null,
+  "externally_pinned_guardian_key": null,
+  "external_os_identity_attestation": null,
+  "protected_independent_revocation_floor": null,
+  "protected_independent_spent_nonce_floor": null,
+  "global_monotonic_key_epoch_proven": false,
+  "independent_quorum": false,
+  "self_asserted_remote_root_or_floor": "UNTRUSTED_DENY",
+  "locally_signed_r5v_os_reports": "REAL_CRYPTOGRAPHY_NOT_EXTERNAL_PROVENANCE",
+  "externally_authenticated_enrollment": "NOT_ATTEMPTED",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_gates": [
+    {"id": "owner_oob_authenticated_root", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "actual_external_custodian_identity", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "distinct_administrative_control_domains", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "guardian_key_pinned_out_of_band", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "independently_signed_os_attestation", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "signed_fresh_challenge_and_exact_history", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "independent_os_domain_and_host_witness", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "externally_monotonic_key_epoch", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "protected_global_revocation_floor", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "protected_global_spent_nonce_floor", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "independent_quorum", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"},
+    {"id": "independent_recovery_rotation_audit", "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"}
+  ],
+  "next_qualification_requires": [
+    "Owner independently authenticates and records root fingerprint out of band",
+    "Named independent operator proves a separate effective administrative control domain",
+    "Independent guardian key and remote receipt authenticated without trusting local allow_signers",
+    "Independent signed challenge bound to immutable source, current key epoch and history head",
+    "External revocation and spent-nonce state survives a coordinated local rollback",
+    "Independent quorum and recovery governance reviewed by the Bureau"
+  ]
+}
