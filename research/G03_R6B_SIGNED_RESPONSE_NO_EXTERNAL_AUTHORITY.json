@@ -1,0 +1,81 @@
+{
+  "protocol": "NORDOI-G03-R6B-SIGNED-RESPONSE-PROVENANCE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r6a_owner_mac_intel_verified": "b5ce4f793b6d1a5699955998478bb93bb968c711",
+  "research_only": true,
+  "scope": "OFFLINE_DENY_ONLY_SIGNED_CANDIDATE_RESPONSE_SOURCE_BINDING",
+  "source": "REAL_R6A_OS_RANDOM_CHALLENGE_AND_R5Z_LOCAL_SIGNED_WITNESS",
+  "genuine_local_ssh_ed25519": "SIGNER_KEY_POSSESSION_ONLY",
+  "exact_challenge_response_binding": "PORTABLE_AND_REAL_POSIX_CHECKED",
+  "independent_external_custodian": null,
+  "owner_authenticated_oob_root": null,
+  "independently_managed_guardian_private_key": false,
+  "externally_attested_os_or_admin_domain": null,
+  "independent_signed_provenance_receipt": null,
+  "externally_protected_monotonic_key_epoch": null,
+  "externally_protected_revocation_floor": null,
+  "externally_protected_spent_nonce_floor": null,
+  "independent_remote_quorum": false,
+  "global_monotonic_antirollback": false,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "evidence_limitations": [
+    "Genuine OpenSSH SSHSIG establishes local signing key possession but no independent guardian identity",
+    "Exact signed response bound to the R6A challenge is not proof that a separate administrative domain participated",
+    "A locally generated or locally signed external operator ID is only a claim until the owner authenticates an independent root out of band",
+    "Local replay registers, revocation sets and local clock remain under the same rollbackable administrator",
+    "No real remotely retained high-water history, independent quorum, external signed witness or production admission is demonstrated"
+  ],
+  "owner_mac_intel_replay": "PENDING",
+  "formal_roadmap_bureau_certification": "PENDING"
+}
