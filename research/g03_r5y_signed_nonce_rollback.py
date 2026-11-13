@@ -30,7 +30,7 @@ PROTOCOL = "NORDOI-G03-R5Y-LOCAL-FRESHNESS-ROLLBACK-V1"
 PROJECT = "eddarsglobal/nordoi"
 PARENT = "fbef91f4dccc22d3a73a8cb4f466e738d3bedbdf"
 LEDGER = "r5y_local_nonce_history.sqlite3"
-PREFIX = "nordoi-r5y-real-freshness-"
+PREFIX = "nordoi-r5l-r5q-r5s-r5t-r5u-r5w-r5x-r5y-"
 STATUS = "DENY_ONLY"
 PROOF_FIELDS = frozenset((
     "protocol", "project", "parent", "receipt_sha256", "challenge",
