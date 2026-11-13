@@ -1,0 +1,56 @@
+name: NORDOI G0.3 R5Z actual signed local witness rollback limits
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5z_preserved_witness_rollback.py'
+      - 'research/test_g03_r5z_preserved_witness_rollback.py'
+      - 'research/G03_R5Z_PRESERVED_WITNESS_NO_INDEPENDENT_AUTHORITY.json'
+      - 'research/G03_R5Z_SIGNED_PRESERVED_WITNESS_QUALIFICATION.md'
+      - '.github/workflows/g03_r5z_preserved_witness_rollback.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  signed-same-admin-witness-partial-and-coherent-rollback:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5Z actual signed witness, partial and coherent double rollback
+        run: python -B -m unittest discover -s research -p 'test_g03_r5z_preserved_witness_rollback.py' -v
+      - name: Full R5A through R5Z original Python negative research regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Z external handoff denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y independent custodian intake denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original real signed native R4M XPC CDHash six serial once no waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Preserve exact twelve externally independent authority gates as unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          a=json.load(open('research/G03_R5Y_LOCAL_FRESHNESS_NO_GLOBAL_ANTIROLLBACK.json',encoding='utf-8'))
+          b=json.load(open('research/G03_R5Z_PRESERVED_WITNESS_NO_INDEPENDENT_AUTHORITY.json',encoding='utf-8'))
+          old,new=a['required_gates'],b['required_gates']
+          assert len(old)==len(new)==12
+          assert [x['id'] for x in old]==[x['id'] for x in new]
+          assert all(x['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' for x in new)
+          assert b['native_admission_gates_unmet']==12
+          assert b['owner_oob_trust_root'] is None
+          assert b['independently_authenticated_guardian'] is None
+          assert b['globally_monotonic_antirollback'] is False
+          assert b['independent_quorum'] is False
+          assert b['production']=='NOT_AUTHORIZED'
+          print('R5Z_ALL_12_NATIVE_GATES=UNMET; GLOBAL_MONOTONICITY=NOT_VERIFIED; PRODUCTION=NOT_AUTHORIZED')
+          PY

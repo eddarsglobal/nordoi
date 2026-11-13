@@ -1,0 +1,72 @@
+{
+  "protocol": "NORDOI-G03-R5Z-PRESERVED-LOCAL-WITNESS-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5y_owner_mac_intel_verified": "fb70bef860353895285e62d14e2f236402999cf7",
+  "research_only": true,
+  "actual_experiment": "REAL_SAME_ADMIN_SEPARATE_OS_PROCESSES_OPENSSH_SIGNATURES_AND_SQLITE_RESTORES",
+  "locally_preserved_second_witness": "CAN_DETECT_PRIMARY_ONLY_ROLLBACK",
+  "restored_primary_and_local_witness": "CAN_APPEAR_CONSISTENT_AGAIN",
+  "restored_local_ed25519_signature": "CRYPTOGRAPHICALLY_VALID_KEY_POSSESSION_ONLY",
+  "local_spent_nonce_after_joint_restore": "CAN_BE_REISSUED",
+  "independent_external_administrative_custody": "NOT_PROVEN",
+  "independently_authenticated_guardian": null,
+  "owner_oob_trust_root": null,
+  "independently_protected_external_revocation_floor": null,
+  "independently_protected_external_spent_nonce_floor": null,
+  "globally_monotonic_antirollback": false,
+  "independent_quorum": false,
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "owner_mac_intel_replay": "PENDING",
+  "bureau_formal_certification": "PENDING"
+}
