@@ -100,7 +100,7 @@ class PortableResponseProvenance(unittest.TestCase):
         for k,v in (("request_sha256","short"),("challenge","Z"*64),
                     ("candidate_key_sha256","not-a-hash"),
                     ("claimed_external_operator_id","/root/guardian"),
-                    ("claimed_admin_domain","production"):
+                    ("claimed_admin_domain","production")):
             self.refused(lab.canonical(dict(self.x,**{k:v})))
 
     def test_08_invalid_numbers_nan_bool_negative_or_float(self):
