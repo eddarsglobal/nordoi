@@ -104,6 +104,8 @@ def parse(raw):
         raise Refused("SOURCE_WITNESS_HEIGHT_NOT_POSITIVE")
     if type(x["source_local_revocation_floor"]) is not int:
         raise Refused("SOURCE_LOCAL_REVOCATION_FLOOR_MISSING")
+    if type(x["issued_at_local"]) is not int or type(x["expires_at_local"]) is not int:
+        raise Refused("LOCAL_CLOCK_FIELDS_MISSING")
     if (x["expires_at_local"] < x["issued_at_local"] or
         x["expires_at_local"] - x["issued_at_local"] > MAX_TTL_SECONDS):
         raise Refused("UNTRUSTED_LOCAL_TIMEBOX_INVALID")
