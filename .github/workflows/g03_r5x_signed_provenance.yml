@@ -1,0 +1,57 @@
+name: NORDOI G0.3 R5X real SSHSIG provenance no independent custody
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r5x_signed_external_provenance.py'
+      - 'research/test_g03_r5x_signed_external_provenance.py'
+      - 'research/G03_R5X_SIGNED_PROVENANCE_NO_EXTERNAL_AUTHORITY.json'
+      - 'research/G03_R5X_SIGNED_PROVENANCE_QUALIFICATION.md'
+      - '.github/workflows/g03_r5x_signed_provenance.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  genuine-signed-candidate-provenance-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R5X actual OpenSSH SSHSIG signed receipt, wrong signer, namespace, local nonce/floor
+        run: python -B -m unittest discover -s research -p 'test_g03_r5x_signed_external_provenance.py' -v
+      - name: R5A through R5X original negative-science regression tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Z independent custody handoff negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: R4Y external custodian intake negative control
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original genuine R4M signed XPC CDHash six native tests serial no retry or waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Verify exact 12 external gates still UNMET — same IDs as R5W
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          before=json.load(open("research/G03_R5W_EXTERNAL_ADMIN_INTAKE_NO_AUTHORITY.json",encoding="utf-8"))
+          after=json.load(open("research/G03_R5X_SIGNED_PROVENANCE_NO_EXTERNAL_AUTHORITY.json",encoding="utf-8"))
+          a,b=before["required_gates"],after["required_gates"]
+          assert len(a)==len(b)==12 and [x["id"] for x in a]==[x["id"] for x in b]
+          assert all(x["status"]=="UNMET_INDEPENDENT_EXTERNAL_EVIDENCE" for x in b)
+          assert after["native_admission_gates_unmet"]==12
+          assert after["owner_oob_trust_root"] is None
+          assert after["independent_admin_operator"] is None
+          assert after["actual_guardian_enrollment"] is False
+          assert after["globally_monotonic_antirollback"] is False
+          assert after["protected_external_revocation_floor"] is None
+          assert after["protected_external_nonce_floor"] is None
+          assert after["production"]=="NOT_AUTHORIZED"
+          print("R5X_EXTERNAL_AUTHORITY=NONE; NATIVE_GATES=12_UNMET; PRODUCTION=NOT_AUTHORIZED")
+          PY
