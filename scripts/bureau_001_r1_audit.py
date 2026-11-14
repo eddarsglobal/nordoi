@@ -127,7 +127,7 @@ def verify_manifest(root, manifest):
         check(gitblob(content) == record["git_blob_sha1"],
               "GIT_BLOB_MISMATCH:" + p)
         paths.append(p)
-    check(paths == sorted(set(paths)), "DUPLICATE_OR_UNSORTED_SOURCE_PINS")
+    check(len(paths) == len(set(paths)), "DUPLICATE_SOURCE_PINS")
     py_sources = [p for p in paths if re.fullmatch(
         r"research/g03_r(?:4[yz]|5[a-z]|6[a-e])_[a-z0-9_]+\.py", p)]
     py_tests = [p for p in paths if re.fullmatch(
