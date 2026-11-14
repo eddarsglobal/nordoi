@@ -16,7 +16,8 @@ import re
 import string
 import sys
 
-from scripts import roadmap_guardian as guardian
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import roadmap_guardian as guardian
 
 PARENT = "a81bf04576a9e9b3f43c2ef56a1a5eb19fd731ae"
 SOURCE_R6E = "12e050d9b8698f4f902baf44390f1108a8e237ee"
