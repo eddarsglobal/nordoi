@@ -264,7 +264,7 @@ class NativeFiveSignedDomainProvenance(unittest.TestCase):
         path=d["root"]/"r6d_false_claim.json"
         path.write_bytes(raw)
         os.chmod(path,0o600)
-        sig=receipts.sign_local(path,d["owner_key"],lab.OWNER_NS)
+        sig=r5x.sign_local(path,d["owner_key"],lab.OWNER_NS)
         self.assertEqual(ssh.run_ssh([
             "-Y","verify","-f",str(d["owner_allowed"]),
             "-I",ssh.IDENTITY,"-n",lab.OWNER_NS,"-s",str(sig)
