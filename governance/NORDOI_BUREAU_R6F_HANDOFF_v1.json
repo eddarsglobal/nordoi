@@ -1,0 +1,176 @@
+{
+  "schema": "NORDOI-BUREAU-HANDOFF-V1",
+  "mission_id": "BUREAU_001",
+  "project": "eddarsglobal/nordoi",
+  "source_parent_r6e_head": "12e050d9b8698f4f902baf44390f1108a8e237ee",
+  "assigned_milestone": "G03_R6F",
+  "mission_state": "ASSIGNED_REVIEWS_NOT_SUBMITTED",
+  "execution_state": "NO_AI_AGENTS_OR_EXTERNAL_OPERATORS_LAUNCHED_BY_THIS_DOCUMENT",
+  "research_scope": "R4A_TO_R6E_RETROSPECTIVE_AUDIT_AND_R6G_EXTERNAL_EVIDENCE_CONTRACT",
+  "review_functions": [
+    {
+      "role": "ATLAS",
+      "task_id": "CONSTITUTIONAL_RUST_ARCHITECTURE_REVIEW",
+      "source_loci": [
+        "C3",
+        "C8",
+        "C14",
+        "C20"
+      ],
+      "objective": "Check Rust/NAIR/NAM boundaries, source coherence and certified baseline preservation",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "FERRUM",
+      "task_id": "NATIVE_MAC_LINUX_WINDOWS_AUDIT",
+      "source_loci": [
+        "G03_R4M",
+        "G03_R4G",
+        "G03_R4F"
+      ],
+      "objective": "Validate real serial signed XPC/CDHash evidence and portability limitations",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "BOUNDARY",
+      "task_id": "PROCESS_SANDBOX_ISOLATION_AUDIT",
+      "source_loci": [
+        "G03_R4E",
+        "G03_R4K",
+        "G03_R6D"
+      ],
+      "objective": "Challenge same-UID different-PID and false independent-domain conclusions",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "CIPHER",
+      "task_id": "SSH_SIGNATURE_NONCE_KEY_LIFECYCLE_AUDIT",
+      "source_loci": [
+        "G03_R5X",
+        "G03_R6A",
+        "G03_R6B",
+        "G03_R6C",
+        "G03_R6D",
+        "G03_R6E"
+      ],
+      "objective": "Review real Ed25519 SSHSIG namespaces, key rotations, replay and independent custody limits",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "LEDGER",
+      "task_id": "R4A_R6E_EVIDENCE_LEDGER_AUDIT",
+      "source_loci": [
+        "G03_R5Y",
+        "G03_R5Z",
+        "G03_R6E"
+      ],
+      "objective": "Reconcile actual frozen SHA source, receipts, CI, owner logs and rollback boundaries",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "CAPSTONE",
+      "task_id": "NATIVE_AUTHORITY_DENY_GATE_AUDIT",
+      "source_loci": [
+        "C3",
+        "C11",
+        "C12",
+        "C13",
+        "C14"
+      ],
+      "objective": "Prove local evidence cannot promote 12 external custody gates or grant effects/capabilities",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "ADVERSARY",
+      "task_id": "CROSS_VERSION_ADVERSARIAL_CAMPAIGN",
+      "source_loci": [
+        "G03_R4A",
+        "G03_R6E"
+      ],
+      "objective": "Find contradictory claims, fake signed roots, false quorums, cross-version source or replay escapes",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "VERITY",
+      "task_id": "MULTI_OS_RELEASE_QUALIFICATION",
+      "source_loci": [
+        "G03_R4M",
+        "G03_R6E"
+      ],
+      "objective": "Check exact GitHub CI 9/9, owner reported 1039 regular tests, 188 pins and limits",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    },
+    {
+      "role": "GUARDIAN",
+      "task_id": "ROADMAP_AND_R6G_ADMISSION_CONTRACT",
+      "source_loci": [
+        "G03_R6F",
+        "G03_R6G"
+      ],
+      "objective": "Hold R6G locked until real evidence contract and formal human-authorized release decision",
+      "review_status": "NOT_SUBMITTED",
+      "evidence_reference": null,
+      "actual_execution_log": null,
+      "findings": [],
+      "formal_verdict": null
+    }
+  ],
+  "governance_verdict": "PENDING",
+  "formal_bureau_certification": "PENDING",
+  "next_milestone": "G03_R6G",
+  "next_milestone_state": "LOCKED_BY_SEQUENCE",
+  "controls": {
+    "all_native_gates_unmet": 12,
+    "owner_oob_root": "NOT_AUTHENTICATED",
+    "independent_guardian": "NOT_ENROLLED",
+    "global_monotonic_antirollback": "NOT_VERIFIED",
+    "independent_quorum": "NOT_PROVEN",
+    "production": "NOT_AUTHORIZED",
+    "github_merge": "NONE"
+  },
+  "required_outputs": [
+    "NINE_SOURCE_ANCHORED_REPORTS",
+    "CONTRADICTION_MATRIX_R4A_R6E",
+    "ADVERSARIAL_TEST_COVERAGE",
+    "REAL_EXTERNAL_EVIDENCE_INTAKE_CONTRACT",
+    "EXPLICIT_OWNER_AUTHORIZATION_IF_PRIVILEGED",
+    "FORMAL_BUREAU_DECISION_IF_AND_WHEN_EVIDENCE_EXISTS"
+  ],
+  "limitations": [
+    "Assigning nine AI review perspectives does not instantiate nine independent agents",
+    "A source GitHub CI PASS does not prove external administrative custody",
+    "This handoff is a future research workflow, not autonomous background work or an external signature"
+  ]
+}
