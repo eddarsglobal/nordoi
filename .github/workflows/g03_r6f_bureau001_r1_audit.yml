@@ -1,0 +1,61 @@
+name: NORDOI G0.3 R6F BUREAU001 R1 real source reconciliation audit
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_R1_PINNED_SOURCES.json'
+      - 'governance/NORDOI_R6F_BUREAU001_R1_CHRONOLOGY.json'
+      - 'scripts/bureau_001_r1_audit.py'
+      - 'tests/test_bureau_001_r1_audit.py'
+      - 'docs/NORDOI_R6F_BUREAU001_R1_AUDIT.md'
+      - '.github/workflows/g03_r6f_bureau001_r1_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frozen-source-bureau-triage-deny-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Parent initial RoadMapGuardian has no fake nine-agent certification
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Exactly 99 Git blob pins and four owner chronology addenda checked
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: 24 source-mutation false provenance and denial-only tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: Original 24 RoadMapGuardian adversarial tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: Prior R6A through R6E genuine signed source negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6*.py' -v
+      - name: Prior R5A through R5Z signed local research denial regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: Prior R4Y independent external custody negative tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Prior R4Z handoff negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: Original genuine signed native R4M XPC CDHash 6 serial no retries or waivers
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Guard R6G remains LOCKED regardless of valid local evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          h=json.load(open('governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json',encoding='utf-8'))
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_R1_CHRONOLOGY.json',encoding='utf-8'))
+          assert h['mission_state']=='ASSIGNED_REVIEWS_NOT_SUBMITTED'
+          assert all(x['review_status']=='NOT_SUBMITTED' for x in h['review_functions'])
+          assert c['r6f']['formal_bureau_independent_reviews']==0
+          assert c['r6f']['r6g']=='LOCKED_BY_SEQUENCE'
+          assert c['r6f']['native_admission_gates_unmet']==12
+          assert c['r6f']['production']=='NOT_AUTHORIZED'
+          print('R6F_BUREAU001_R1=SOURCE_AUDIT_WITH_CONTROLS; NINE_INDEPENDENT_REVIEWS=0; R6G=LOCKED')
+          PY
