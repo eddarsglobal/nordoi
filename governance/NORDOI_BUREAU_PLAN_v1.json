@@ -1,0 +1,189 @@
+{
+  "schema": "NORDOI-BUREAU-ROADMAP-V1",
+  "project": "eddarsglobal/nordoi",
+  "scope": "RESEARCH_GOVERNANCE_ONLY",
+  "parent_r6e_head": "12e050d9b8698f4f902baf44390f1108a8e237ee",
+  "constitutional_rules": [
+    "C3",
+    "C8",
+    "C14",
+    "C20"
+  ],
+  "future_native_gate": [
+    "FNG1",
+    "FNG2",
+    "FNG3",
+    "FNG4",
+    "FNG5",
+    "FNG6"
+  ],
+  "bureau": [
+    {
+      "id": "ATLAS",
+      "specialty": "RUST_ARCHITECTURE",
+      "mandate": "Rust core, NAIR/NAM invariants, architecture and cross-platform contracts",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "FERRUM",
+      "specialty": "NATIVE_SYSTEM_SECURITY",
+      "mandate": "macOS signed XPC/CDHash, Linux Landlock, Windows native boundary and least privilege",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "BOUNDARY",
+      "specialty": "PROCESS_ISOLATION",
+      "mandate": "process identity, FD and sandbox boundaries, ownership and confused-deputy paths",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "CIPHER",
+      "specialty": "CRYPTOGRAPHY",
+      "mandate": "OpenSSH SSHSIG Ed25519, key lifecycle, domain separation, challenge binding",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "LEDGER",
+      "specialty": "EVIDENCE_AND_PROVENANCE",
+      "mandate": "immutable source identities, receipts, evidence custody, antirollback limitations",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "CAPSTONE",
+      "specialty": "CAPABILITY_SECURITY",
+      "mandate": "effect declarations, scoped authority, native admission and 12 deny gates",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "ADVERSARY",
+      "specialty": "ADVERSARIAL_REVIEW",
+      "mandate": "negative tests, adversarial replay, contradiction and bypass analysis",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "VERITY",
+      "specialty": "TESTS_AND_RELEASE_QUALIFICATION",
+      "mandate": "CI matrices, owner Mac replay, tests, regressions, release qualification",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    },
+    {
+      "id": "GUARDIAN",
+      "specialty": "ROADMAP_GOVERNANCE",
+      "mandate": "sequential RoadMap controls, Bureau review evidence and fail-closed status transitions",
+      "role_type": "AI_REVIEW_FUNCTION_NOT_AN_INDEPENDENT_SIGNER"
+    }
+  ],
+  "approval_policy": {
+    "required_review_functions": [
+      "ATLAS",
+      "FERRUM",
+      "BOUNDARY",
+      "CIPHER",
+      "LEDGER",
+      "CAPSTONE",
+      "ADVERSARY",
+      "VERITY",
+      "GUARDIAN"
+    ],
+    "unsubmitted_review": "NOT_SUBMITTED",
+    "independent_external_signatures_required_for_native_admission": true,
+    "no_ai_self_certification": true,
+    "owner_authorization_required_for_privileged_changes": true,
+    "technical_fixes_within_authorized_research_scope": true,
+    "release_requires_independent_evidence_and_governance_decision": true
+  },
+  "milestones": [
+    {
+      "id": "G03_R6E",
+      "status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "parent": null,
+      "observed_github_ci": "9_OF_9_SUCCESS",
+      "owner_terminal_observation": "1039_REGULAR_PASS_188_SOURCE_BLOBS_PASS_SCRIPT_EXIT_0_USER_LOG",
+      "external_custody": "NOT_PROVEN",
+      "certification": "NOT_CERTIFIED_FOR_NATIVE"
+    },
+    {
+      "id": "G03_R6F",
+      "status": "IN_PROGRESS",
+      "parent": "G03_R6E",
+      "mission": "BUREAU_001",
+      "owner": "BUREAU_ALL_NINE_REVIEW_FUNCTIONS",
+      "certification": "PENDING",
+      "scope": "RETROSPECTIVE_R4A_TO_R6E_CROSS_AUDIT_AND_EXTERNAL_CUSTODY_EVIDENCE_CONTRACT"
+    },
+    {
+      "id": "G03_R6G",
+      "status": "LOCKED_BY_SEQUENCE",
+      "parent": "G03_R6F",
+      "mission": "REAL_INDEPENDENT_CUSTODIAN_ADMISSION_EVIDENCE_INTAKE",
+      "external_evidence": "NOT_ENROLLED",
+      "certification": "PENDING"
+    }
+  ],
+  "native_admission": {
+    "gates": [
+      {
+        "id": "owner_oob_authenticated_root",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "actual_external_custodian_identity",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "distinct_administrative_control_domains",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "guardian_key_pinned_out_of_band",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "independently_signed_os_attestation",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "signed_fresh_challenge_and_exact_history",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "independent_os_domain_and_host_witness",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "externally_monotonic_key_epoch",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "protected_global_revocation_floor",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "protected_global_spent_nonce_floor",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "independent_quorum",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      },
+      {
+        "id": "independent_recovery_rotation_audit",
+        "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+      }
+    ],
+    "remaining": 12,
+    "guardian": "NOT_ENROLLED",
+    "owner_oob_root": "NOT_AUTHENTICATED",
+    "independent_monotonic_antirollback": "NOT_VERIFIED",
+    "independent_quorum": "NOT_PROVEN",
+    "production": "NOT_AUTHORIZED"
+  },
+  "non_goals": [
+    "NO_AUTOMATIC_AGENT_EXECUTION",
+    "NO_EXTERNAL_CUSTODIAN_ENROLLMENT",
+    "NO_SELF_SIGNED_CERTIFICATION",
+    "NO_PRODUCTION_OR_NATIVE_RUNTIME_CHANGES",
+    "NO_PR_MERGE",
+    "NO_KERNEL_OR_CERTIFIED_BASELINE_MUTATION"
+  ]
+}
