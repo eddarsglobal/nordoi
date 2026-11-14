@@ -75,7 +75,7 @@ class Bureau001EvidenceAudit(unittest.TestCase):
         m = json.loads((self.root / lab.MANIFEST).read_text())
         source = next(e for e in m["pinned_files"] if
                       e["path"] == "research/g03_r6e_oob_origin_intake.py")
-        self.assertEqual(lab.gitblob((self.root / source["path"]).read_bytes()),
+        self.assertEqual(lab.gitblob(lab.git_checkout_bytes((self.root / source["path"]).read_bytes())),
                          source["git_blob_sha1"])
 
     def test_06_owner_chat_log_not_marked_independent_attestation(self):
