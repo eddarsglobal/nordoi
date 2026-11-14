@@ -1,0 +1,87 @@
+{
+  "protocol": "NORDOI-G03-R6E-OOB-ORIGIN-NEGATIVE-INTAKE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r6d_owner_mac_intel_qualified": "cc3816dac7bf677c3137df69adb34b3c44c23d19",
+  "scope": "OFFLINE_OWNER_OOB_ROOT_ORIGIN_AND_INDEPENDENT_EXTERNAL_CUSTODY_INTAKE_DENY_ONLY",
+  "research_only": true,
+  "genuine_local_openssh_signatures": "SIX_GENUINE_LOCAL_SIGNATURES_TWO_SAME_ADMIN_KEYS",
+  "real_challenge_and_historical_source": "EXACT_R6A_R6B_R6C_R6D_R5Z_BYTE_DIGEST_BINDING",
+  "real_owner_out_of_band_confirmation": null,
+  "oob_root_fingerprint_authenticated_independently": false,
+  "independently_observed_channel_receipt": null,
+  "independent_custodian_legal_operator_identity": null,
+  "separately_administered_guardian_key": false,
+  "verified_external_guardian_host": null,
+  "independently_retained_monotonic_history": false,
+  "remotely_protected_spent_nonce_floor": false,
+  "remotely_protected_revocation_floor": false,
+  "independent_quorum": false,
+  "native_admission_gates_unmet": 12,
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "required_real_future_evidence": [
+    "A real independently authorized custodian must be identified and contacted outside the owner's local administrative control",
+    "Owner authenticates the exact guardian public-key fingerprint by a genuinely independent out-of-band channel, and records trustworthy evidence of who performed this verification",
+    "Custodian proves a distinct organization or administrator controls the signing private key and a separate host or immutable custody mechanism",
+    "Actual independent monotonic history must protect signed challenge nonces, key epoch, revocation floor, receipts and recovery logs from same-admin coherent rollback",
+    "Independent authorities and RoadMap Bureau must review the provenance and jointly authorize any later native admission"
+  ],
+  "negative_controls": [
+    "Local key possession is not independent key custody, regardless of the number of valid signatures",
+    "Writing the string out-of-band or a root SHA256 in a locally signed JSON document is not proof of an external owner-authenticated channel",
+    "A malicious same-admin actor can sign incorrect external-operator identity, guardian hostname, and quorum statements with a genuine local key",
+    "Local spent nonce and revoked-key registers cannot establish independently protected global high-water marks",
+    "No network access, enrollment handshake, independent operator account, production runtime or native grant is implemented"
+  ],
+  "owner_mac_intel_replay": "PENDING",
+  "formal_bureau_certification": "PENDING",
+  "production": "NOT_AUTHORIZED"
+}

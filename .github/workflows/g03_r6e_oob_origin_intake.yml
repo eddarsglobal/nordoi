@@ -1,0 +1,60 @@
+name: NORDOI G0.3 R6E genuine same-admin OOB root origin denial
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6e_oob_origin_intake.py'
+      - 'research/test_g03_r6e_oob_origin_intake.py'
+      - 'research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json'
+      - 'research/G03_R6E_OOB_ORIGIN_INTAKE_QUALIFICATION.md'
+      - '.github/workflows/g03_r6e_oob_origin_intake.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  genuine-local-oob-looking-sshsig-is-not-external-custody:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: R6E real six SSHSIG local OOB provenance denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r6e_oob_origin_intake.py' -v
+      - name: Original R6A through R6D cryptographic negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-d]_*.py' -v
+      - name: Original R5A through R5Z signed negative-control regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: Original R4Z custody handoff negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: Original R4Y external-custodian intake negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original actual R4M native signed XPC CDHash six serial no retry
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: All twelve independent native custody gates remain UNMET
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          old=json.load(open('research/G03_R6D_ADMIN_DOMAIN_NO_EXTERNAL_CUSTODY.json',encoding='utf-8'))
+          new=json.load(open('research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json',encoding='utf-8'))
+          a,b=old['required_gates'],new['required_gates']
+          assert len(a)==len(b)==12
+          assert [x['id'] for x in a]==[x['id'] for x in b]
+          assert all(x['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' for x in b)
+          assert new['native_admission_gates_unmet']==12
+          assert new['real_owner_out_of_band_confirmation'] is None
+          assert new['oob_root_fingerprint_authenticated_independently'] is False
+          assert new['independent_custodian_legal_operator_identity'] is None
+          assert new['separately_administered_guardian_key'] is False
+          assert new['independently_retained_monotonic_history'] is False
+          assert new['independent_quorum'] is False
+          assert new['production']=='NOT_AUTHORIZED'
+          print('R6E_UNMET_NATIVE_ADMISSION=12; OWNER_OOB_NOT_AUTHENTICATED; DENY_ONLY=PASS')
+          PY
