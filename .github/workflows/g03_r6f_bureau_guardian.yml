@@ -1,0 +1,59 @@
+name: NORDOI G0.3 R6F Bureau and RoadMapGuardian
+on:
+  pull_request:
+    paths:
+      - 'RoadMap.md'
+      - 'Bureau.md'
+      - 'governance/NORDOI_BUREAU_PLAN_v1.json'
+      - 'governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json'
+      - 'scripts/roadmap_guardian.py'
+      - 'tests/test_roadmap_guardian.py'
+      - '.github/workflows/g03_r6f_bureau_guardian.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  bureau-guardian-research-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact Bureau roles RoadMap and twelve native denies
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Twenty-four fail-closed RoadMapGuardian adversarial tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: Original R6A through R6E negative-control source regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6*.py' -v
+      - name: Original R5A through R5Z research denial regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: Original R4Y external custody negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: Original R4Z offline handoff negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: Original actual R4M genuine native signed XPC CDHash 6 serial no retries or waivers
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Guard never grants authority or claims external review
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_BUREAU_PLAN_v1.json',encoding='utf-8'))
+          h=json.load(open('governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json',encoding='utf-8'))
+          src=json.load(open('research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json',encoding='utf-8'))
+          assert len(p['bureau'])==len(h['review_functions'])==9
+          assert all(x['review_status']=='NOT_SUBMITTED' for x in h['review_functions'])
+          assert len(p['native_admission']['gates'])==len(src['required_gates'])==12
+          assert all(x['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' for x in p['native_admission']['gates'])
+          assert p['milestones'][2]['status']=='LOCKED_BY_SEQUENCE'
+          assert p['native_admission']['production']=='NOT_AUTHORIZED'
+          print('R6F_BUREAU_ASSIGNMENT=PASS; NINE_REVIEWS=NOT_SUBMITTED; NATIVE_GATES=12_UNMET')
+          PY
