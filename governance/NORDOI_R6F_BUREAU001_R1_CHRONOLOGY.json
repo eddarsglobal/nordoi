@@ -1,0 +1,139 @@
+{
+  "schema": "NORDOI-BUREAU001-R6F-R1-CHRONOLOGY-V1",
+  "project": "eddarsglobal/nordoi",
+  "frozen_parent_commit": "a81bf04576a9e9b3f43c2ef56a1a5eb19fd731ae",
+  "research_source_head": "12e050d9b8698f4f902baf44390f1108a8e237ee",
+  "source_snapshots_status": "PENDING_AT_COMMIT_TIME",
+  "owner_evidence_source": "OWNER_SUPPLIED_CHAT_TERMINAL_OUTPUT_AFTER_ORIGINAL_CANDIDATE_CREATION",
+  "owner_evidence_limitation": "OWNER_LOG_NOT_AN_INDEPENDENT_MACHINE_SIGNATURE_OR_EXTERNAL_CUSTODIAN_ATTESTATION",
+  "github_ci_observations": "GITHUB_WORKFLOW_JOB_RESULTS_VERIFIED_SEPARATELY_FROM_OWNER_TERMINAL_LOG; NOT_EXTERNAL_CUSTODY",
+  "record_kind": "APPEND_ONLY_RECONCILIATION_NOT_MUTATION_OF_ORIGINAL_SNAPSHOT",
+  "stages": [
+    {
+      "id": "R6B",
+      "source": "research/G03_R6B_SIGNED_RESPONSE_NO_EXTERNAL_AUTHORITY.json",
+      "source_blob": "5676215f870a49d359846e69e40ebfe24d53ff29",
+      "owner_regular_tests": 967,
+      "owner_source_git_blobs": 173,
+      "dedicated_run_id": 43485688247,
+      "general_run_id": 43485688279,
+      "pr": 119,
+      "source_owner_status_expected": "PENDING",
+      "observed_owner_terminal": "PASS_WITH_CONTROLS_RESEARCH_ONLY",
+      "observed_owner_exit": 0,
+      "independent_custodian": "NOT_PROVEN",
+      "source_correction_authorized": false,
+      "dedicated_ci_expected": "4/4_SUCCESS",
+      "general_ci_expected": "5/5_SUCCESS"
+    },
+    {
+      "id": "R6C",
+      "source": "research/G03_R6C_TWO_KEY_NO_INDEPENDENT_QUORUM.json",
+      "source_blob": "6a238685064e3f727e2ac99b68e8b19f3e08e518",
+      "owner_regular_tests": 991,
+      "owner_source_git_blobs": 178,
+      "dedicated_run_id": 43495627026,
+      "general_run_id": 43495626711,
+      "pr": 120,
+      "source_owner_status_expected": "PENDING",
+      "observed_owner_terminal": "PASS_WITH_CONTROLS_RESEARCH_ONLY",
+      "observed_owner_exit": 0,
+      "independent_custodian": "NOT_PROVEN",
+      "source_correction_authorized": false,
+      "dedicated_ci_expected": "4/4_SUCCESS",
+      "general_ci_expected": "5/5_SUCCESS"
+    },
+    {
+      "id": "R6D",
+      "source": "research/G03_R6D_ADMIN_DOMAIN_NO_EXTERNAL_CUSTODY.json",
+      "source_blob": "2d3ca44381c8af270c93acdf1cfecb0dc84ff707",
+      "owner_regular_tests": 1015,
+      "owner_source_git_blobs": 183,
+      "dedicated_run_id": 43563570247,
+      "general_run_id": 43563570243,
+      "pr": 121,
+      "packaging_issue": "ORIGINAL_OWNER_RUNNER_R6C_FILENAME_ERROR_FIXED_IN_FIX1_BEFORE_FULL_REPLAY",
+      "source_owner_status_expected": "PENDING",
+      "observed_owner_terminal": "PASS_WITH_CONTROLS_RESEARCH_ONLY",
+      "observed_owner_exit": 0,
+      "independent_custodian": "NOT_PROVEN",
+      "source_correction_authorized": false,
+      "dedicated_ci_expected": "4/4_SUCCESS",
+      "general_ci_expected": "5/5_SUCCESS"
+    },
+    {
+      "id": "R6E",
+      "source": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "source_blob": "79ad29009ee7aaccd4334bb4f2032f4814e6f74c",
+      "owner_regular_tests": 1039,
+      "owner_source_git_blobs": 188,
+      "dedicated_run_id": 43588616293,
+      "general_run_id": 43588616176,
+      "pr": 122,
+      "source_owner_status_expected": "PENDING",
+      "observed_owner_terminal": "PASS_WITH_CONTROLS_RESEARCH_ONLY",
+      "observed_owner_exit": 0,
+      "independent_custodian": "NOT_PROVEN",
+      "source_correction_authorized": false,
+      "dedicated_ci_expected": "4/4_SUCCESS",
+      "general_ci_expected": "5/5_SUCCESS"
+    }
+  ],
+  "r6f": {
+    "formal_bureau_independent_reviews": 0,
+    "review_functions": 9,
+    "technical_ci_candidate": "9/9_SUCCESS_AT_PARENT_R6F",
+    "bureau_mission": "BUREAU_001",
+    "current_status": "IN_PROGRESS",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "independent_operator": "NOT_ENROLLED",
+    "owner_oob_root": "NOT_AUTHENTICATED",
+    "independent_antirollback": "NOT_VERIFIED",
+    "native_admission_gates_unmet": 12,
+    "production": "NOT_AUTHORIZED"
+  },
+  "findings": [
+    {
+      "id": "R6F-R1-001",
+      "impact": "DOCUMENTARY_CHRONOLOGY",
+      "repro": "Source JSON R6B/C/D/E owner_mac_intel_replay PENDING while later terminal evidence shows actual PASS",
+      "resolution": "PRESERVE_FROZEN_SOURCES_AND_APPEND_POST_HOC_OWNER_LOG_OBSERVATION",
+      "remaining": "Owner logs supplied in chat, not independently counter-signed"
+    },
+    {
+      "id": "R6F-R1-002",
+      "impact": "GOVERNANCE_SCOPE",
+      "repro": "BUREAU_001 defines 9 NOT_SUBMITTED work functions; no separate agent review log",
+      "resolution": "REPORT_COORDINATOR_TRIAGE_ONLY_NOT_BUREAU_CERTIFIED",
+      "remaining": "Nine functional evidence-backed reviews not executed"
+    },
+    {
+      "id": "R6F-R1-003",
+      "impact": "EXTERNAL_AUTHORITY",
+      "repro": "R6B–R6E local SSHSIGs verify possession but 12 native admission gates remain UNMET",
+      "resolution": "KEEP_R6G_LOCKED_NATIVE_ADMISSION_BLOCKED",
+      "remaining": "Real independent key custodian, owner OOB channel, protected remote history absent"
+    },
+    {
+      "id": "R6F-R1-004",
+      "impact": "OWNER_KIT_INTEGRATION_QA",
+      "repro": "Original R6D launcher pointed at nonexistent R6C script, FIX1 restored correct entrypoint",
+      "resolution": "REQUIRE_SHELL_TO_PYTHON_END_TO_END_SMOKE_FOR_FUTURE_OWNER_KITS",
+      "remaining": "Must retest any new packaged launcher on supported host"
+    },
+    {
+      "id": "R6F-R1-005",
+      "impact": "AUDITABLE_PROVENANCE",
+      "repro": "Existing static documents are locally editable and do not pin all R4A–R6E audited source/test Git blobs",
+      "resolution": "ADD_99_GIT_BLOB_PINS_AND_READONLY_FAIL_CLOSED_AUDIT",
+      "remaining": "Git SHA1 pins do not establish independent source authentication or operator custody"
+    },
+    {
+      "id": "R6F-R1-006",
+      "impact": "WORKFLOW_LIMITATION",
+      "repro": "RoadMapGuardian v1 accepts only nine NOT_SUBMITTED reviews for initial handoff",
+      "resolution": "PRESERVE_INITIAL_GUARDIAN_AND_REQUIRE_SEPARATE_EVIDENCE_BACKED_FUTURE_REVIEW_STATE_MACHINE",
+      "remaining": "No automatic promotion to CERTIFIED_RESEARCH or R6G"
+    }
+  ]
+}

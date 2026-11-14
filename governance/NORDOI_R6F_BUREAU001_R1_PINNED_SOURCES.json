@@ -1,0 +1,514 @@
+{
+  "protocol": "NORDOI-R6F-BUREAU001-R1-FROZEN-SOURCE-AUDIT-V1",
+  "repo": "eddarsglobal/nordoi",
+  "parent_head": "a81bf04576a9e9b3f43c2ef56a1a5eb19fd731ae",
+  "verified_basis": "GITHUB_GIT_TREE_COMMIT",
+  "source_immutability": "OFFLINE_PIN_CONSISTENCY_NOT_GITHUB_SIGNATURE_OR_EXTERNAL_AUTHORITY",
+  "roles": "NINE_REVIEW_PERSPECTIVES_NOT_AUTONOMOUS_OR_SEPARATE_SIGNERS",
+  "scopes": {
+    "r4a_r4x_rust_native_tests": 24,
+    "r4y_r4z_python_sources_and_tests": 4,
+    "r5a_r5z_python_sources_and_tests": 52,
+    "r6a_r6e_python_sources_and_tests": 10,
+    "r6b_r6e_security_gate_evidence": 4,
+    "r6f_roadmap_bureau_guardian_basis": 5
+  },
+  "total_pinned_files": 99,
+  "pinned_files": [
+    {
+      "path": "Bureau.md",
+      "git_blob_sha1": "ffbb7b96bf978f481c4c54d42205fa262acc5e26",
+      "bytes": 7259
+    },
+    {
+      "path": "governance/NORDOI_BUREAU_PLAN_v1.json",
+      "git_blob_sha1": "4a7a862084b59a87aa45474e921dbb7502ff86c1",
+      "bytes": 6075
+    },
+    {
+      "path": "governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json",
+      "git_blob_sha1": "06951ed3ccc8ca74798104a3c8d01120dbf60f86",
+      "bytes": 5573
+    },
+    {
+      "path": "research/g03_r4y_external_custody_intake.py",
+      "git_blob_sha1": "13f9b426916dbb4fab089110d389a000092deeb3",
+      "bytes": 4715
+    },
+    {
+      "path": "research/g03_r4z_handoff.py",
+      "git_blob_sha1": "0122c406bb23c55ac7f69744457788efc823bb89",
+      "bytes": 8557
+    },
+    {
+      "path": "research/g03_r5a_external_operator_preflight.py",
+      "git_blob_sha1": "6310476c9ae1204f760c2a7f3ea55441f0642fda",
+      "bytes": 6352
+    },
+    {
+      "path": "research/g03_r5b_triple_sshsig_verifier.py",
+      "git_blob_sha1": "0724e0699e63083fe9edd23aa36de12389ff055f",
+      "bytes": 11101
+    },
+    {
+      "path": "research/g03_r5c_oob_root_consistency.py",
+      "git_blob_sha1": "c20967b12049fac52744789da9e9121fbb6a25b5",
+      "bytes": 8212
+    },
+    {
+      "path": "research/g03_r5d_local_monotonic_ledger.py",
+      "git_blob_sha1": "77c299d9293d7cbeca93714fd47631ac0ef32600",
+      "bytes": 9032
+    },
+    {
+      "path": "research/g03_r5e_second_store_witness.py",
+      "git_blob_sha1": "0c18e34e7646ba06812a1fafe5a0a02243902d8b",
+      "bytes": 8907
+    },
+    {
+      "path": "research/g03_r5f_admin_custody_disqualifiers.py",
+      "git_blob_sha1": "aabd9a3b9396b295aa59203b6391e83b32554f2b",
+      "bytes": 4830
+    },
+    {
+      "path": "research/g03_r5g_effective_control_lab.py",
+      "git_blob_sha1": "fa3b8914612dc673dd7a29e612abe28a122309ec",
+      "bytes": 11163
+    },
+    {
+      "path": "research/g03_r5h_signed_revocation_lab.py",
+      "git_blob_sha1": "6a7e9b97c3acb96a35802a13876f834d71487f78",
+      "bytes": 15746
+    },
+    {
+      "path": "research/g03_r5i_revocation_floor.py",
+      "git_blob_sha1": "14b110c51c08b0c9880b9ce0436a840dc5b1f7da",
+      "bytes": 9053
+    },
+    {
+      "path": "research/g03_r5j_signed_recovery_quarantine.py",
+      "git_blob_sha1": "498ef595ed42a952f9f6b53d3060ed91e1468530",
+      "bytes": 13224
+    },
+    {
+      "path": "research/g03_r5k_concurrent_recovery_quarantine.py",
+      "git_blob_sha1": "1611160c6b21791317a2f8550be079524dd2bab5",
+      "bytes": 12150
+    },
+    {
+      "path": "research/g03_r5l_crash_restart_denial_journal.py",
+      "git_blob_sha1": "333ba16e68ff922856857e030ba00a0ef45cfee2",
+      "bytes": 15389
+    },
+    {
+      "path": "research/g03_r5m_file_integrity_quarantine.py",
+      "git_blob_sha1": "c1f82088746efd85bc42c457256129568297ee04",
+      "bytes": 13021
+    },
+    {
+      "path": "research/g03_r5n_checkpoint_use_quarantine.py",
+      "git_blob_sha1": "c444e681e12f8998169614e05cf78291a27bb003",
+      "bytes": 11455
+    },
+    {
+      "path": "research/g03_r5o_fd_identity_quarantine.py",
+      "git_blob_sha1": "82d81bfb80207969d2420ea19dac4b354eab6741",
+      "bytes": 13290
+    },
+    {
+      "path": "research/g03_r5p_reopen_identity_continuity.py",
+      "git_blob_sha1": "28fa6fbca0c86c7aff9452dc37e9d0186efe5157",
+      "bytes": 12164
+    },
+    {
+      "path": "research/g03_r5q_coherent_local_rollback.py",
+      "git_blob_sha1": "62694b1a5d829f4240348a377d9b522419b64a69",
+      "bytes": 14538
+    },
+    {
+      "path": "research/g03_r5r_independent_history_preflight.py",
+      "git_blob_sha1": "12601d673af139aeb7989e13fb6097b537e70fc0",
+      "bytes": 13717
+    },
+    {
+      "path": "research/g03_r5s_challenge_bound_handoff.py",
+      "git_blob_sha1": "a2996edbf7df6355a11ff1e89b82fad5bf97cbf4",
+      "bytes": 16158
+    },
+    {
+      "path": "research/g03_r5t_signed_receipt_provenance.py",
+      "git_blob_sha1": "931b5ee19c92eaae15cf27f01bdfeff3561f38d2",
+      "bytes": 16686
+    },
+    {
+      "path": "research/g03_r5u_key_rotation_custody.py",
+      "git_blob_sha1": "c75a3b9840096454996cde714e5a0b36b666d063",
+      "bytes": 19336
+    },
+    {
+      "path": "research/g03_r5v_admin_separation_evidence.py",
+      "git_blob_sha1": "840d9090fae93dec8f049f5a94775ca9461057c5",
+      "bytes": 15466
+    },
+    {
+      "path": "research/g03_r5w_external_admin_intake.py",
+      "git_blob_sha1": "a2b9eaec1ce36b73204496597cbde78afe66f05c",
+      "bytes": 10590
+    },
+    {
+      "path": "research/g03_r5x_signed_external_provenance.py",
+      "git_blob_sha1": "e7c33ef946e4683c180fe61b65b7cf4e9fc9e3a4",
+      "bytes": 13275
+    },
+    {
+      "path": "research/g03_r5y_signed_nonce_rollback.py",
+      "git_blob_sha1": "f7f046fab2cf568b5a0a5bb5069cbdda34abf710",
+      "bytes": 15810
+    },
+    {
+      "path": "research/g03_r5z_preserved_witness_rollback.py",
+      "git_blob_sha1": "46a6f51b4bf2cb9e2fdca317911b627368388494",
+      "bytes": 16553
+    },
+    {
+      "path": "research/g03_r6a_oob_witness_challenge.py",
+      "git_blob_sha1": "b34d5011a87831446e2edd9aa76addbf6e894c7e",
+      "bytes": 15733
+    },
+    {
+      "path": "research/G03_R6B_SIGNED_RESPONSE_NO_EXTERNAL_AUTHORITY.json",
+      "git_blob_sha1": "5676215f870a49d359846e69e40ebfe24d53ff29",
+      "bytes": 3191
+    },
+    {
+      "path": "research/g03_r6b_signed_response_provenance.py",
+      "git_blob_sha1": "018a0384a2d3797e5333f95635b9655e964bc2c3",
+      "bytes": 17394
+    },
+    {
+      "path": "research/G03_R6C_TWO_KEY_NO_INDEPENDENT_QUORUM.json",
+      "git_blob_sha1": "6a238685064e3f727e2ac99b68e8b19f3e08e518",
+      "bytes": 3380
+    },
+    {
+      "path": "research/g03_r6c_two_key_quorum_negative.py",
+      "git_blob_sha1": "0af99fff3ec76f0a3cbd46100d0003044c813741",
+      "bytes": 18550
+    },
+    {
+      "path": "research/G03_R6D_ADMIN_DOMAIN_NO_EXTERNAL_CUSTODY.json",
+      "git_blob_sha1": "2d3ca44381c8af270c93acdf1cfecb0dc84ff707",
+      "bytes": 3306
+    },
+    {
+      "path": "research/g03_r6d_admin_domain_provenance.py",
+      "git_blob_sha1": "1aaef777e3da4d846cfe16bf0489df3e54def6e1",
+      "bytes": 18791
+    },
+    {
+      "path": "research/g03_r6e_oob_origin_intake.py",
+      "git_blob_sha1": "d2d3da085bbcf46b3d8a9a743b6e2ff0f820b0aa",
+      "bytes": 17665
+    },
+    {
+      "path": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "git_blob_sha1": "79ad29009ee7aaccd4334bb4f2032f4814e6f74c",
+      "bytes": 4023
+    },
+    {
+      "path": "research/test_g03_r4y_external_custody_intake.py",
+      "git_blob_sha1": "39c4fd7b875393c472baafa5f2a6db71b49031db",
+      "bytes": 6296
+    },
+    {
+      "path": "research/test_g03_r4z_handoff.py",
+      "git_blob_sha1": "3d6fb5b4fb742194479e7b1a1e0e6ef8c81348dc",
+      "bytes": 6791
+    },
+    {
+      "path": "research/test_g03_r5a_external_operator_preflight.py",
+      "git_blob_sha1": "f13f2b350d43bea919847f0cdd1494bbbde90a35",
+      "bytes": 7678
+    },
+    {
+      "path": "research/test_g03_r5b_triple_sshsig_verifier.py",
+      "git_blob_sha1": "899df1880a1daf655b512cacd4baa8c70d7a1a40",
+      "bytes": 9406
+    },
+    {
+      "path": "research/test_g03_r5c_oob_root_consistency.py",
+      "git_blob_sha1": "b86dee6c686c38ac53eb51f432d0ee69ae668d73",
+      "bytes": 7510
+    },
+    {
+      "path": "research/test_g03_r5d_local_monotonic_ledger.py",
+      "git_blob_sha1": "c43d23842132a9af0fc0c6f73825a74f05f55cf9",
+      "bytes": 9406
+    },
+    {
+      "path": "research/test_g03_r5e_second_store_witness.py",
+      "git_blob_sha1": "edc9f4dbb184d2af1f98381df88572ce51aa7a9f",
+      "bytes": 10466
+    },
+    {
+      "path": "research/test_g03_r5f_admin_custody_disqualifiers.py",
+      "git_blob_sha1": "e4eb40f8798e89727f5da227f4ba3c3218ac1a65",
+      "bytes": 7064
+    },
+    {
+      "path": "research/test_g03_r5g_effective_control_lab.py",
+      "git_blob_sha1": "50ef832673a004dc2f54b0a5d94a0cf8029a8ff7",
+      "bytes": 6410
+    },
+    {
+      "path": "research/test_g03_r5h_signed_revocation_lab.py",
+      "git_blob_sha1": "2d982e59f6c871bae37a8a92ca9b406da900ca40",
+      "bytes": 8104
+    },
+    {
+      "path": "research/test_g03_r5i_revocation_floor.py",
+      "git_blob_sha1": "a6923c84256243c193aaadd4ad92d888f49c0da4",
+      "bytes": 10846
+    },
+    {
+      "path": "research/test_g03_r5j_signed_recovery_quarantine.py",
+      "git_blob_sha1": "08668c89773e8eb1126ee07af94d0ecde78fc1f5",
+      "bytes": 10164
+    },
+    {
+      "path": "research/test_g03_r5k_concurrent_recovery_quarantine.py",
+      "git_blob_sha1": "63dddf16c4b22415a68ad6ac0835c01e6875df4f",
+      "bytes": 9974
+    },
+    {
+      "path": "research/test_g03_r5l_crash_restart_denial_journal.py",
+      "git_blob_sha1": "8de2d688da51d72683df33783b46d1ec653308bf",
+      "bytes": 11023
+    },
+    {
+      "path": "research/test_g03_r5m_file_integrity_quarantine.py",
+      "git_blob_sha1": "ea2a8ccbdf4793dfd9e5c0c1c10503d3692672de",
+      "bytes": 10500
+    },
+    {
+      "path": "research/test_g03_r5n_checkpoint_use_quarantine.py",
+      "git_blob_sha1": "5ed620b6ba3baccc5c904087281cbe93b63bb492",
+      "bytes": 10804
+    },
+    {
+      "path": "research/test_g03_r5o_fd_identity_quarantine.py",
+      "git_blob_sha1": "104c77430f2c77eeb692110c145a9381f7fa6ea5",
+      "bytes": 9801
+    },
+    {
+      "path": "research/test_g03_r5p_reopen_identity_continuity.py",
+      "git_blob_sha1": "fc9dfe72e740811727885191fa6f9e94287c5124",
+      "bytes": 10882
+    },
+    {
+      "path": "research/test_g03_r5q_coherent_local_rollback.py",
+      "git_blob_sha1": "e100354467a11f7f7e2d379f88f69cc5a68459b6",
+      "bytes": 10951
+    },
+    {
+      "path": "research/test_g03_r5r_independent_history_preflight.py",
+      "git_blob_sha1": "46181523b0303962a80d0d756f73dc6cd8c21365",
+      "bytes": 12582
+    },
+    {
+      "path": "research/test_g03_r5s_challenge_bound_handoff.py",
+      "git_blob_sha1": "912b966e6d20864985db8e962cea55cbe2fdb932",
+      "bytes": 12937
+    },
+    {
+      "path": "research/test_g03_r5t_signed_receipt_provenance.py",
+      "git_blob_sha1": "5018c396bb14c8a08ae70305f875749342429eee",
+      "bytes": 12816
+    },
+    {
+      "path": "research/test_g03_r5u_key_rotation_custody.py",
+      "git_blob_sha1": "2b84a73fc367472c18889b94ff1875e720a8a585",
+      "bytes": 13584
+    },
+    {
+      "path": "research/test_g03_r5v_admin_separation_evidence.py",
+      "git_blob_sha1": "3d278f3a932da11575ec9f3def288977ca78e8b1",
+      "bytes": 13438
+    },
+    {
+      "path": "research/test_g03_r5w_external_admin_intake.py",
+      "git_blob_sha1": "14244861f52188e833381545605b96cdc2d959ba",
+      "bytes": 12251
+    },
+    {
+      "path": "research/test_g03_r5x_signed_external_provenance.py",
+      "git_blob_sha1": "6cac8b900732273e696df07bc5e7134adca0f043",
+      "bytes": 11950
+    },
+    {
+      "path": "research/test_g03_r5y_signed_nonce_rollback.py",
+      "git_blob_sha1": "6ed9a00cf9c5c0767931380ecec1a0e2cb62c49f",
+      "bytes": 14564
+    },
+    {
+      "path": "research/test_g03_r5z_preserved_witness_rollback.py",
+      "git_blob_sha1": "a45713d0682c4806dd6542efaa4dbe85be4c6109",
+      "bytes": 14917
+    },
+    {
+      "path": "research/test_g03_r6a_oob_witness_challenge.py",
+      "git_blob_sha1": "35ca39eb07fb08bbf4176697fb598d247398f6b3",
+      "bytes": 15529
+    },
+    {
+      "path": "research/test_g03_r6b_signed_response_provenance.py",
+      "git_blob_sha1": "9d0f190cf0485927d97810af594b9927b36ba1f8",
+      "bytes": 12865
+    },
+    {
+      "path": "research/test_g03_r6c_two_key_quorum_negative.py",
+      "git_blob_sha1": "e4ea5d4f88b99fbb6296a27dd948e63f71bb7fa5",
+      "bytes": 14847
+    },
+    {
+      "path": "research/test_g03_r6d_admin_domain_provenance.py",
+      "git_blob_sha1": "17f32115a9f7f0827f83a7563069b0b247f816de",
+      "bytes": 14603
+    },
+    {
+      "path": "research/test_g03_r6e_oob_origin_intake.py",
+      "git_blob_sha1": "fd7e49ada9e904461b8ef5dea9a283e1e3e84900",
+      "bytes": 13957
+    },
+    {
+      "path": "RoadMap.md",
+      "git_blob_sha1": "7929805f3c99304be37ceacbe994631e93c90cae",
+      "bytes": 7791
+    },
+    {
+      "path": "scripts/roadmap_guardian.py",
+      "git_blob_sha1": "e7d6969b63c554fdf7ccd23c6b9fb6a9d1c9a715",
+      "bytes": 11436
+    },
+    {
+      "path": "tests/g03_r4a_structured_native_lab.rs",
+      "git_blob_sha1": "e15337facc2af8ebce1f23b7ee4561134ef1bc36",
+      "bytes": 11221
+    },
+    {
+      "path": "tests/g03_r4b_native_cancel_authority_lab.rs",
+      "git_blob_sha1": "a5621cda0ce6bebaa2ff526366f5f364af63296b",
+      "bytes": 19060
+    },
+    {
+      "path": "tests/g03_r4c_native_file_resource_lab.rs",
+      "git_blob_sha1": "7980ba4dd699f0d4928508d0ed173fa182e18f7d",
+      "bytes": 16727
+    },
+    {
+      "path": "tests/g03_r4d_governed_host_adapter_lab.rs",
+      "git_blob_sha1": "b9f5f8171d9017dfc85a84405cae2c2296ed8960",
+      "bytes": 17450
+    },
+    {
+      "path": "tests/g03_r4e_cross_process_host_boundary_lab.rs",
+      "git_blob_sha1": "b27e98bceab7b6b21feb820a24c67770af7b6153",
+      "bytes": 17530
+    },
+    {
+      "path": "tests/g03_r4f_linux_landlock_boundary_lab.rs",
+      "git_blob_sha1": "cb6d396af54cebfd02eb7c7cc17fc67bb33a81ea",
+      "bytes": 14139
+    },
+    {
+      "path": "tests/g03_r4g_macos_seatbelt_boundary_lab.rs",
+      "git_blob_sha1": "745af06d19aa5d96491cfa0be217f7a4fa6cfaaa",
+      "bytes": 11916
+    },
+    {
+      "path": "tests/g03_r4h_signed_app_sandbox_helper_lab.rs",
+      "git_blob_sha1": "2045e9d3ba3ba625669051c4dbe5dad248b714d0",
+      "bytes": 15374
+    },
+    {
+      "path": "tests/g03_r4i_inherited_app_sandbox_helper_lab.rs",
+      "git_blob_sha1": "6c66cf85076475ac2e59e347ade4f2650853bfbe",
+      "bytes": 18200
+    },
+    {
+      "path": "tests/g03_r4j_xpc_service_sandbox_boundary_lab.rs",
+      "git_blob_sha1": "ea739e8993879173dbfd3ca74caf2245e722aadf",
+      "bytes": 18463
+    },
+    {
+      "path": "tests/g03_r4k_xpc_peer_identity_confused_deputy_lab.rs",
+      "git_blob_sha1": "76b707fa5cf0df47679ddb62edfd9387e9794223",
+      "bytes": 26334
+    },
+    {
+      "path": "tests/g03_r4l_independently_signed_xpc_peer_lab.rs",
+      "git_blob_sha1": "2a4c251eb08efade60aa4fe23d59db5ca5f73ca5",
+      "bytes": 25550
+    },
+    {
+      "path": "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "git_blob_sha1": "da4fb10bdfca119c8f4f96f3ad145981e2cd28e1",
+      "bytes": 29871
+    },
+    {
+      "path": "tests/g03_r4n_offline_root_signed_authority_lab.rs",
+      "git_blob_sha1": "ee143ff48e6772a2694825fcae81ca50db282312",
+      "bytes": 26464
+    },
+    {
+      "path": "tests/g03_r4o_owner_pinned_root_two_witness_lab.rs",
+      "git_blob_sha1": "9221a734af1876061c18708a90889b5e58a94261",
+      "bytes": 20260
+    },
+    {
+      "path": "tests/g03_r4p_remote_signed_monotonic_witness_lab.rs",
+      "git_blob_sha1": "8d4032d6db7a78c04e12d1c7a87476e747546ddd",
+      "bytes": 15866
+    },
+    {
+      "path": "tests/g03_r4q_two_authority_quorum_compromise_lab.rs",
+      "git_blob_sha1": "4face580921313d55f4f80e75f534320e303eccd",
+      "bytes": 22260
+    },
+    {
+      "path": "tests/g03_r4r_fresh_challenge_remote_floor_lab.rs",
+      "git_blob_sha1": "ee5bc70bcca6c2d95d7ecc1443f345f1bf4308be",
+      "bytes": 35157
+    },
+    {
+      "path": "tests/g03_r4s_guardian_checkpoint_chain_protocol_lab.rs",
+      "git_blob_sha1": "99a53299d6051ec5c63f78a23e9b3a0b5f22a548",
+      "bytes": 22749
+    },
+    {
+      "path": "tests/g03_r4t_owner_enrolled_custodian_receipts_lab.rs",
+      "git_blob_sha1": "e679f6e2db941e8d9ec34ac4819ffd3ad69e2498",
+      "bytes": 37478
+    },
+    {
+      "path": "tests/g03_r4u_remote_observer_signed_lineage_lab.rs",
+      "git_blob_sha1": "6288cea263c609cc860d7db234bc858a2e8480a6",
+      "bytes": 20576
+    },
+    {
+      "path": "tests/g03_r4v_independent_custody_admission_gate_lab.rs",
+      "git_blob_sha1": "46b2934d795eb4cc56a6cb883c2ec2da14e22706",
+      "bytes": 16345
+    },
+    {
+      "path": "tests/g03_r4w_external_guardian_enrollment_dossier_lab.rs",
+      "git_blob_sha1": "e885d0768f87f12ec4604e062eccb8abd3168053",
+      "bytes": 16752
+    },
+    {
+      "path": "tests/g03_r4x_cross_signed_timeboxed_enrollment_lab.rs",
+      "git_blob_sha1": "a476ba4388d89ce75f082a3dd4bdde4d291526f6",
+      "bytes": 18107
+    }
+  ]
+}
