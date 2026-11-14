@@ -1,0 +1,80 @@
+{
+  "protocol": "NORDOI-G03-R6D-ADMIN-DOMAIN-PROVENANCE-INTAKE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r6c_owner_mac_intel_verified": "87bcd2bf968533e502e68dc7472b76c1d80ec3c8",
+  "scope": "OFFLINE_SAME_ADMIN_REAL_OS_IDENTITY_AND_FIVE_ED25519_SIGNATURES_DENY_ONLY",
+  "research_only": true,
+  "key_possession": "FIVE_VALID_OPENSSH_SSHSIGS_TWO_SAME_ADMIN_KEYPAIRS",
+  "real_separate_os_processes": "DISTINCT_PIDS_SAME_UID_EUID",
+  "claimed_different_admin_domains": "SELF_ASSERTION_NOT_AUTHENTICATED",
+  "owner_out_of_band_root": null,
+  "real_independent_operator": null,
+  "independent_operator_permission_or_contract": null,
+  "independent_host_identity_attestation": null,
+  "independently_managed_guardian_private_key": false,
+  "independently_protected_global_monotonic_history": false,
+  "independently_protected_global_nonce_floor": false,
+  "independently_protected_global_revocation_floor": false,
+  "independent_quorum": false,
+  "native_admission_gates_unmet": 12,
+  "required_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE"
+    }
+  ],
+  "evidence_limitations": [
+    "Two subprocess PIDs, two keys, and five authentic signatures remain under a single administrator and cannot establish an independent administrative domain",
+    "Signed same-admin labels and a claimed extra Unix UID are not actual out-of-band identity or separate legal/administrative custody evidence",
+    "An owner OOB root fingerprint, protected history anchor and remote revocation or nonce floors must come from independently authenticated external records; they cannot be self-asserted in the signed document",
+    "Key revocation and spent nonces in the local process do not establish remote nonrollbackable state",
+    "No external operator or protected monotonic authority has been enrolled, and production admission is not authorized"
+  ],
+  "owner_mac_intel_replay": "PENDING",
+  "formal_bureau_certification": "PENDING",
+  "production": "NOT_AUTHORIZED"
+}
