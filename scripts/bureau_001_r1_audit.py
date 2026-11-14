@@ -90,6 +90,10 @@ def gitblob(data):
     return hashlib.sha1(b"blob " + str(len(data)).encode("ascii") +
                         b"\0" + data).hexdigest()
 
+def git_checkout_bytes(data):
+    """Normalize Windows Git CRLF presentation to original LF Git blob bytes."""
+    return data.replace(b"\r\n", b"\n") if os.name == "nt" else data
+
 def expected_code_paths():
     result = set()
     for prefix, letters in (("r4", "yz"), ("r5", string.ascii_lowercase),
@@ -123,7 +127,7 @@ def verify_manifest(root, manifest):
               re.fullmatch(r"[0-9a-f]{40}", record["git_blob_sha1"]) is not None and
               type(record["bytes"]) is int and 0 <= record["bytes"] <= 512000,
               "INVALID_SOURCE_PIN")
-        content = raw(root, p)
+        content = git_checkout_bytes(raw(root, p))
         check(len(content) == record["bytes"], "SOURCE_LENGTH_CHANGED:" + p)
         check(gitblob(content) == record["git_blob_sha1"],
               "GIT_BLOB_MISMATCH:" + p)
