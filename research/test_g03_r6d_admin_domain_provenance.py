@@ -251,7 +251,7 @@ class NativeFiveSignedDomainProvenance(unittest.TestCase):
         path=d["root"]/"r6d_wrong_namespace.json"
         path.write_bytes(d["r6d_body"])
         os.chmod(path,0o600)
-        sig=receipts.sign_local(path,d["candidate_key"],"nordoi-r6d-wrong")
+        sig=r5x.sign_local(path,d["candidate_key"],"nordoi-r6d-wrong")
         self.assertEqual(self.checked(r6d_candidate_signature=sig)["reason"],
                          "ADMIN_DOMAIN_PROVENANCE_QUARANTINED")
 
