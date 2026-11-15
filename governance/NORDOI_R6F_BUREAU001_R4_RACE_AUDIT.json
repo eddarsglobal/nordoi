@@ -1,0 +1,120 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R4-FD-RACE-CROSS-AUDIT-V1",
+  "parent_exact_r3_head": "2dd46dc07568bf382c49b1c8bca0cba8900b7b1f",
+  "project": "eddarsglobal/nordoi",
+  "method": "SOURCE_REVIEW_AND_ACTUAL_POSIX_OS_PROCESS_FILE_SWAP_WITH_REAL_SSHSIG",
+  "native_admission_gates_unmet": 12,
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "independent_custodian": "NOT_ENROLLED",
+  "independent_monotonic_antirollback": "NOT_VERIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "formal_independent_bureau_reviews": 0,
+  "research_scope": "R4A_R6E_FROZEN; NEW_R4_DUTY_ONLY; NO_RUST_RUNTIME_MODIFICATIONS",
+  "roles": [
+    {
+      "role": "ATLAS",
+      "source": "tests/g03_r4a_structured_native_lab.rs",
+      "conclusion": "Actual native threads in a Rust integration test only; not linked into the production executor",
+      "next": "Check true source identity and unchanged 253 Rust regression count"
+    },
+    {
+      "role": "FERRUM",
+      "source": "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "conclusion": "Real XPC/CDHash signed identity checks differ from immutable signer custody; six serial tests must remain green",
+      "next": "Re-run unchanged six on both macOS GitHub runners"
+    },
+    {
+      "role": "BOUNDARY",
+      "source": "research/g03_r5o_fd_identity_quarantine.py",
+      "conclusion": "Open fd and pathname are different capabilities; atomic replacement retains old opened bytes while new path points elsewhere",
+      "next": "Verify original opened file descriptor remains pinned while path changes"
+    },
+    {
+      "role": "CIPHER",
+      "source": "research/g03_r6f_r3_signer_binding.py",
+      "conclusion": "R3 allowed_signers validation ends before ssh-keygen later re-opens pathname",
+      "next": "Use already-open validated allowlist descriptors during actual ssh-keygen verification"
+    },
+    {
+      "role": "LEDGER",
+      "source": "governance/NORDOI_R6F_BUREAU001_R1_CHRONOLOGY.json",
+      "conclusion": "Git source hashes and later owner logs are local/published evidence, not a protected remote monotonic chain",
+      "next": "Record real race result without rewriting earlier histories"
+    },
+    {
+      "role": "CAPSTONE",
+      "source": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "conclusion": "All twelve independent native-admission prerequisites remain unsatisfied",
+      "next": "Keep R6G locked even if all R4 race tests pass"
+    },
+    {
+      "role": "ADVERSARY",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "conclusion": "Same-administrator controls local files and can rewind coherent histories; simulate no external custody",
+      "next": "Produce deterministic actual process os.replace between validation and use"
+    },
+    {
+      "role": "VERITY",
+      "source": "research/test_g03_r6f_r3_signer_binding.py",
+      "conclusion": "Prior real rogue key tests did not force TOCTOU after R3 bind succeeded",
+      "next": "Add 24 R4 tests including 8 actual POSIX/OpenSSH cases and verify R3 misattribution vs R4 quarantine"
+    },
+    {
+      "role": "GUARDIAN",
+      "source": "scripts/roadmap_guardian.py",
+      "conclusion": "RoadMap and 12 external-denial gates require fail-closed governance; passing a local FD check is not certification",
+      "next": "Keep nine specialist attestations NOT_SUBMITTED until truly performed"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R6F-R4-001",
+      "severity": "RESEARCH_CRYPTOGRAPHIC_PROVENANCE_TOCTOU",
+      "source": "research/g03_r6f_r3_signer_binding.py",
+      "description": "R3 bind validates one allowed_signers file and closes FD before inherited R6E later opens the same mutable pathname",
+      "reproducer": "Genuine third Ed25519 SSHSIG; actual second same-admin OS process replaces a distinct allowed_signers path just before ssh-keygen verifies; legacy R3 can report six locally bound signatures even though sixth belongs to rogue key",
+      "corrective_action": "R4 holds the exact allowed_signers FD through every real OpenSSH verification and rechecks original fd/path identity after subprocess; all results deny",
+      "status": "REPRODUCIBILITY_AND_CORRECTION_REQUIRE_REAL_CI_AND_OWNER_REPLAY"
+    },
+    {
+      "id": "R6F-R4-002",
+      "severity": "CROSS_FILE_SNAPSHOT_LIMITATION",
+      "source": "research/g03_r5o_fd_identity_quarantine.py",
+      "description": "Local FD and inode metadata are observable but do not constitute a hostile same-admin global transaction",
+      "corrective_action": "Explicitly limit R4 to observed pathname replacement races; do not promise prevention of in-place overwrite+restore or whole-root compromise",
+      "status": "DOCUMENTED"
+    },
+    {
+      "id": "R6F-R4-003",
+      "severity": "INDEPENDENT_TRUST_ROOT_ABSENT",
+      "source": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "description": "SSHSIG cryptographic key possession is not independent signer identity or separate administrator control",
+      "corrective_action": "Do not promote any of 12 native admission gates",
+      "status": "BLOCKED"
+    },
+    {
+      "id": "R6F-R4-004",
+      "severity": "VERIFICATION_PLATFORM_SCOPE",
+      "source": "research/test_g03_r6f_r3_signer_binding.py",
+      "description": "True OS subprocess and ssh-keygen FD mechanism are supported only by POSIX native runners",
+      "corrective_action": "Use portable tests on Windows and real subprocess tests on macOS/Linux; no fake cross-platform evidence",
+      "status": "PLANNED_NEW_TESTS"
+    },
+    {
+      "id": "R6F-R4-005",
+      "severity": "HISTORICAL_FROZEN_SOURCE_IMMUTABILITY",
+      "source": "governance/NORDOI_R6F_BUREAU001_R1_PINNED_SOURCES.json",
+      "description": "Changing a frozen R6E/R3 file to silently add R4 would invalidate pinned research evidence and old owner replay context",
+      "corrective_action": "Add new R4 research code/test/report/CI only on a stacked DRAFT branch",
+      "status": "PRESERVE_PARENT"
+    }
+  ],
+  "correction_path": "research/g03_r6f_r4_fd_race.py",
+  "test_path": "research/test_g03_r6f_r4_fd_race.py",
+  "previous_historical_r3_path": "research/g03_r6f_r3_signer_binding.py",
+  "independent_test_executions": "REQUIRE_CI_AND_OWNER_EVIDENCE",
+  "owner_mac_intel_replay": "PENDING",
+  "bureau_certification": "PENDING",
+  "github_merge": "NONE"
+}

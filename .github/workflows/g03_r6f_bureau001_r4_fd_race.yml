@@ -1,0 +1,81 @@
+name: NORDOI G0.3 R6F BUREAU001 R4 genuine FD pathname race
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6f_r4_fd_race.py'
+      - 'research/test_g03_r6f_r4_fd_race.py'
+      - 'governance/NORDOI_R6F_BUREAU001_R4_RACE_AUDIT.json'
+      - 'docs/NORDOI_R6F_BUREAU001_R4_FD_RACE_AUDIT.md'
+      - '.github/workflows/g03_r6f_bureau001_r4_fd_race.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-two-process-path-identity-vs-held-descriptor:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: RoadMapGuardian deny-only static policy
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 99 historical blobs and original source chronology
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 nine source-specific role evidence intake
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R4 24 real local FD identity cross-platform tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r4_fd_race.py' -v
+      - name: Mandatory genuine OpenSSH held FD and actual rogue race counterexample on POSIX
+        if: runner.os != 'Windows'
+        run: |
+          python -B - <<'PY'
+          import json, subprocess,sys
+          from pathlib import Path
+          p=subprocess.run([sys.executable,"-B","research/g03_r6f_r4_fd_race.py","--exercise"],capture_output=True,text=True,timeout=240)
+          assert p.returncode==2, (p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d["reason"]=="R4_REAL_SECOND_PROCESS_SSHSIG_PATH_RACE_REPRODUCED_AND_QUARANTINED",d
+          assert d["legacy_r3_six_local_signatures_misattributed_during_race"] is True
+          assert d["r4_detected_real_replacement_and_denied"] is True
+          assert d["native_admission_gates_unmet"]==12
+          assert d["production"]=="NOT_AUTHORIZED"
+          print("R4_REAL_ATOMIC_SECOND_OS_PROCESS=PASS; R3_ATTRIBUTION_RACE=REPRODUCED; R4_PINNED_FD_REFUSAL=PASS")
+          PY
+      - name: Original R3 24 signer attribution adversarial regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: Frozen R6A through R6E original genuine SSHSIG negative cases
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-e]*.py' -v
+      - name: Frozen R5A through R5Z negative custody cases
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: Frozen R4Y and R4Z negative evidence cases
+        run: python -B -m unittest discover -s research -p 'test_g03_r4*.py' -v
+      - name: 24 original RoadMapGuardian tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: 24 original R1 source audit tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: 24 original R2 evidence intake tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Real original signed macOS native XPC CDHash six serial no retries or waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Ensure no native or formal nine-agent certification claimed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          x=json.load(open('governance/NORDOI_R6F_BUREAU001_R4_RACE_AUDIT.json',encoding='utf-8'))
+          assert len(x['roles'])==9
+          assert x['formal_independent_bureau_reviews']==0
+          assert x['native_admission_gates_unmet']==12
+          assert x['r6g']=='LOCKED_BY_SEQUENCE'
+          assert x['production']=='NOT_AUTHORIZED'
+          assert x['owner_mac_intel_replay']=='PENDING'
+          print('R4_CROSS_AUDIT=RESEARCH_ONLY; BUREAU_INDEPENDENT_REVIEWS=0; NATIVE_GATES=12_UNMET; R6G=LOCKED')
+          PY
