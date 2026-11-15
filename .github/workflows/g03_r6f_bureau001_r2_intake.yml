@@ -1,0 +1,65 @@
+name: NORDOI G0.3 R6F BUREAU001 R2 reviewer evidence intake
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_R2_REVIEW_REGISTER.json'
+      - 'scripts/bureau_001_r2_review_intake.py'
+      - 'tests/test_bureau_001_r2_review_intake.py'
+      - 'docs/NORDOI_R6F_BUREAU001_R2_REVIEW_PROTOCOL.md'
+      - 'docs/NORDOI_G03_R6F_R2_STATUS_DEBUTANT.md'
+      - '.github/workflows/g03_r6f_bureau001_r2_intake.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  nine-source-views-not-nine-certified-agents:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Original Bureau static RoadMapGuardian is fail-closed
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 99 exact Git blobs chronology and twelve native denials
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 source-anchored nine-role intake refuses forged agent certification
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: 24 R2 review dossier provenance and source spoof tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: 24 R1 Git source integrity audit negative controls
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: 24 initial RoadMapGuardian governance negative controls
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: R6A through R6E original actual signed research negatives
+        run: python -B -m unittest discover -s research -p 'test_g03_r6*.py' -v
+      - name: R5A through R5Z local cryptographic custody negatives
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y external custody negative tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_external_custody_intake.py' -v
+      - name: R4Z guardian handoff negative tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_handoff.py' -v
+      - name: Genuine R4M signed native XPC CDHash six serial no retries or waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: No nine-agent self-certification and no native authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          r=json.load(open('governance/NORDOI_R6F_BUREAU001_R2_REVIEW_REGISTER.json',encoding='utf-8'))
+          assert len(r['roles'])==9
+          assert r['independent_specialist_agents_executed']==0
+          assert r['submissions']==[]
+          assert all(x['specialist_review_status']=='NOT_SUBMITTED' for x in r['roles'])
+          assert r['native_admission_gates_unmet']==12
+          assert r['r6g']=='LOCKED_BY_SEQUENCE'
+          assert r['production']=='NOT_AUTHORIZED'
+          print('R6F_R2_NINE_SOURCE_PERSPECTIVES=PASS; NINE_INDEPENDENT_AGENTS=0; R6G=LOCKED')
+          PY
