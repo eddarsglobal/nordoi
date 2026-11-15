@@ -1,0 +1,65 @@
+name: NORDOI G0.3 R6F BUREAU001 R3 real cross-boundary SSHSIG audit
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6f_r3_signer_binding.py'
+      - 'research/test_g03_r6f_r3_signer_binding.py'
+      - 'governance/NORDOI_R6F_BUREAU001_R3_CROSS_AUDIT.json'
+      - 'docs/NORDOI_R6F_BUREAU001_R3_CROSS_BOUNDARY_AUDIT.md'
+      - '.github/workflows/g03_r6f_bureau001_r3_cross_boundary.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  authentic-sshsig-unbound-allowlist-cross-audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Existing Bureau RoadMapGuardian fail-closed
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 frozen Git source and chronological evidence audit
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 nine-perspective review evidence intake, still zero independent agents
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R3 24 portable and genuine OpenSSH rogue signature tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: Old R6A through R6E real SSHSIG denial regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6*.py' -v
+      - name: Old R5A through R5Z negative custody regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y/R4Z original custody negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r4y_*.py' -v
+      - name: R4Z original handoff regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r4z_*.py' -v
+      - name: Existing 72 Bureau Guardian R1 R2 negative controls
+        run: python -B -m unittest discover -s tests -p 'test_*guardian.py' -v
+      - name: R1 24 source integrity adversarial controls
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: R2 24 forged reviewer adversarial controls
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Unchanged original native XPC CDHash six signed serial no retry or waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Matrix preserves zero independently enrolled authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          x=json.load(open('governance/NORDOI_R6F_BUREAU001_R3_CROSS_AUDIT.json',encoding='utf-8'))
+          assert x['formal_independent_agent_reviews_completed']==0
+          assert len(x['roles'])==9
+          assert len(x['findings'])==5
+          assert x['unchanged']['native_admission_gates_unmet']==12
+          assert x['unchanged']['r6g']=='LOCKED_BY_SEQUENCE'
+          assert x['unchanged']['production']=='NOT_AUTHORIZED'
+          print('NINE_PERSPECTIVES_SOURCE_AUDITED=9; INDEPENDENT_SPECIALIST_CERTIFICATIONS=0; NATIVE_GATES=12_UNMET; R6G=LOCKED')
+          PY
