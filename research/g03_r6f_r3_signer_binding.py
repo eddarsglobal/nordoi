@@ -63,8 +63,8 @@ def parse_ed25519_public(raw):
     return b" ".join(fields[:2])
 
 def expected_allowed_bytes(pub_raw):
-    key_pair = parse_ed25519_public(pub_raw)
-    return ssh.IDENTITY.encode("ascii") + b" " + key_pair + b"\n"
+    parse_ed25519_public(pub_raw)
+    return ssh.IDENTITY.encode("ascii") + b" " + pub_raw
 
 def bind(public_path, allowed_path, expected_pin):
     """Research fixture policy: exactly one authorized signer, no extra keys."""
