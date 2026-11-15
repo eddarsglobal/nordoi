@@ -57,7 +57,7 @@
       "role": "CIPHER",
       "source_path": "research/g03_r6e_oob_origin_intake.py",
       "git_blob_sha1": "d2d3da085bbcf46b3d8a9a743b6e2ff0f820b0aa",
-      "literal_source_anchor": "same",
+      "literal_source_anchor": "No external network, enrollment, privileged grant, merge or production.",
       "coordinator_observation": "Les signatures et l'intégrité des documents ne prouvent pas le canal hors bande",
       "record_class": "COORDINATOR_SOURCE_INSPECTED_NOT_A_COMPLETED_SPECIALIST_REVIEW",
       "specialist_review_status": "NOT_SUBMITTED",
