@@ -1,0 +1,124 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R3-CROSS-BOUNDARY-AUDIT-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r2_exact_head": "80010bdddd5e4743f023c0eed888a1c3360339da",
+  "review_scope": "SOURCE_GROUNDED_COORDINATOR_CROSS_DISCIPLINE_INSPECTION_PLUS_REAL_NATIVE_NEGATIVE_TESTS",
+  "formal_independent_agent_reviews_completed": 0,
+  "original_sources_modified": false,
+  "roles": [
+    {
+      "role": "ATLAS",
+      "source": "tests/g03_r4a_structured_native_lab.rs",
+      "assertion": "R4A uses real bounded Rust threads, but remains a nonlinked test research witness",
+      "concern": "Do not imply new native scheduler or runtime ABI in certified kernel",
+      "disposition": "BASELINE_PRESERVED"
+    },
+    {
+      "role": "FERRUM",
+      "source": "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "assertion": "R4M tests two genuinely ad-hoc signed peers with equal IDs and distinct CDHash on macOS",
+      "concern": "Local ad-hoc signatures do not establish production signer trust or independent custody",
+      "disposition": "KEEP_TRUE_NATIVE_SIX_SERIAL_NO_RETRY"
+    },
+    {
+      "role": "BOUNDARY",
+      "source": "research/g03_r6d_admin_domain_provenance.py",
+      "assertion": "Real distinct processes and two keys can remain within the same administrator UID",
+      "concern": "Cryptographic signatures or distinct PID are not independent operator control",
+      "disposition": "12_NATIVE_GATES_UNMET"
+    },
+    {
+      "role": "CIPHER",
+      "source": "research/g03_r6e_oob_origin_intake.py",
+      "assertion": "R6E checks candidate public-key SHA and verifies sixth SSHSIG using caller-supplied local_allowed, without checking allowed_signers contains only that pinned key",
+      "concern": "Actual rogue Ed25519 signer permitted by a substituted allowed_signers file can trigger legacy six-local-signer success wording",
+      "disposition": "CORRECTED_ONLY_IN_NEW_R3_GUARD_OLD_R6E_FROZEN"
+    },
+    {
+      "role": "LEDGER",
+      "source": "governance/NORDOI_R6F_BUREAU001_R1_CHRONOLOGY.json",
+      "assertion": "Frozen R6B–R6E owner replay PENDING snapshots predates later owner terminal evidence",
+      "concern": "Historical source and later owner observations must remain separate; CI is not external custody",
+      "disposition": "R1_APPEND_ONLY_CHRONOLOGY_PRESERVED"
+    },
+    {
+      "role": "CAPSTONE",
+      "source": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "assertion": "Original policy preserves all twelve unmet native external-admission gates",
+      "concern": "No proof of owner-authenticated OOB root, independent guardian or global monotonic antirollback",
+      "disposition": "NATIVE_ADMISSION_BLOCKED"
+    },
+    {
+      "role": "ADVERSARY",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "assertion": "Real coherent same-admin rollback can restore local state to an older consistent snapshot",
+      "concern": "A local signed log, key alias or namespace is not an independent nonrollbackable history",
+      "disposition": "NO_GLOBAL_ANTIROLLBACK_CLAIM"
+    },
+    {
+      "role": "VERITY",
+      "source": "research/test_g03_r6e_oob_origin_intake.py",
+      "assertion": "Previous R6E local signature tests did not include a genuine unpinned key substituted through local_allowed",
+      "concern": "Green 1111 owner tests did not exercise this specific signer attribution contradiction",
+      "disposition": "ADD_24_R3_NEGATIVE_TESTS_AND_TRUE_ROGUE_KEY_COUNTEREXAMPLE"
+    },
+    {
+      "role": "GUARDIAN",
+      "source": "scripts/roadmap_guardian.py",
+      "assertion": "Static governance blocks certification, native admission and production from editable local files",
+      "concern": "Nine coordinated source viewpoints cannot be represented as nine independently executed agent attestations",
+      "disposition": "R6F_IN_PROGRESS_R6G_LOCKED"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R6F-R3-001",
+      "severity": "RESEARCH_CRYPTOGRAPHIC_ATTRIBUTION",
+      "source": "research/g03_r6e_oob_origin_intake.py",
+      "line_range": "228-249",
+      "description": "Public key pin checked independently of allowed_signers used to verify sixth SSHSIG",
+      "reproducer": "Two real same-admin Ed25519 keys plus a third rogue key; replace only local_allowed and local_signature while retaining local_public; legacy R6E reports SIX_VALID_LOCAL_SIGNATURES, always denial",
+      "correction": "Additive R3 exact single-identity ED25519 allowed_signers-to-public-key binding before running inherited signed chain; reject rogue key while retaining no native grant",
+      "status": "REPRODUCTION_AND_FIX_REQUIRE_NATIVE_CI"
+    },
+    {
+      "id": "R6F-R3-002",
+      "severity": "LOCAL_CUSTODY_LIMITATION",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "description": "Coherent restored local nonce/revocation/history is untrusted as independent global monotonic custody",
+      "status": "DOCUMENTED_NO_EXTERNAL_OPERATOR"
+    },
+    {
+      "id": "R6F-R3-003",
+      "severity": "NATIVE_SIGNATURE_LIMITATION",
+      "source": "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "description": "Real signed XPC/CDHash cases use local ad-hoc identities, not an independent production root",
+      "status": "DOCUMENTED_NATIVE_REGRESSION_REQUIRED"
+    },
+    {
+      "id": "R6F-R3-004",
+      "severity": "REVIEW_EVIDENCE_LIMITATION",
+      "source": "scripts/bureau_001_r2_review_intake.py",
+      "description": "Staged local log sha256 verifies bytes but not author identity or actual independent specialist execution",
+      "status": "DOCUMENTED_BUREAU_CERTIFICATION_PENDING"
+    },
+    {
+      "id": "R6F-R3-005",
+      "severity": "RACE_BOUNDARY_LIMITATION",
+      "source": "research/g03_r6f_r3_signer_binding.py",
+      "description": "Additive local allowlist validation and FD snapshot checks remain same-admin local observations; not security against adversary who controls all file content and scheduling",
+      "status": "RESEARCH_ONLY_NO_HOSTILE_CONCURRENT_HOST_GUARANTEE"
+    }
+  ],
+  "unchanged": {
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "native_admission_gates_unmet": 12,
+    "owner_oob_root": "NOT_AUTHENTICATED",
+    "external_guardian": "NOT_ENROLLED",
+    "independent_monotonic_antirollback": "NOT_VERIFIED",
+    "production": "NOT_AUTHORIZED",
+    "formal_bureau_certification": "PENDING",
+    "github_merge": "NONE"
+  }
+}
