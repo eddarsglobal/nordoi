@@ -1,0 +1,334 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R7-CONTRADICTION-AND-EXTERNAL-GUARDIAN-ADMISSION-PLAN-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r6_exact_head": "17614622acb09440dfe2428b85fe2c89491a0b35",
+  "audit_kind": "OFFLINE_SOURCE_PINS_CONTRADICTION_MATRIX_AND_FUTURE_EXTERNAL_EVIDENCE_PROCEDURE",
+  "historical_sources_mutated": false,
+  "research_only": true,
+  "evidence_classes": [
+    "FROZEN_GIT_BLOB_SOURCE_PIN",
+    "COORDINATOR_SOURCE_REVIEW",
+    "OWNER_SUPPLIED_TERMINAL_LOG",
+    "GITHUB_ACTIONS_TEST_CONCLUSION",
+    "GENUINE_LOCAL_SSHSIG_KEY_POSSESSION",
+    "EXTERNAL_HUMAN_OPERATOR_AUTHENTICATED_NOT_YET_OBTAINED",
+    "EXTERNAL_SIGNED_MONOTONIC_LEDGER_NOT_YET_OBTAINED"
+  ],
+  "historical_reconciliation": [
+    {
+      "stage": "R1",
+      "head": "108548e2021de42e65e8261fadd8184d4d9ff783",
+      "source": "governance/NORDOI_R6F_BUREAU001_R1_CHRONOLOGY.json",
+      "owner_reported_regular_tests": 1087,
+      "ci": "PRIOR_OWNER_REPLAY_REPORTED_NOT_INDEPENDENT_CERTIFICATION"
+    },
+    {
+      "stage": "R2",
+      "head": "80010bdddd5e4743f023c0eed888a1c3360339da",
+      "source": "governance/NORDOI_R6F_BUREAU001_R2_REVIEW_REGISTER.json",
+      "owner_reported_regular_tests": 1111,
+      "ci": "PRIOR_OWNER_REPLAY_REPORTED_NOT_INDEPENDENT_CERTIFICATION"
+    },
+    {
+      "stage": "R3",
+      "head": "2dd46dc07568bf382c49b1c8bca0cba8900b7b1f",
+      "source": "governance/NORDOI_R6F_BUREAU001_R3_CROSS_AUDIT.json",
+      "owner_reported_regular_tests": 1135,
+      "ci": "9_OF_9_SUCCESS_PREVIOUSLY_OBSERVED"
+    },
+    {
+      "stage": "R4",
+      "head": "4dd43f37e7a7ac0ca0b0b39fcc88248cd2bad9ad",
+      "source": "governance/NORDOI_R6F_BUREAU001_R4_RACE_AUDIT.json",
+      "owner_reported_regular_tests": 1159,
+      "ci": "9_OF_9_SUCCESS_PREVIOUSLY_OBSERVED"
+    },
+    {
+      "stage": "R5",
+      "head": "4d3bd3cbff8c67cef98481750270a2c6c0ce7b37",
+      "source": "governance/NORDOI_R6F_BUREAU001_R5_ABA_MULTIFILE_AUDIT.json",
+      "owner_reported_regular_tests": 1183,
+      "ci": "9_OF_9_SUCCESS_PREVIOUSLY_OBSERVED"
+    },
+    {
+      "stage": "R6",
+      "head": "17614622acb09440dfe2428b85fe2c89491a0b35",
+      "source": "governance/NORDOI_R6F_BUREAU001_R6_EXTERNAL_CUSTODY_FEASIBILITY.json",
+      "owner_reported_regular_tests": 1207,
+      "ci": "9_OF_9_SUCCESS_PREVIOUSLY_OBSERVED"
+    }
+  ],
+  "contradictions": [
+    {
+      "code": "R7-TEMPORAL-001",
+      "class": "TEMPORAL_NOT_RETROACTIVE_SOURCE_CORRECTION",
+      "sources": [
+        "governance/NORDOI_R6F_BUREAU001_R1_CHRONOLOGY.json",
+        "governance/NORDOI_R6F_BUREAU001_R1_PINNED_SOURCES.json"
+      ],
+      "finding": "R6B-R6E snapshots say owner evidence PENDING at creation; R1 chronology separately records later owner terminal PASS with source frozen",
+      "disposition": "SEPARATE_HISTORICAL_SNAPSHOT_AND_LATER_OWNER_EVIDENCE; NEVER_OVERWRITE_PINS",
+      "authority": "NONE"
+    },
+    {
+      "code": "R7-PROVENANCE-002",
+      "class": "SIGNER_ATTRIBUTION_RESEARCH_GAP",
+      "sources": [
+        "research/g03_r6e_oob_origin_intake.py",
+        "research/g03_r6f_r3_signer_binding.py",
+        "governance/NORDOI_R6F_BUREAU001_R3_CROSS_AUDIT.json"
+      ],
+      "finding": "R6E could accept genuine third signer through caller-supplied allowlist without binding it to claimed key; additive R3 guard rejects this exact rogue signer",
+      "disposition": "R3_ONLY_ADDITIVE_GUARD; ORIGINAL_R6E_FROZEN; NATIVE_NEVER_GRANTED",
+      "authority": "NONE"
+    },
+    {
+      "code": "R7-TOCTOU-003",
+      "class": "CHECK_USE_RACE_RESEARCH_GAP",
+      "sources": [
+        "research/g03_r6f_r3_signer_binding.py",
+        "research/g03_r6f_r4_fd_race.py"
+      ],
+      "finding": "R3 closed allowed_signers FD before OpenSSH opened pathname; R4 genuine second process replaced path between checks and use; held original FD refuses observed race",
+      "disposition": "R4_ONLY_ADDITIVE_FD_GUARD; OLD_R3_FROZEN; NO_GENERAL_ADMIN_CONTROL_PROOF",
+      "authority": "NONE"
+    },
+    {
+      "code": "R7-ABA-004",
+      "class": "LIVE_VS_CROSS_EPOCH_ASSURANCE_BOUNDARY",
+      "sources": [
+        "research/g03_r6f_r5_inplace_aba.py",
+        "research/g03_r5q_coherent_local_rollback.py"
+      ],
+      "finding": "R4 FD metadata catches tested within-session in-place/ABA mutation, but new examiner after same-admin three-file coherent rollback loses knowledge of advanced world",
+      "disposition": "LIVE_BOUNDARY_QUALIFIED; EXTERNAL_MONOTONIC_HISTORY_UNPROVEN",
+      "authority": "NONE"
+    },
+    {
+      "code": "R7-OOB-005",
+      "class": "LOCAL_SIGNATURE_VS_INDEPENDENT_GUARDIAN",
+      "sources": [
+        "research/g03_r6f_r6_external_custody_feasibility.py",
+        "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json"
+      ],
+      "finding": "Two real local SSHSIGs can sign forged claims of owner OOB approval, remote history, distinct operator and quorum without proving external custody",
+      "disposition": "VALID_LOCAL_KEY_POSSESSION_ONLY; INDEPENDENT_OOB_AND_EXTERNAL_ROOT_ABSENT",
+      "authority": "NONE"
+    },
+    {
+      "code": "R7-REVIEW-006",
+      "class": "SOURCE_PERSPECTIVES_VS_EXECUTED_SPECIALISTS",
+      "sources": [
+        "governance/NORDOI_R6F_BUREAU001_R2_REVIEW_REGISTER.json",
+        "governance/NORDOI_R6F_BUREAU001_R6_EXTERNAL_CUSTODY_FEASIBILITY.json"
+      ],
+      "finding": "Nine roles are coordinator source-inspection perspectives, all R2 specialist submissions absent, no independent reviewer signed execution",
+      "disposition": "NINE_SOURCE_ROLES_ZERO_INDEPENDENT_ATTESTATIONS; FORMAL_CERTIFICATION_PENDING",
+      "authority": "NONE"
+    },
+    {
+      "code": "R7-CI-007",
+      "class": "GREEN_TECHNICAL_TESTS_VS_NATIVE_ADMISSION",
+      "sources": [
+        "scripts/roadmap_guardian.py",
+        "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json"
+      ],
+      "finding": "Owner replay and GitHub CI success describe tested source and OS behavior, not 12 external custody prerequisites or production authorization",
+      "disposition": "TWELVE_NATIVE_GATES_UNMET; R6G_LOCKED; PRODUCTION_NOT_AUTHORIZED",
+      "authority": "NONE"
+    }
+  ],
+  "gate_protocol_version": "R7_TWELVE_EXTERNAL_GATES_DENY_ONLY_NOT_ENROLLMENT",
+  "external_gate_plan": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "phase": "A",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "OWNER_INDEPENDENT_OOB_RECEIPT",
+      "future_real_evidence_required": "owner OOB independent observation of exact root fingerprint, independently authenticated channel and operator evidence",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "phase": "A",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "EXTERNAL_OPERATOR_CONSENT_AND_IDENTITY",
+      "future_real_evidence_required": "real external operator identified, contacted and expressly agrees to custodianship",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "phase": "A",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "ADMIN_PRIVILEGE_AND_KEY_SEPARATION",
+      "future_real_evidence_required": "proof distinct admin domain and protected key storage outside local owner credentials",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "phase": "B",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "INDEPENDENT_GUARDIAN_KEY_PIN_RECEIPT",
+      "future_real_evidence_required": "owner independently verifies exact guardian public key with separate channel",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "phase": "C",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "SIGNED_OS_IDENTITY_ATTESTATION",
+      "future_real_evidence_required": "attested actual external OS and key origin signed by authenticated operator",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "phase": "C",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "FRESH_CHALLENGE_EXACT_HISTORY_RECEIPT",
+      "future_real_evidence_required": "fresh externally verifiable nonce tied to exact frozen source and owner-authorized history",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "phase": "C",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "EXTERNAL_HOST_AND_DOMAIN_OBSERVATION",
+      "future_real_evidence_required": "independent verified host/domain evidence outside same-admin system",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "phase": "D",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "EXTERNAL_MONOTONIC_KEY_EPOCH_LEDGER",
+      "future_real_evidence_required": "independently protected monotonic signing-key epoch with rollback adversarial result",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "phase": "D",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "EXTERNAL_REVOCATION_FLOOR",
+      "future_real_evidence_required": "externally protected revocation high-water floor surviving full owner-local restore",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "phase": "D",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "EXTERNAL_SPENT_NONCE_FLOOR",
+      "future_real_evidence_required": "externally protected used-nonce high-water floor surviving coherent owner-local restore",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_quorum",
+      "phase": "E",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "AUTHENTIC_INDEPENDENT_SIGNED_QUORUM",
+      "future_real_evidence_required": "two or more real separately controlled signatures tied to approved exact history",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "phase": "E",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_evidence_type": "SIGNED_RECOVERY_ROTATION_AND_REVOCATION_AUDIT",
+      "future_real_evidence_required": "independently signed key rotation, recovery and revocation audit and retention",
+      "external_evidence_sha256": null,
+      "independent_operator_signature": null,
+      "owner_out_of_band_verification_receipt": null,
+      "admitted": false
+    }
+  ],
+  "independent_operator_enrollment_phases": [
+    {
+      "phase": "A",
+      "status": "NOT_STARTED",
+      "conditions": "real operator identity, consent, independent administration"
+    },
+    {
+      "phase": "B",
+      "status": "NOT_STARTED",
+      "conditions": "real owner independently observed OOB guardian public-key fingerprint"
+    },
+    {
+      "phase": "C",
+      "status": "NOT_STARTED",
+      "conditions": "real separately administered OS identity and fresh signed exact-source challenge"
+    },
+    {
+      "phase": "D",
+      "status": "NOT_STARTED",
+      "conditions": "real externally retained monotonic key epoch, spent-nonce and revocation records; adversarial full-local-rollback trial"
+    },
+    {
+      "phase": "E",
+      "status": "NOT_STARTED",
+      "conditions": "real independently administered cryptographic quorum, rotation/recovery signed history"
+    },
+    {
+      "phase": "F",
+      "status": "NOT_STARTED",
+      "conditions": "genuine independent specialist attestations and explicit future owner release decision"
+    }
+  ],
+  "nine_roles": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "independently_executed_specialist_reviews": 0,
+  "r2_specialist_submissions_count": 0,
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "independent_custodian": "NOT_ENROLLED",
+  "external_global_monotonic_antirollback": "NOT_VERIFIED",
+  "independent_signed_quorum": "NOT_PROVEN",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "bureau_formal_certification": "PENDING",
+  "production": "NOT_AUTHORIZED",
+  "owner_mac_intel_r7": "PENDING",
+  "real_external_operator_invited": false,
+  "allowed_next_action": "READ_ONLY_SOURCE_CONSOLIDATION_AND_REAL_FUTURE_EVIDENCE_REQUIREMENT_REVIEW",
+  "forbidden_next_action": "AUTOMATIC_ENROLLMENT_OR_GRANT_FROM_LOCAL_CI_OR_OWNER_CLAIM"
+}
