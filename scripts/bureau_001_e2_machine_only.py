@@ -162,8 +162,8 @@ def verify_result(log,expected,code):
     elif expected.startswith("RUST_PASS_"):
         n=int(expected.rsplit("_",1)[1])
         require(re.search(rb"test result: ok\.\s*"+str(n).encode()+
-                 rb" passed;\s*0 failed",log),
-                "E2_WRONG_RUST_NATIVE_PASS_COUNT_OR_FAILURE")
+                 rb" passed;\s*0 failed;\s*0 ignored",log),
+                "E2_WRONG_RUST_NATIVE_PASS_COUNT_OR_FAILURE_OR_IGNORED")
     return True
 
 def run(root,output):
