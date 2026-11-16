@@ -1,0 +1,83 @@
+name: NORDOI G0.3 R6F BUREAU001 R5 true in-place ABA and multifile history
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6f_r5_inplace_aba.py'
+      - 'research/test_g03_r6f_r5_inplace_aba.py'
+      - 'governance/NORDOI_R6F_BUREAU001_R5_ABA_MULTIFILE_AUDIT.json'
+      - 'docs/NORDOI_R6F_BUREAU001_R5_INPLACE_ABA_MULTIFILE.md'
+      - '.github/workflows/g03_r6f_bureau001_r5_inplace_aba.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-os-aba-and-cross-epoch-boundaries:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Guardian policy is still fail-closed
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 frozen 99 pinned Git source and chronology audit
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 nine source viewpoints with zero independent agent certificates
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R5 24 ABA paired-file and real OS tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r5_inplace_aba.py' -v
+      - name: Actual R5 true child writes and 3-file cross-epoch rollback
+        if: runner.os != 'Windows'
+        run: |
+          python -B - <<'PY'
+          import subprocess,sys,json
+          proc=subprocess.run([sys.executable,"-B","research/g03_r6f_r5_inplace_aba.py","--exercise"],capture_output=True,text=True,timeout=300)
+          assert proc.returncode==2,(proc.returncode,proc.stderr,proc.stdout)
+          data=json.loads(proc.stdout)
+          assert data["reason"]=="R5_REAL_INPLACE_ABA_MULTIFILE_DETECTED_BUT_CROSS_EPOCH_CUSTODY_ABSENT",data
+          assert data["actual_child_inplace_mutation_and_restore"] is True
+          assert data["actual_child_paired_multifile_mutation_and_restore"] is True
+          assert data["actual_child_atomic_same_inode_path_aba"] is True
+          assert data["coherent_local_multi_file_rollback_invisible_to_new_examiner"] is True
+          assert data["native_admission_gates_unmet"]==12
+          print("R5_REAL_INPLACE_RESTORE=PASS; REAL_PATH_ABA=PASS; R5Q_REAL_COHERENT_ROLLBACK=PASS; NATIVE=BLOCK")
+          PY
+      - name: R4 real second-process allowlist TOCTOU regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r4_fd_race.py' -v
+      - name: R3 rogue signer OpenSSH regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: Original signed R6A through R6E negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-e]*.py' -v
+      - name: Original R5A through R5Z independent custody negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: Original R4Y and R4Z external custody negatives
+        run: python -B -m unittest discover -s research -p 'test_g03_r4*.py' -v
+      - name: RoadMapGuardian 24 negative tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: R1 24 pinned Git blob tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: R2 24 review provenance tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Real macOS R4M signed XPC CDHash six serial, no retries or waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: No independent guardian or native production trust asserted
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          x=json.load(open('governance/NORDOI_R6F_BUREAU001_R5_ABA_MULTIFILE_AUDIT.json',encoding='utf-8'))
+          assert len(x['nine_source_perspectives'])==9
+          assert len(x['findings'])==5
+          assert x['reviews_independently_executed']==0
+          assert x['native_admission_gates_unmet']==12
+          assert x['r6g']=='LOCKED_BY_SEQUENCE'
+          assert x['production']=='NOT_AUTHORIZED'
+          print('R5_NINE_SOURCE_PERSPECTIVES=NOT_NINE_INDEPENDENT_REVIEWS; NATIVE_GATES=12_UNMET; R6G=LOCKED')
+          PY
