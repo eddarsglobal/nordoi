@@ -1,0 +1,209 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R6-EXTERNAL-CUSTODY-FEASIBILITY-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r5_exact_head": "4d3bd3cbff8c67cef98481750270a2c6c0ce7b37",
+  "research_status": "R6_CANDIDATE_NEGATIVE_PROVENANCE_FEASIBILITY_ONLY",
+  "technical_work": "GENUINE_TWO_LOCAL_SSHSIGS_AND_R5Q_ROLLBACK_CANNOT_CERTIFY_EXTERNAL_CUSTODY",
+  "nine_source_perspectives": [
+    {
+      "role": "ATLAS",
+      "source": "tests/g03_r4a_structured_native_lab.rs",
+      "observation": "Real Rust threads in isolated integration lab are not an actual independently governed native runtime",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "FERRUM",
+      "source": "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "observation": "Real signed macOS XPC identity checks cannot create a separately enrolled custodian or trusted production signing root",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "BOUNDARY",
+      "source": "research/g03_r6d_admin_domain_provenance.py",
+      "observation": "Distinct process identifiers, signing keys and self-authored domain labels do not authenticate different administrators",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "CIPHER",
+      "source": "research/g03_r6e_oob_origin_intake.py",
+      "observation": "Six genuine local SSHSIGs establish key possession and signed-byte integrity but not the owner's independent OOB observation",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "LEDGER",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "observation": "A true coherent three-file rollback proves fresh same-admin observers lose previous global nonce/key history",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "CAPSTONE",
+      "source": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "observation": "Twelve explicit native admission requirements remain UNMET and must not be auto-promoted by local tests",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "ADVERSARY",
+      "source": "research/g03_r6f_r6_external_custody_feasibility.py",
+      "observation": "Create genuine signed self-assertions about external custody and verify they remain DENY rather than invent an external reviewer",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "VERITY",
+      "source": "research/test_g03_r6f_r6_external_custody_feasibility.py",
+      "observation": "24 adversarial checks distinguish 16 portable protocol checks from eight real POSIX OpenSSH/cross-epoch tests",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    },
+    {
+      "role": "GUARDIAN",
+      "source": "scripts/roadmap_guardian.py",
+      "observation": "Bureau source perspectives and owner-replayed tests are not nine independent signed reviewer attestations",
+      "record_type": "COORDINATOR_SOURCE_AUDIT_NOT_INDEPENDENT_REVIEW"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R6F-R6-001",
+      "severity": "INDEPENDENT_OPERATOR_NOT_ENROLLED",
+      "source": "research/g03_r6d_admin_domain_provenance.py",
+      "evidence": "Actual local processes and multiple Ed25519 keys under same administrative control cannot establish distinct authority",
+      "required_action": "Identify and authenticate a real separately authorized human/operator out of band; owner verification and external consent"
+    },
+    {
+      "id": "R6F-R6-002",
+      "severity": "OWNER_OOB_ROOT_NOT_AUTHENTICATED",
+      "source": "research/g03_r6e_oob_origin_intake.py",
+      "evidence": "Genuine local OpenSSH can sign a false external guardian ID or an OOB-looking root digest; authenticity of out-of-band channel is not cryptographically derived from a self-authored file",
+      "required_action": "Owner independently authenticates exact guardian key fingerprint with out-of-band corroborated receipt"
+    },
+    {
+      "id": "R6F-R6-003",
+      "severity": "INDEPENDENT_MONOTONIC_HISTORY_NOT_VERIFIED",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "evidence": "Actual three-file coherent same-admin rollback is indistinguishable to a fresh local verifier, despite prior local authentic hashes and signatures",
+      "required_action": "External independently retained monotonic epoch, revocation and spent-nonce records with independently authenticated signer and nonrollbackable custody"
+    },
+    {
+      "id": "R6F-R6-004",
+      "severity": "INDEPENDENT_QUORUM_NOT_PROVEN",
+      "source": "research/g03_r6c_two_key_quorum_negative.py",
+      "evidence": "Two genuine Ed25519 signatures from one administrator are not a two-administrator quorum",
+      "required_action": "Distinct administrative domains and separately authenticated real cryptographic signers, signed exact nonce/history, formal governance approvals"
+    },
+    {
+      "id": "R6F-R6-005",
+      "severity": "LOCAL_TEST_LIMITATION",
+      "source": "research/g03_r6f_r5_inplace_aba.py",
+      "evidence": "R5 within-session FD/ctime observations correctly detect bounded ABA cases, but do not create global external identity, custody, clocks, signer trust or independent antirollback",
+      "required_action": "Preserve fail-closed R6F/R6G and native 12 gates; archive source evidence without fake reviewer signatures"
+    }
+  ],
+  "required_native_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Owner authenticates exact fingerprint through a channel not operated by the local host administrator; independent record of participant, time and receipt"
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Legally identifiable separately authorized operator with independent verifiable identity and consent"
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Operator admin privileges and key storage cannot be altered or restored by the NORDOI owner account"
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Independent channel pins guardian public key before any signature is relied upon"
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Actual host identity and signing key provenance verified by external signer and administrator"
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Genuine time-bound nonce and exact R6A-R6E/R5Z history hashes signed by separately authenticated authorities"
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "External host/domain observation anchored outside the owner-controlled workstation"
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Externally protected key-epoch high water with independent signed receipt"
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "External append-only revoked-key floor survives owner-local full restore"
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "External append-only used-challenge floor survives coherent local rollback"
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Two or more independently controlled authorized parties with authentic signatures and governance identity"
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "future_real_evidence_required": "Real recovery/rotation/revocation evidence signed and independently retained"
+    }
+  ],
+  "readiness_phases": [
+    {
+      "phase": "A",
+      "state": "NOT_STARTED",
+      "task": "Independent operator and consent; external independently authenticated identity"
+    },
+    {
+      "phase": "B",
+      "state": "NOT_STARTED",
+      "task": "Owner-verified OOB guardian key root; independent channel receipt and authorized signer enrollment"
+    },
+    {
+      "phase": "C",
+      "state": "NOT_STARTED",
+      "task": "External administrative and host separation, real signed fresh challenge and exact source history"
+    },
+    {
+      "phase": "D",
+      "state": "NOT_STARTED",
+      "task": "Independently protected monotonic key epoch, spent nonce and revocation floors, coherent rollback adversarial test"
+    },
+    {
+      "phase": "E",
+      "state": "NOT_STARTED",
+      "task": "Actual independently authenticated cross-administration quorum, external signed rotation/recovery audit"
+    },
+    {
+      "phase": "F",
+      "state": "NOT_STARTED",
+      "task": "Independent Bureau specialist reviews, formal governance and owner authorized later release decision"
+    }
+  ],
+  "independently_executed_specialist_reviews": 0,
+  "owner_authenticated_oob_root": false,
+  "external_operator_authenticated": false,
+  "independent_custodian_enrolled": false,
+  "independent_global_history_verified": false,
+  "independent_quorum_verified": false,
+  "native_admission_gates_unmet": 12,
+  "bureau_formal_certification": "PENDING",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "permissions_changed": false,
+  "external_network_or_enrollment_performed": false,
+  "old_r5_source_modified": false,
+  "owner_mac_intel_r6": "PENDING"
+}
