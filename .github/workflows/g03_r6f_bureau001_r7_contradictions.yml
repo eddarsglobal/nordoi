@@ -1,0 +1,115 @@
+name: NORDOI G0.3 R6F BUREAU001 R7 source contradictions and external guardian evidence
+on:
+  pull_request:
+    paths:
+      - 'scripts/bureau_001_r7_contradiction_guard.py'
+      - 'scripts/test_bureau_001_r7_contradiction_guard.py'
+      - 'governance/NORDOI_R6F_BUREAU001_R7_CONTRADICTIONS_AND_GUARDIAN_PLAN.json'
+      - 'docs/NORDOI_R6F_BUREAU001_R7_CONTRADICTORY_EVIDENCE_AND_GUARDIAN_PROTOCOL.md'
+      - '.github/workflows/g03_r6f_bureau001_r7_contradictions.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-bound-contradictions-and-independent-custody-negative:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Original RoadMapGuardian fail-closed policy
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 real 99 frozen pinned Git source audit
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 nine source perspectives / zero independent reviewers
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R7 genuine historical-source audit, intentionally exit 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_r7_contradiction_guard.py','--audit'],
+                           capture_output=True,text=True,timeout=180)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='R7_SOURCE_CONTRADICTIONS_RECONCILED_NO_EXTERNAL_CUSTODY',d
+          assert d['verified_r1_frozen_git_objects']==99
+          assert d['cross_audit_findings_reconciled']==7
+          assert d['bureau_source_perspectives']==9
+          assert d['independent_specialist_submissions']==0
+          assert d['exact_external_gates_still_unmet']==12
+          assert d['native_admission_gates_unmet']==12
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('R7_SOURCE_CONTRADICTIONS=7/7_PASS; R1_FROZEN=99/99; GATES=12_UNMET; REVIEWS=0; NATIVE=BLOCK')
+          PY
+      - name: R7 24 real contradictions, forged guardian negative controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_r7_contradiction_guard.py' -v
+      - name: R7 real two local Ed25519 SSHSIG vs OOB and genuine R5Q rollback
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_r7_contradiction_guard.py','--exercise'],
+                           capture_output=True,text=True,timeout=360)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='R7_REAL_R6_LOCAL_SIGNATURES_R5Q_ROLLBACK_AND_FALSE_CUSTODY_REFUSED',d
+          assert d['authentic_local_ed25519_signatures_verified']==2
+          assert d['real_original_r5q_three_file_cross_epoch_rollback'] is True
+          assert d['independent_external_gates_promoted']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['production']=='NOT_AUTHORIZED'
+          print('R7_REAL_ED25519=2_LOCAL; REAL_R5Q_ROLLBACK=PASS; EXTERNAL_IDENTITY=NOT_PROVEN; NATIVE=BLOCK')
+          PY
+      - name: R6 true local SSHSIG false external OOB claims
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r6_external_custody_feasibility.py' -v
+      - name: R5 true same-admin in-place ABA and cross-epoch limits
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r5_inplace_aba.py' -v
+      - name: R4 true second OS process atomic pathname replacement
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r4_fd_race.py' -v
+      - name: R3 true rogue Ed25519 signer attribution
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: R6A to R6E frozen OOB cryptography negatives
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-e]*.py' -v
+      - name: R5A to R5Z unchanged independent custody negatives
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y R4Z frozen external custody negatives
+        run: python -B -m unittest discover -s research -p 'test_g03_r4*.py' -v
+      - name: RoadMapGuardian original 24 tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: R1 original 24 audit tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: R2 original 24 specialist intake tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Original real native signed macOS R4M XPC/CDHash 6 serial no retry
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Explicitly disallow R6G unlock and forged independent specialist report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          x=json.load(open('governance/NORDOI_R6F_BUREAU001_R7_CONTRADICTIONS_AND_GUARDIAN_PLAN.json'))
+          y=json.load(open('research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json'))
+          assert len(x['contradictions'])==7
+          assert [g['id'] for g in x['external_gate_plan']]==[g['id'] for g in y['required_gates']]
+          assert all(g['state']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE' and
+                     g['independent_operator_signature'] is None and
+                     g['admitted'] is False for g in x['external_gate_plan'])
+          assert x['independently_executed_specialist_reviews']==0
+          assert x['real_external_operator_invited'] is False
+          assert x['r6g']=='LOCKED_BY_SEQUENCE'
+          assert x['production']=='NOT_AUTHORIZED'
+          print('R7=RESEARCH_SOURCE_AUDIT; GUARDIAN=NOT_ENROLLED; CERTIFICATION=PENDING; NATIVE=NOT_AUTHORIZED')
+          PY
