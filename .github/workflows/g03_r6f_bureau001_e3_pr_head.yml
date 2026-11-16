@@ -1,0 +1,99 @@
+name: NORDOI G0.3 R6F BUREAU001 E3 exact PR HEAD machine evidence
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/g03_r6f_bureau001_e3_pr_head.yml'
+      - 'scripts/bureau_001_e3_exact_head_provenance.py'
+      - 'scripts/test_bureau_001_e3_exact_head_provenance.py'
+      - 'governance/NORDOI_R6F_BUREAU001_E3_EXACT_HEAD_PROVENANCE.json'
+      - 'docs/NORDOI_R6F_BUREAU001_E3_PR_HEAD_PROVENANCE_FR.md'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  exact-pr-head-provenance-and-real-filesystem-negatives:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Source HEAD MUST equal exact PR event HEAD, not synthetic merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_e3_exact_head_provenance.py --audit --expected-head "$EXPECTED_HEAD"
+      - name: E3 24 exact-source and actual filesystem evidence negative controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e3_exact_head_provenance.py' -v
+      - name: Original E2 24 owner zero-human source and parser controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e2_machine_only.py' -v
+      - name: Read-only RoadMapGuardian original native gate
+        run: python -B scripts/roadmap_guardian.py --audit
+
+  real-nine-machine-suites-exact-head-macos-intel:
+    runs-on: macos-15-intel
+    needs: exact-pr-head-provenance-and-real-filesystem-negatives
+    if: always() && !cancelled() && needs.exact-pr-head-provenance-and-real-filesystem-negatives.result == 'success'
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact candidate source before nine actual machine role suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          python -B scripts/bureau_001_e3_exact_head_provenance.py --audit --expected-head "$EXPECTED_HEAD"
+      - name: Execute nine genuine E2 machine suites on pinned source checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/bureau_001_e2_machine_only.py --run --output "$RUNNER_TEMP/nordoi_e3_exact_head_machine_logs"
+      - name: Verify all nine real log bytes AND exact PR HEAD across the whole run
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/bureau_001_e3_exact_head_provenance.py --verify --expected-head "$EXPECTED_HEAD" --evidence-dir "$RUNNER_TEMP/nordoi_e3_exact_head_machine_logs"
+      - name: Make log evidence visible in job output (not independent external attestation)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e3_exact_head_machine_logs'
+          d=(p/'E2_MACHINE_EVIDENCE.json').read_bytes()
+          x=json.loads(d)
+          assert x['source_head_before_after']==os.environ['EXPECTED_HEAD']
+          assert x['all_nine_machine_suites_passed'] is True
+          assert x['runner_os']=='Darwin' and x['runner_architecture']=='x86_64'
+          assert x['independent_specialist_reviews_received']==0
+          print('E3_EXACT_PR_HEAD='+x['source_head_before_after'])
+          print('E3_NINE_ACTUAL_MACHINE_SUITES=9/9_PASS')
+          print('E3_ROLE_MANIFEST_SHA256='+hashlib.sha256(d).hexdigest())
+          print('E3_HUMAN_TESTERS=0')
+          print('E3_INDEPENDENT_CUSTODIAN=NOT_PROVEN')
+          print('E3_NATIVE_ADMISSION=12_UNMET')
+          PY
+      - name: Upload source-head-bound nine real logs and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E3_EXACT_PR_HEAD_NINE_MACHINE_SUITES_MAC_INTEL_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e3_exact_head_machine_logs/
+          retention-days: 30
+          if-no-files-found: error
