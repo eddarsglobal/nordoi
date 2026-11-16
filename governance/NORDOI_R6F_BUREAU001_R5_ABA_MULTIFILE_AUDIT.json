@@ -1,0 +1,111 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R5-ABA-MULTIFILE-CROSS-AUDIT-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r4_head": "4dd43f37e7a7ac0ca0b0b39fcc88248cd2bad9ad",
+  "scope": "REAL_DISPOSABLE_SAME_ADMIN_INPLACE_WRITE_RESTORE_PATH_ABA_AND_COHERENT_CROSS_EPOCH_ROLLBACK_RESEARCH_ONLY",
+  "reviews_independently_executed": 0,
+  "formal_specialist_certifications": 0,
+  "owner_mac_intel": "PENDING",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "independent_custodian": "NOT_ENROLLED",
+  "independent_global_monotonic_antirollback": "NOT_VERIFIED",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "nine_source_perspectives": [
+    {
+      "role": "ATLAS",
+      "source": "tests/g03_r4a_structured_native_lab.rs",
+      "result": "Bounded native Rust threading lab does not authorize a user-visible native scheduler or actor placement"
+    },
+    {
+      "role": "FERRUM",
+      "source": "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "result": "Original real signed macOS XPC/CDHash six remain mandatory serial unchanged; local adhoc signer not production operator"
+    },
+    {
+      "role": "BOUNDARY",
+      "source": "research/g03_r5o_fd_identity_quarantine.py",
+      "result": "Open FD compares st_dev, st_ino, st_mode, st_size, st_mtime_ns, st_ctime_ns; true in-place restores can retain inode and bytes while changing ctime"
+    },
+    {
+      "role": "CIPHER",
+      "source": "research/g03_r6f_r4_fd_race.py",
+      "result": "R4 uses held allowed-signers FD through OpenSSH; R5 examines same-inode write-restore and A-B-A pathname reversion under true second-process OS edits"
+    },
+    {
+      "role": "LEDGER",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "result": "Actual SQLite and JSON independent local worlds can be restored coherently, and a new verifier cannot learn later history from same-admin bytes"
+    },
+    {
+      "role": "CAPSTONE",
+      "source": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+      "result": "Twelve native admission gates not satisfied by local FD, ctime, hashes or signed self-assertions"
+    },
+    {
+      "role": "ADVERSARY",
+      "source": "research/g03_r6f_r5_inplace_aba.py",
+      "result": "Challenge R4 with real in-place file writes and restores, paired files, pathname ABA and separate-process history rollback"
+    },
+    {
+      "role": "VERITY",
+      "source": "research/test_g03_r6f_r5_inplace_aba.py",
+      "result": "Require 24 adversarial R5 cases including eight actual POSIX/OpenSSH cases, preserve prior regressions"
+    },
+    {
+      "role": "GUARDIAN",
+      "source": "scripts/roadmap_guardian.py",
+      "result": "R6F review roles still not independently submitted, R6G locked and no native/production admission"
+    }
+  ],
+  "findings": [
+    {
+      "id": "R6F-R5-001",
+      "severity": "INPLACE_ABA_CHECK",
+      "source": "research/g03_r6f_r4_fd_race.py",
+      "finding": "An open descriptor preserves inode, not immutable bytes. Same-admin second process can write alternate bytes in place and restore the originals",
+      "test": "Actual child process in-place write+fsync+restore+mtime reset, R4 check must refuse through observed ctime change",
+      "status": "REPRODUCE_AND_VERIFY_IN_CI"
+    },
+    {
+      "id": "R6F-R5-002",
+      "severity": "MULTIFILE_COHERENCE",
+      "source": "research/g03_r6f_r5_inplace_aba.py",
+      "finding": "Two coordinated public-key and allowed-signers files can be modified then restored, yielding matching final bytes without independent history",
+      "test": "Actual subprocess paired in-place writes and restores while old R4 guard holds both original FDs",
+      "status": "REPRODUCE_AND_VERIFY_IN_CI"
+    },
+    {
+      "id": "R6F-R5-003",
+      "severity": "SAME_INODE_PATH_ABA",
+      "source": "research/g03_r5o_fd_identity_quarantine.py",
+      "finding": "A pathname can transiently name a distinct inode and later return to its original inode; equality of final inode or content hashes alone does not rule out intervening change",
+      "test": "Actual second-process rename A -> hold, B -> A, B back, A restored; inspect actual kernel st_ctime_ns and R4 refusal",
+      "status": "REPRODUCE_AND_VERIFY_IN_CI"
+    },
+    {
+      "id": "R6F-R5-004",
+      "severity": "CROSS_EPOCH_ROLLBACK_LIMIT",
+      "source": "research/g03_r5q_coherent_local_rollback.py",
+      "finding": "After coherent rollback of three genuine local files, fresh OS process observes old state without external evidence that newer state was once committed",
+      "test": "Replay prior actual R5Q three-file history and fresh-process witnessed missing monotonic floor; never grant native authority",
+      "status": "ORIGINAL_R5Q_FACT_REPLAY_REQUIRED"
+    },
+    {
+      "id": "R6F-R5-005",
+      "severity": "ASSURANCE_BOUNDARY",
+      "source": "scripts/roadmap_guardian.py",
+      "finding": "Kernel-managed ctime detection in an uninterrupted process is not an externally immutable high-water history, and full same-admin memory/kernel control remains outside scoped protection",
+      "test": "Retain all twelve native gates blocked and zero falsely claimed independent specialists",
+      "status": "RESEARCH_ONLY"
+    }
+  ],
+  "correction_policy": "ADD_NEW_DENY_ONLY_RESEARCH_GUARD_AND_TESTS; IF_EXISTING_R4_ALREADY_REFUSES_KNOWN_INPLACE_ABA, DO_NOT_CLAIM_NEW_PRIVILEGE_FIX",
+  "research_file": "research/g03_r6f_r5_inplace_aba.py",
+  "test_file": "research/test_g03_r6f_r5_inplace_aba.py",
+  "historical_r4_source_modified": false,
+  "original_certified_rust_modified": false,
+  "production_release_or_pr_merge": "NONE"
+}
