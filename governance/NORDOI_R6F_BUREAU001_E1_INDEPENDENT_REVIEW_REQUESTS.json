@@ -1,0 +1,404 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E1-REAL-INDEPENDENT-EVIDENCE-REQUESTS-V1",
+  "source_commit": "af07acdf025ad086ad7eafd83a39ad8e822891b0",
+  "project": "eddarsglobal/nordoi",
+  "workstream": "IND-SPECIALISTS_AND_IND-OPERATOR",
+  "source_r2_register": "governance/NORDOI_R6F_BUREAU001_R2_REVIEW_REGISTER.json",
+  "source_handoff": "governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json",
+  "source_r9_decision": "governance/NORDOI_R6F_BUREAU001_R9_FINAL_EVIDENCE_DECISION.json",
+  "source_trust": "R2_GIT_BLOB_SHA1_VALUES_ARE_SOURCE_IDENTIFIERS_NOT_EXTERNAL_SIGNATURES",
+  "research_only": true,
+  "independent_review_requests": [
+    {
+      "role": "ATLAS",
+      "task_id": "CONSTITUTIONAL_RUST_ARCHITECTURE_REVIEW",
+      "mandate": "Check Rust/NAIR/NAM boundaries, source coherence and certified baseline preservation",
+      "source_loci": [
+        "C3",
+        "C8",
+        "C14",
+        "C20"
+      ],
+      "baseline_research_anchor": {
+        "path": "tests/g03_r4a_structured_native_lab.rs",
+        "git_blob_sha1": "e15337facc2af8ebce1f23b7ee4561134ef1bc36",
+        "literal_source_anchor": "This integration test is NOT linked into NORDOI binaries"
+      },
+      "independent_review_questions": [
+        "Confronter la sémantique Rust NAIR/NAM et les frontières d'effets aux principes C3/C8/C14/C20",
+        "Documenter les contre-exemples reproductibles et les incompatibilités de versions"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "FERRUM",
+      "task_id": "NATIVE_MAC_LINUX_WINDOWS_AUDIT",
+      "mandate": "Validate real serial signed XPC/CDHash evidence and portability limitations",
+      "source_loci": [
+        "G03_R4M",
+        "G03_R4G",
+        "G03_R4F"
+      ],
+      "baseline_research_anchor": {
+        "path": "tests/g03_r4m_pinned_code_identity_lab.rs",
+        "git_blob_sha1": "da4fb10bdfca119c8f4f96f3ad145981e2cd28e1",
+        "literal_source_anchor": "locally enrolled hashes are NOT a trusted production signer"
+      },
+      "independent_review_questions": [
+        "Contrôler le chemin réel natif XPC/CDHash (six tests R4M en série) et les limites de cette preuve",
+        "Distinguer macOS Intel/Apple Silicon/Linux/Windows et les tests explicitement ignorés"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "BOUNDARY",
+      "task_id": "PROCESS_SANDBOX_ISOLATION_AUDIT",
+      "mandate": "Challenge same-UID different-PID and false independent-domain conclusions",
+      "source_loci": [
+        "G03_R4E",
+        "G03_R4K",
+        "G03_R6D"
+      ],
+      "baseline_research_anchor": {
+        "path": "research/g03_r6d_admin_domain_provenance.py",
+        "git_blob_sha1": "1aaef777e3da4d846cfe16bf0489df3e54def6e1",
+        "literal_source_anchor": "Different keys/PIDs/domain labels,"
+      },
+      "independent_review_questions": [
+        "Auditer les identités UID/EUID/PID, les FD et le risque de confused deputy",
+        "Tester séparément le changement de chemin après vérification et le même domaine d'administration"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "CIPHER",
+      "task_id": "SSH_SIGNATURE_NONCE_KEY_LIFECYCLE_AUDIT",
+      "mandate": "Review real Ed25519 SSHSIG namespaces, key rotations, replay and independent custody limits",
+      "source_loci": [
+        "G03_R5X",
+        "G03_R6A",
+        "G03_R6B",
+        "G03_R6C",
+        "G03_R6D",
+        "G03_R6E"
+      ],
+      "baseline_research_anchor": {
+        "path": "research/g03_r6e_oob_origin_intake.py",
+        "git_blob_sha1": "d2d3da085bbcf46b3d8a9a743b6e2ff0f820b0aa",
+        "literal_source_anchor": "No external network, enrollment, privileged grant, merge or production."
+      },
+      "independent_review_questions": [
+        "Vérifier les véritables signatures SSHSIG/Ed25519, namespace, clé attendue et liste allowed_signers",
+        "Tester rejeu, fraude OOB, rotation/révocation et séparation administrative des clés"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "LEDGER",
+      "task_id": "R4A_R6E_EVIDENCE_LEDGER_AUDIT",
+      "mandate": "Reconcile actual frozen SHA source, receipts, CI, owner logs and rollback boundaries",
+      "source_loci": [
+        "G03_R5Y",
+        "G03_R5Z",
+        "G03_R6E"
+      ],
+      "baseline_research_anchor": {
+        "path": "research/G03_R6B_SIGNED_RESPONSE_NO_EXTERNAL_AUTHORITY.json",
+        "git_blob_sha1": "5676215f870a49d359846e69e40ebfe24d53ff29",
+        "literal_source_anchor": "\"independent_external_custodian\": null"
+      },
+      "independent_review_questions": [
+        "Comparer les SHA1 Git pin exacts aux versions et aux journaux propriétaire/CI",
+        "Reproduire réellement la restauration cohérente R5Q et établir la limite cross-epoch"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "CAPSTONE",
+      "task_id": "NATIVE_AUTHORITY_DENY_GATE_AUDIT",
+      "mandate": "Prove local evidence cannot promote 12 external custody gates or grant effects/capabilities",
+      "source_loci": [
+        "C3",
+        "C11",
+        "C12",
+        "C13",
+        "C14"
+      ],
+      "baseline_research_anchor": {
+        "path": "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+        "git_blob_sha1": "79ad29009ee7aaccd4334bb4f2032f4814e6f74c",
+        "literal_source_anchor": "\"native_admission_gates_unmet\": 12"
+      },
+      "independent_review_questions": [
+        "Vérifier refus par défaut, effets déclarés et autorisations explicites C3/C11–C14",
+        "Prouver qu'aucune auto-attestation locale ne fait franchir les douze portes natives"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "ADVERSARY",
+      "task_id": "CROSS_VERSION_ADVERSARIAL_CAMPAIGN",
+      "mandate": "Find contradictory claims, fake signed roots, false quorums, cross-version source or replay escapes",
+      "source_loci": [
+        "G03_R4A",
+        "G03_R6E"
+      ],
+      "baseline_research_anchor": {
+        "path": "research/g03_r5q_coherent_local_rollback.py",
+        "git_blob_sha1": "62694b1a5d829f4240348a377d9b522419b64a69",
+        "literal_source_anchor": "a separate process, cannot"
+      },
+      "independent_review_questions": [
+        "Chercher de nouvelles vulnérabilités falsifiables, plutôt que rejouer les mêmes cas négatifs",
+        "Inclure fausses signatures d'autorité, fausses revues et métriques trompeuses de CI"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "VERITY",
+      "task_id": "MULTI_OS_RELEASE_QUALIFICATION",
+      "mandate": "Check exact GitHub CI 9/9, owner reported 1039 regular tests, 188 pins and limits",
+      "source_loci": [
+        "G03_R4M",
+        "G03_R6E"
+      ],
+      "baseline_research_anchor": {
+        "path": "research/test_g03_r6e_oob_origin_intake.py",
+        "git_blob_sha1": "fd7e49ada9e904461b8ef5dea9a283e1e3e84900",
+        "literal_source_anchor": "16 portable; eight native POSIX real SSHSIG"
+      },
+      "independent_review_questions": [
+        "Reproduire la qualification de la référence source et documenter précisément la plateforme et la provenance",
+        "Expliquer ce que GitHub CI, le journal propriétaire et les contrôles natifs ne prouvent pas"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    },
+    {
+      "role": "GUARDIAN",
+      "task_id": "ROADMAP_AND_R6G_ADMISSION_CONTRACT",
+      "mandate": "Hold R6G locked until real evidence contract and formal human-authorized release decision",
+      "source_loci": [
+        "G03_R6F",
+        "G03_R6G"
+      ],
+      "baseline_research_anchor": {
+        "path": "scripts/roadmap_guardian.py",
+        "git_blob_sha1": "e7d6969b63c554fdf7ccd23c6b9fb6a9d1c9a715",
+        "literal_source_anchor": "CERTIFIED_RESEARCH / native admission cannot be"
+      },
+      "independent_review_questions": [
+        "Auditer la séquence C20, R6F/R6G, le dossier R9 et la Constitution",
+        "Vérifier que les neuf revues, la racine OOB et le quorum demeurent absents jusqu'à preuves réelles"
+      ],
+      "evidence_required": [
+        "exact_source_head_sha40",
+        "source_blob_sha1_verified_by_reviewer",
+        "reviewer_identity_and_independent_control_domain",
+        "actual_executed_commands_and_platform",
+        "unaltered_execution_logs_with_sha256",
+        "reproducible_findings_and_counterexamples",
+        "scope_and_limitations",
+        "real_reviewer_verdict_PASS_REMEDIATE_BLOCK",
+        "reviewer_signed_provenance_if_available_and_verified"
+      ],
+      "work_order_status": "PREPARED_NOT_DISPATCHED",
+      "independent_execution": "NOT_STARTED",
+      "reviewer_identity": null,
+      "independent_control_domain_verification": null,
+      "signed_review_sha256": null,
+      "actual_execution_log_sha256": null,
+      "evidence_submitted": false,
+      "reviewer_verdict": null,
+      "reviewer_is_same_admin": false
+    }
+  ],
+  "operator_intake": {
+    "status": "REQUIREMENTS_PREPARED_NO_OPERATOR_CONTACTED",
+    "identity": null,
+    "organization": null,
+    "consent": null,
+    "external_administrative_domain_verified": false,
+    "independent_custody_ssh_ed25519_root": null,
+    "out_of_band_owner_authenticated_fingerprint": null,
+    "external_ledger_attestation": null,
+    "independent_quorum": null,
+    "required_precautions": [
+      "separate_real_administrator_and_consent_before_enrollment",
+      "verify_true_key_root_fingerprint_out_of_band",
+      "retain_sensitive_identity_material_on_separate_secure_channel_NOT_GITHUB",
+      "no_export_of_any_private_keys",
+      "no_self_certification_from_owner_operated_vps_or_ai_role",
+      "independent_revocation_nonce_epoch_high_water_and_recovery",
+      "explicit_authorized_owner_decision_separate_from_technical_tests"
+    ]
+  },
+  "status": {
+    "requests_prepared": 9,
+    "requests_sent": 0,
+    "reviews_received": 0,
+    "reviewer_independence_verified": 0,
+    "operator_contacted": false,
+    "operator_enrolled": false,
+    "owner_oob_root": "NOT_AUTHENTICATED",
+    "external_monotonic_history": "NOT_VERIFIED",
+    "native_admission_gates_unmet": 12,
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "production": "NOT_AUTHORIZED",
+    "formal_bureau_certification": "PENDING",
+    "pr_merges": "NONE"
+  },
+  "scope_limit": "This request manifest does not constitute an executed specialist review, an invitation sent, an independent signature, a certified auditor or an enrolled external custodian"
+}
