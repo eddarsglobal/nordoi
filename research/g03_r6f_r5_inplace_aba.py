@@ -42,7 +42,7 @@ def check_research_path(root, path):
     if not root.name.startswith("nordoi-r5l-r5q-r5s-r5t-"):
         raise Refused("R5_NOT_A_NORDOI_DISPOSABLE_LAB_ROOT")
     path = Path(path)
-    if (path.parent != root or path.is_symlink()
+    if (path.parent.resolve(strict=True) != root or path.is_symlink()
             or not path.is_file()):
         raise Refused("R5_PATH_NOT_AN_ORDINARY_FILE_IN_PRIVATE_LAB")
     if os.name != "nt":
@@ -176,7 +176,7 @@ def run_guarded_interleaving(data, kind):
         before_verify=actual_write_between_check_and_use
     )
     if not seen:
-        raise Refused("R5_TRUE_INTERLEAVING_NOT_REACHED")
+        raise Refused("R5_TRUE_INTERLEAVING_NOT_REACHED:" + str(result.get("reason")) + ":" + str(result.get("detail", "")))
     if result["reason"] != EXPECTED_QUARANTINE:
         raise Refused("R5_HISTORIC_R4_GUARD_DID_NOT_QUARANTINE_REAL_ABA:"
                       + str(result.get("reason")))
