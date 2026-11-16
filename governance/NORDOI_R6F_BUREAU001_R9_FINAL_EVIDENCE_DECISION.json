@@ -1,0 +1,375 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R9-FINAL-EVIDENCE-DECISION-GAP-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r8_exact_head": "cad5140206725ed45e84a445176360be13ae8a36",
+  "mandate": "FINAL_ADVERSARIAL_REVIEW_OF_MISSING_REAL_EVIDENCE_AND_INDEPENDENT_DECISION_PRECONDITIONS",
+  "source_of_truth": [
+    "RoadMap.md",
+    "Bureau.md",
+    "scripts/roadmap_guardian.py",
+    "governance/NORDOI_R6F_BUREAU001_R2_REVIEW_REGISTER.json",
+    "research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json",
+    "governance/NORDOI_R6F_BUREAU001_R7_CONTRADICTIONS_AND_GUARDIAN_PLAN.json",
+    "governance/NORDOI_R6F_BUREAU001_R8_CLOSURE_DECISION.json"
+  ],
+  "post_r8_source_observation": {
+    "source_head": "cad5140206725ed45e84a445176360be13ae8a36",
+    "owner_mac_intel_report": "OWNER_SUPPLIED_TERMINAL_PASS_WITH_CONTROLS_RESEARCH_ONLY",
+    "owner_mac_os": "14.5",
+    "architecture": "x86_64",
+    "owner_python_regular_tests": 1002,
+    "owner_rust_regular_tests": 253,
+    "owner_rust_ignored": 3,
+    "owner_total_regular_tests": 1255,
+    "owner_script_exit": 0,
+    "r8_persisted_source_snapshot_still": "PENDING_AT_COMMIT_TIME_DO_NOT_REWRITE",
+    "owner_transcript_is_independent_attestation": false,
+    "github_ci_exact_head": "9/9_COMPLETED_SUCCESS",
+    "github_dedicated_run": 43874942792,
+    "general_rust_run": 43874942657,
+    "github_results_are_independent_custodian_attestation": false
+  },
+  "prior_r7_seven_findings": [
+    "R7-TEMPORAL-001",
+    "R7-PROVENANCE-002",
+    "R7-TOCTOU-003",
+    "R7-ABA-004",
+    "R7-OOB-005",
+    "R7-REVIEW-006",
+    "R7-CI-007"
+  ],
+  "closure_criteria": [
+    {
+      "id": "R8-SOURCE-001",
+      "category": "TECHNICAL_REPLAY",
+      "status": "TECHNICAL_SUPPORTED_WITH_OWNER_LOG_LIMITS",
+      "source_limit": "R1–R8 Git source and submitted local Terminal evidence, no remote independent signer",
+      "depends_on": []
+    },
+    {
+      "id": "R8-CI-002",
+      "category": "TECHNICAL_CI",
+      "status": "TECHNICAL_SUPPORTED_GITHUB_ACTIONS",
+      "source_limit": "Exact R8 head passed dedicated 4/4 and general 5/5 CI; GitHub CI is not external guardianship",
+      "depends_on": []
+    },
+    {
+      "id": "R8-REVIEW-003",
+      "category": "INDEPENDENT_SPECIALIST_EXECUTION",
+      "status": "UNMET",
+      "source_limit": "Nine roles in R2 remain unsubmitted; actual independent specialist reports 0",
+      "depends_on": [
+        "IND-SPECIALISTS"
+      ]
+    },
+    {
+      "id": "R8-OOB-004",
+      "category": "OWNER_INDEPENDENT_OOB_ROOT",
+      "status": "UNMET",
+      "source_limit": "No owner-authenticated independent-channel external guardian root fingerprint",
+      "depends_on": [
+        "IND-OOB"
+      ]
+    },
+    {
+      "id": "R8-OPERATOR-005",
+      "category": "REAL_OPERATOR_AND_QUORUM",
+      "status": "UNMET",
+      "source_limit": "No genuinely separate custodian with consent, key controls and distinct administrative quorum",
+      "depends_on": [
+        "IND-OPERATOR",
+        "IND-OOB"
+      ]
+    },
+    {
+      "id": "R8-LEDGER-006",
+      "category": "GLOBAL_HISTORY_AND_RECOVERY",
+      "status": "UNMET",
+      "source_limit": "R5Q real three-file coherent rollback not defeated by a separately administered protected high-water ledger",
+      "depends_on": [
+        "IND-OPERATOR",
+        "IND-LEDGER"
+      ]
+    },
+    {
+      "id": "R8-DECISION-007",
+      "category": "FORMAL_DECISION",
+      "status": "UNMET",
+      "source_limit": "No independent Bureau signoff or owner decision; cannot infer from local tests",
+      "depends_on": [
+        "IND-SPECIALISTS",
+        "IND-OOB",
+        "IND-OPERATOR",
+        "IND-LEDGER",
+        "IND-FORMAL"
+      ]
+    }
+  ],
+  "missing_external_evidence_dependency_graph": [
+    {
+      "id": "IND-SPECIALISTS",
+      "state": "NOT_RECEIVED",
+      "depends_on": [],
+      "evidence_requirements": "Nine actual separately performed specialist reports with source pins, commands, native results, provenance and independent review signatures, not nine coordinator perspectives",
+      "evidence_sha256": null,
+      "verified_by_independent_operator": false
+    },
+    {
+      "id": "IND-OPERATOR",
+      "state": "NOT_ENROLLED",
+      "depends_on": [],
+      "evidence_requirements": "Real authorized external custodian identity and consent, verified separate admin and key storage, independently authenticated host and signer",
+      "evidence_sha256": null,
+      "verified_by_independent_operator": false
+    },
+    {
+      "id": "IND-OOB",
+      "state": "NOT_AUTHENTICATED",
+      "depends_on": [
+        "IND-OPERATOR"
+      ],
+      "evidence_requirements": "Owner verifies exact guardian fingerprint over channel genuinely beyond same administrator and preserves independently authenticated receipt",
+      "evidence_sha256": null,
+      "verified_by_independent_operator": false
+    },
+    {
+      "id": "IND-LEDGER",
+      "state": "NOT_VERIFIED",
+      "depends_on": [
+        "IND-OPERATOR",
+        "IND-OOB"
+      ],
+      "evidence_requirements": "Independently retained signed monotonic key epoch, revocation and spent nonce floors, witnessed rollback with fresh process and authorized rotation/recovery",
+      "evidence_sha256": null,
+      "verified_by_independent_operator": false
+    },
+    {
+      "id": "IND-FORMAL",
+      "state": "NOT_DECIDED",
+      "depends_on": [
+        "IND-SPECIALISTS",
+        "IND-OPERATOR",
+        "IND-OOB",
+        "IND-LEDGER"
+      ],
+      "evidence_requirements": "Recorded independent Bureau decision, external custody checks, and separately explicit owner authorization; no code-generated quorum",
+      "evidence_sha256": null,
+      "verified_by_independent_operator": false
+    }
+  ],
+  "red_team_scenarios": [
+    {
+      "id": "A1",
+      "attack": "CI_OR_OWNER_LOG_WASHING",
+      "mechanism": "Green CI and 1255 owner tests are relabeled as independent external certification",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A2",
+      "attack": "REVIEWER_ROSTER_WASHING",
+      "mechanism": "Nine roles and zero submitted reports are labeled nine completed independent specialist reviews",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A3",
+      "attack": "SELF_SIGNED_OOB",
+      "mechanism": "Two real same-admin local Ed25519 signatures claim external operator/OOB root",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A4",
+      "attack": "SAME_ADMIN_VPS",
+      "mechanism": "An administrator uses a second host or VPS it also controls and claims separated custodian authority",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A5",
+      "attack": "LOCAL_ROLLBACK_AS_REMOTE_FLOOR",
+      "mechanism": "Three local restored state files produce consistent hashes and are claimed to prove global antirollback",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A6",
+      "attack": "REPLAY_OLD_OWNER_SUCCESS",
+      "mechanism": "A passed owner log is replayed under a newer source head without an exact source pin",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A7",
+      "attack": "TRUSTED_CERTIFICATE_FIELD",
+      "mechanism": "JSON or GitHub comment says formal_certificate=true or all twelve native gates MET",
+      "required_action": "DENY"
+    },
+    {
+      "id": "A8",
+      "attack": "MISSING_INDEPENDENT_DECISION",
+      "mechanism": "External claims are treated as a fresh independent owner/Bureau approval without separately authentic evidence",
+      "required_action": "DENY"
+    }
+  ],
+  "nine_roles_not_independently_reviewed": [
+    {
+      "role": "ATLAS",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "FERRUM",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "BOUNDARY",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "CIPHER",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "LEDGER",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "CAPSTONE",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "ADVERSARY",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "VERITY",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    },
+    {
+      "role": "GUARDIAN",
+      "execution": "NOT_SUBMITTED",
+      "independent_signature": null,
+      "review_log": null,
+      "completed": false
+    }
+  ],
+  "twelve_native_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "independent_evidence": null,
+      "admitted": false
+    }
+  ],
+  "technical_research_classification": "R1_TO_R8_OWNER_LOGS_AND_CI_CONSOLIDATED_AS_TECHNICAL_ONLY",
+  "external_evidence_classification": "FIVE_OF_SEVEN_FORMAL_CLOSURE_CRITERIA_STILL_UNMET",
+  "decision": "HOLD_FORMAL_R6F_CLOSURE_MISSING_INDEPENDENT_EVIDENCE",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "bureau_independent_specialist_reviews": 0,
+  "formal_bureau_certification": "PENDING",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "real_independent_custodian": "NOT_ENROLLED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "independent_quorum": "NOT_PROVEN",
+  "real_external_operator_invited": false,
+  "independent_external_enrollment_completed": false,
+  "external_network_called": false,
+  "original_source_changed": false,
+  "github_merge": "NONE",
+  "production": "NOT_AUTHORIZED",
+  "r9_recommendation": "STOP_REPEAT_ONLY_LOCAL_CERTIFICATION_LOOPS_UNTIL_NEW_INDEPENDENT_EVIDENCE_OR_FALSIFIABLE_SECURITY_FINDING; MAINTAIN_DENY_ONLY_RESEARCH",
+  "allowed_future_work": [
+    "Collect actual independent specialist reports with source pin and signed provenance",
+    "With explicit owner and separate operator consent, independently verify guardian key OOB",
+    "Verify separately operated protected monotonic ledger against real coherent rollback",
+    "Return for formal documented Bureau and owner decision after each real piece is authenticated"
+  ],
+  "owner_mac_intel_r9": "PENDING"
+}
