@@ -1,0 +1,324 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-R8-CLOSURE-DECISION-RESEARCH-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_r7_exact_head": "ee4975e42d4364dd3d2bc78ae2d7a08623042298",
+  "audit_scope": "SOURCE_BASED_COORDINATOR_CHECK_OF_CLOSURE_PRECONDITIONS_NOT_INDEPENDENT_EXECUTED_REVIEWS",
+  "evidence_timeline": [
+    {
+      "stage": "R1",
+      "head": "108548e2021de42e65e8261fadd8184d4d9ff783",
+      "owner_reported_regular_tests": 1087,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": null,
+      "general_github_run": null,
+      "github_ci_evidence_class": "SOURCE_AUDIT_RECORDED_NO_NEW_CI_ASSERTION"
+    },
+    {
+      "stage": "R2",
+      "head": "80010bdddd5e4743f023c0eed888a1c3360339da",
+      "owner_reported_regular_tests": 1111,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": null,
+      "general_github_run": null,
+      "github_ci_evidence_class": "SOURCE_AUDIT_RECORDED_NO_NEW_CI_ASSERTION"
+    },
+    {
+      "stage": "R3",
+      "head": "2dd46dc07568bf382c49b1c8bca0cba8900b7b1f",
+      "owner_reported_regular_tests": 1135,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": 43694308826,
+      "general_github_run": 43694308782,
+      "github_ci_evidence_class": "PREVIOUSLY_CONNECTOR_VERIFIED_TEST_OUTCOME_NOT_EXTERNAL_CUSTODY"
+    },
+    {
+      "stage": "R4",
+      "head": "4dd43f37e7a7ac0ca0b0b39fcc88248cd2bad9ad",
+      "owner_reported_regular_tests": 1159,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": 43741889168,
+      "general_github_run": 43741889124,
+      "github_ci_evidence_class": "PREVIOUSLY_CONNECTOR_VERIFIED_TEST_OUTCOME_NOT_EXTERNAL_CUSTODY"
+    },
+    {
+      "stage": "R5",
+      "head": "4d3bd3cbff8c67cef98481750270a2c6c0ce7b37",
+      "owner_reported_regular_tests": 1183,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": 43814788301,
+      "general_github_run": 43814788261,
+      "github_ci_evidence_class": "PREVIOUSLY_CONNECTOR_VERIFIED_TEST_OUTCOME_NOT_EXTERNAL_CUSTODY"
+    },
+    {
+      "stage": "R6",
+      "head": "17614622acb09440dfe2428b85fe2c89491a0b35",
+      "owner_reported_regular_tests": 1207,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": 43825369772,
+      "general_github_run": 43825369666,
+      "github_ci_evidence_class": "PREVIOUSLY_CONNECTOR_VERIFIED_TEST_OUTCOME_NOT_EXTERNAL_CUSTODY"
+    },
+    {
+      "stage": "R7",
+      "head": "ee4975e42d4364dd3d2bc78ae2d7a08623042298",
+      "owner_reported_regular_tests": 1231,
+      "owner_evidence_class": "OWNER_SUPPLIED_TERMINAL_NOT_INDEPENDENT_HARDWARE_ATTESTATION",
+      "dedicated_github_run": 43844811936,
+      "general_github_run": 43844811856,
+      "github_ci_evidence_class": "PREVIOUSLY_CONNECTOR_VERIFIED_TEST_OUTCOME_NOT_EXTERNAL_CUSTODY"
+    }
+  ],
+  "closure_criteria": [
+    {
+      "id": "R8-SOURCE-001",
+      "name": "FROZEN_SOURCE_AND_REPLAY",
+      "category": "LOCAL_TECHNICAL_SUPPORTED_OWNER_LOG",
+      "status": "OWNER_REPORTED_PASS_WITH_CONTROLS",
+      "reason": "Exact R7 owner 1,231 regular tests, R1 99 source blobs, 188 historical selected blobs; CI does not independently sign owner hardware",
+      "evidence_quality": "OWNER_TERMINAL_TRANSCRIPT_NOT_EXTERNALLY_SIGNED"
+    },
+    {
+      "id": "R8-CI-002",
+      "name": "CROSS_OS_CI_FOR_R7",
+      "category": "TECHNICAL_CI_REVIEW",
+      "status": "PRIOR_CONNECTOR_VERIFIED_9_OF_9_SUCCESS",
+      "reason": "R7 dedicated 4/4 and general 5/5 GitHub Actions jobs SUCCESS on PR #130 frozen head",
+      "evidence_quality": "GITHUB_ACTIONS_CONCLUSION_NOT_CUSTODIAN_IDENTITY"
+    },
+    {
+      "id": "R8-REVIEW-003",
+      "name": "NINE_INDEPENDENT_SPECIALIST_REPORTS",
+      "category": "EXTERNAL_REQUIRED",
+      "status": "UNMET",
+      "reason": "R2 register has zero submissions, nine assigned perspectives only; no independently authenticated specialist attestation",
+      "evidence_quality": "NOT_SUBMITTED"
+    },
+    {
+      "id": "R8-OOB-004",
+      "name": "OWNER_AUTHENTICATED_EXTERNAL_ROOT",
+      "category": "EXTERNAL_REQUIRED",
+      "status": "UNMET",
+      "reason": "Owner out-of-band observation of exact external guardian fingerprint not authenticated",
+      "evidence_quality": "NOT_AUTHENTICATED"
+    },
+    {
+      "id": "R8-OPERATOR-005",
+      "name": "REAL_DISTINCT_CUSTODIAN_AND_QUORUM",
+      "category": "EXTERNAL_REQUIRED",
+      "status": "UNMET",
+      "reason": "No real legally/administratively independent operator enrolled or quorum verified",
+      "evidence_quality": "NOT_ENROLLED"
+    },
+    {
+      "id": "R8-LEDGER-006",
+      "name": "GLOBAL_MONOTONIC_HISTORY_AND_RECOVERY",
+      "category": "EXTERNAL_REQUIRED",
+      "status": "UNMET",
+      "reason": "R5Q real coherent local history rollback shows absence of externally protected global nonce, revocation and key epoch floors",
+      "evidence_quality": "NOT_VERIFIED"
+    },
+    {
+      "id": "R8-DECISION-007",
+      "name": "BUREAU_FORMAL_DECISION_AND_OWNER_AUTHORIZATION",
+      "category": "EXTERNAL_REQUIRED",
+      "status": "UNMET",
+      "reason": "No formal independent Bureau certification or distinct owner authorization to unlock R6G/native/production",
+      "evidence_quality": "PENDING"
+    }
+  ],
+  "twelve_native_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "candidate_external_evidence": null,
+      "independent_signer": null,
+      "authenticated_custodian": null,
+      "admitted": false
+    }
+  ],
+  "nine_bureau_roles": [
+    {
+      "role": "ATLAS",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "FERRUM",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "BOUNDARY",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "CIPHER",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "LEDGER",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "CAPSTONE",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "ADVERSARY",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "VERITY",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    },
+    {
+      "role": "GUARDIAN",
+      "review_submitted": false,
+      "independent_signature": null,
+      "independent_execution_log": null,
+      "formal_verdict": null
+    }
+  ],
+  "contradictions_carried_from_r7": [
+    "R7-TEMPORAL-001",
+    "R7-PROVENANCE-002",
+    "R7-TOCTOU-003",
+    "R7-ABA-004",
+    "R7-OOB-005",
+    "R7-REVIEW-006",
+    "R7-CI-007"
+  ],
+  "technical_dossier_status": "R1_R7_OWNER_REPLAY_AND_CI_EVIDENCE_CONSOLIDATED_WITH_LIMITATIONS",
+  "technical_ci_r7": "9/9_SUCCESS_AT_EXACT_PARENT_HEAD",
+  "source_original_R1_blobs": 99,
+  "source_historical_blobs": 188,
+  "independently_executed_specialist_reviews": 0,
+  "independent_custodian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "independent_quorum": "NOT_PROVEN",
+  "external_custodian_contacted": false,
+  "external_custody_tests_performed": false,
+  "owner_authorized_privileged_transition": false,
+  "formal_bureau_certification": "PENDING",
+  "research_dossier_closed": false,
+  "formal_r6f_closure": "BLOCKED_MISSING_INDEPENDENT_EVIDENCE",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "github_merge": "NONE",
+  "next_allowed_activity": "OBTAIN_REAL_SEPARATELY_AUTHENTICATED_EXTERNAL_EVIDENCE_AND_INDEPENDENT_SPECIALIST_REVIEW_OR_CONTINUE_DENY_ONLY_RESEARCH",
+  "automatic_grant_on_local_technical_success": false,
+  "owner_mac_intel_r8": "PENDING"
+}

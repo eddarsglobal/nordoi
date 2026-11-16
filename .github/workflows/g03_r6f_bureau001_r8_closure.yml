@@ -1,0 +1,121 @@
+name: NORDOI G0.3 R6F BUREAU001 R8 research closure evidence vs formal admission
+on:
+  pull_request:
+    paths:
+      - 'scripts/bureau_001_r8_closure_gate.py'
+      - 'scripts/test_bureau_001_r8_closure_gate.py'
+      - 'governance/NORDOI_R6F_BUREAU001_R8_CLOSURE_DECISION.json'
+      - 'docs/NORDOI_R6F_BUREAU001_R8_CLOSURE_ELIGIBILITY_AUDIT.md'
+      - '.github/workflows/g03_r6f_bureau001_r8_closure.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  closure-cannot-derive-external-authority-from-green-local-tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Original RoadMapGuardian fail-closed policy
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 original 99 frozen selected Git objects
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 source viewpoints without independent review signatures
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R8 source audit intentionally rejects formal closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_r8_closure_gate.py','--audit'],
+                           capture_output=True,text=True,timeout=180)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='R8_RESEARCH_DOSSIER_RECONCILED_FORMAL_R6F_CLOSURE_BLOCKED',d
+          assert d['research_technical_evidence_classified']==2
+          assert d['external_closure_criteria_unmet']==5
+          assert d['actual_independent_specialists_missing']==9
+          assert d['independent_native_gates_unmet']==12
+          assert d['bureau_research_dossier_formal_closure_granted'] is False
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('R8=SOURCE_AUDIT_PASS_DENY_ONLY; 2_TECHNICAL; 5_EXTERNAL_UNMET; 12_NATIVE_UNMET')
+          PY
+      - name: R8 24 adversarial closure and real source negative cases
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_r8_closure_gate.py' -v
+      - name: R8 real R7 two genuine local SSHSIG and R5Q fresh process rollback
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_r8_closure_gate.py','--exercise'],
+                           capture_output=True,text=True,timeout=420)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='R8_REAL_SIGNED_LOCAL_PROOFS_CANNOT_CLOSE_BUREAU_WITHOUT_EXTERNAL_AUTHORITY',d
+          assert d['r7_true_two_local_ed25519_signatures']==2
+          assert d['r5q_real_three_file_coherent_rollback'] is True
+          assert d['forged_nine_specialists_self_reported_but_refused'] is True
+          assert d['formal_R6F_closure_granted'] is False
+          assert d['external_admission_gates_promoted']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['production']=='NOT_AUTHORIZED'
+          print('R8_REAL_SIGNED_LOCAL_SSHSIG=VALID_NOT_CUSTODIAN; R5Q_REAL_ROLLBACK=PASS; FORMAL_CLOSURE=BLOCK')
+          PY
+      - name: R7 seven contradictions and external guardian protocol regression
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_r7_contradiction_guard.py' -v
+      - name: R6 actual two local SSHSIG fraudulent OOB denial regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r6_external_custody_feasibility.py' -v
+      - name: R5 genuine ABA and cross epoch rollback negative regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r5_inplace_aba.py' -v
+      - name: R4 true second OS process filename check-use race regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r4_fd_race.py' -v
+      - name: R3 genuine rogue Ed25519 signature negative regression
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: R6A through R6E frozen prior negative cryptographic controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-e]*.py' -v
+      - name: R5A through R5Z original local external custody denial
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y and R4Z original local custody negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r4*.py' -v
+      - name: Original 24 RoadMapGuardian negative tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: Original 24 Bureau R1 frozen source tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: Original 24 Bureau R2 unsubmitted reviewer source tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Original real signed macOS native R4M XPC CDHash six serial no waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Assert no self-certified closure, no foreign custodian or native gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          a=json.load(open('governance/NORDOI_R6F_BUREAU001_R8_CLOSURE_DECISION.json'))
+          b=json.load(open('research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json'))
+          assert len(a['evidence_timeline'])==7
+          assert len(a['closure_criteria'])==7
+          assert sum(c['status']=='UNMET' for c in a['closure_criteria'])==5
+          assert [x['id'] for x in a['twelve_native_gates']]==[x['id'] for x in b['required_gates']]
+          assert all(not x['admitted'] and x['independent_signer'] is None
+                     for x in a['twelve_native_gates'])
+          assert all(x['review_submitted'] is False and x['independent_signature'] is None
+                     for x in a['nine_bureau_roles'])
+          assert a['research_dossier_closed'] is False
+          assert a['formal_r6f_closure']=='BLOCKED_MISSING_INDEPENDENT_EVIDENCE'
+          assert a['r6g']=='LOCKED_BY_SEQUENCE'
+          assert a['production']=='NOT_AUTHORIZED'
+          print('R8_ALL_12_GATES_UNMET; NINE_REVIEWS_NOT_SUBMITTED; R6F_NOT_CLOSED; PRODUCTION=DENIED')
+          PY
