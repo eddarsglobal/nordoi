@@ -1,0 +1,118 @@
+name: NORDOI G0.3 R6F BUREAU001 R9 final evidence no-go
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_R9_FINAL_EVIDENCE_DECISION.json'
+      - 'scripts/bureau_001_r9_final_evidence_decision.py'
+      - 'scripts/test_bureau_001_r9_final_evidence_decision.py'
+      - 'docs/NORDOI_R6F_BUREAU001_R9_FINAL_EVIDENCE_DECISION.md'
+      - '.github/workflows/g03_r6f_bureau001_r9_final_evidence.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  no-go-real-evidence-source-and-native-denials:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: RoadMapGuardian exact native gates never promoted
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Original Bureau R1 pinned source verification
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Original Bureau R2 nine NOT_SUBMITTED specialist role intake
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R9 exact five external dependencies source audit expects deny exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_r9_final_evidence_decision.py','--audit'],
+                          capture_output=True,text=True,timeout=180)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='R9_FINAL_EVIDENCE_DEPENDENCIES_RECONCILED_FORMAL_CLOSURE_HELD',d
+          assert d['formal_closure_criteria']==7
+          assert d['technical_evidence_categories']==2
+          assert d['external_evidence_classes_missing']==5
+          assert d['tested_fraud_scenarios_documented']==8
+          assert d['native_admission_gates_unmet']==12
+          assert d['formal_r6f_closure_granted'] is False
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('R9_SOURCE_AUDIT=PASS_DENY; EXTERNAL_EVIDENCE=5_MISSING; NATIVE=12_UNMET')
+          PY
+      - name: R9 24 actual source and forged decision negative cases
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_r9_final_evidence_decision.py' -v
+      - name: R9 actual local SSHSIG and coherent rollback refuse formal independent decision
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_r9_final_evidence_decision.py','--exercise'],
+                          capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='R9_REAL_LOCAL_SIGNATURES_ROLLBACK_AND_FAKE_FINAL_DECISION_REFUSED',d
+          assert d['real_local_ed25519_signatures_verified']==2
+          assert d['historical_r5q_three_file_coherent_rollback'] is True
+          assert d['counterfeit_nine_reviews_and_twelve_native_gates_refused'] is True
+          assert d['final_bureau_closure_granted'] is False
+          assert d['native_admission_gates_unmet']==12
+          print('R9_NATIVE_TWO_SSHSIG=REAL_LOCAL; R5Q=REAL_ROLLBACK; FORMAL_CLOSURE=BLOCK')
+          PY
+      - name: R8 actual formal closure guard negative regressions
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_r8_closure_gate.py' -v
+      - name: R7 seven contradictions and external claim guard negatives
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_r7_contradiction_guard.py' -v
+      - name: R6 genuine local two-key OOB false claims
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r6_external_custody_feasibility.py' -v
+      - name: R5 real in-place ABA and multi-file restore
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r5_inplace_aba.py' -v
+      - name: R4 real second OS process allowlist pathname replacement
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r4_fd_race.py' -v
+      - name: R3 rogue signer attribution original negative guard
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: R6A to R6E original cryptographic external custody negative tests
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-e]*.py' -v
+      - name: R5A to R5Z prior custody source negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y and R4Z external intake negative regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r4*.py' -v
+      - name: RoadMapGuardian original 24 negative tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: R1 original 24 frozen source tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: R2 original 24 specialist review intake tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Real macOS signed R4M XPC/CDHash six native serial no retry waiver
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final governance source cannot self-certify nine reviewers or 12 gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          d=json.load(open('governance/NORDOI_R6F_BUREAU001_R9_FINAL_EVIDENCE_DECISION.json'))
+          orig=json.load(open('research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json'))
+          assert len(d['missing_external_evidence_dependency_graph'])==5
+          assert all(x['evidence_sha256'] is None for x in d['missing_external_evidence_dependency_graph'])
+          assert [x['id'] for x in d['twelve_native_gates']]==[x['id'] for x in orig['required_gates']]
+          assert all(not x['admitted'] for x in d['twelve_native_gates'])
+          assert all(not x['completed'] for x in d['nine_roles_not_independently_reviewed'])
+          assert d['decision']=='HOLD_FORMAL_R6F_CLOSURE_MISSING_INDEPENDENT_EVIDENCE'
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('R9_NO_GO=RESEARCH_ONLY; FIVE_EXTERNAL_MISSING; NATIVE=12_UNMET; R6G=LOCKED')
+          PY
