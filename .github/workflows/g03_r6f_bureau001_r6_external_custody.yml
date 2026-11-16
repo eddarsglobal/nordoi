@@ -1,0 +1,87 @@
+name: NORDOI G0.3 R6F BUREAU001 R6 genuine local vs independent OOB evidence
+on:
+  pull_request:
+    paths:
+      - 'research/g03_r6f_r6_external_custody_feasibility.py'
+      - 'research/test_g03_r6f_r6_external_custody_feasibility.py'
+      - 'governance/NORDOI_R6F_BUREAU001_R6_EXTERNAL_CUSTODY_FEASIBILITY.json'
+      - 'docs/NORDOI_R6F_BUREAU001_R6_EXTERNAL_CUSTODY_FEASIBILITY.md'
+      - '.github/workflows/g03_r6f_bureau001_r6_external_custody.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-sshsig-vs-independent-authority-negative:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: RoadMapGuardian fail-closed research policy
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: R1 exact 99 source Git blob and frozen chronology guard
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: R2 nine source perspectives not nine external specialists
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: R6 24 genuine same-admin signer and independent OOB negative cases
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r6_external_custody_feasibility.py' -v
+      - name: Mandatory authentic R6 two SSHSIG claims plus real R5Q rollback on POSIX
+        if: runner.os != 'Windows'
+        run: |
+          python -B - <<'PY'
+          import subprocess,sys,json
+          p=subprocess.run([sys.executable,"-B","research/g03_r6f_r6_external_custody_feasibility.py","--exercise"],capture_output=True,text=True,timeout=300)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          data=json.loads(p.stdout)
+          assert data['reason']=='R6_REAL_LOCAL_TWO_KEY_OOB_CLAIMS_AND_CROSS_EPOCH_ROLLBACK_NO_EXTERNAL_AUTHORITY',data
+          assert data['malicious_same_admin_oob_claim_genuinely_signed'] is True
+          assert data['real_r5q_three_file_coherent_rollback_reproduced'] is True
+          assert data['native_admission_gates_unmet']==12
+          assert data['production']=='NOT_AUTHORIZED'
+          print('R6_REAL_TWO_SSHSIG=PASS; FALSE_EXTERNAL_OOB_CLAIM=BLOCK; R5Q_REAL_ROLLBACK=PASS; NATIVE=NOT_AUTHORIZED')
+          PY
+      - name: R5 genuine in-place ABA and actual R5Q cross-epoch regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r5_inplace_aba.py' -v
+      - name: R4 real second-process atomic pathname race regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r4_fd_race.py' -v
+      - name: R3 actual rogue Ed25519 key attribution regressions
+        run: python -B -m unittest discover -s research -p 'test_g03_r6f_r3_signer_binding.py' -v
+      - name: R6A through R6E original local-provenance denial controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r6[a-e]*.py' -v
+      - name: R5A through R5Z original custody denials
+        run: python -B -m unittest discover -s research -p 'test_g03_r5*.py' -v
+      - name: R4Y/Z original source and native custody negative controls
+        run: python -B -m unittest discover -s research -p 'test_g03_r4*.py' -v
+      - name: Original RoadMapGuardian 24 adversarial tests
+        run: python -B -m unittest discover -s tests -p 'test_roadmap_guardian.py' -v
+      - name: Original R1 source audit 24 adversarial tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r1_audit.py' -v
+      - name: Original R2 reviewer evidence 24 adversarial tests
+        run: python -B -m unittest discover -s tests -p 'test_bureau_001_r2_review_intake.py' -v
+      - name: Unchanged real native macOS R4M XPC CDHash six serial
+        if: startsWith(matrix.os, 'macos')
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Twelve true external custody gates remain unmet
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          x=json.load(open('governance/NORDOI_R6F_BUREAU001_R6_EXTERNAL_CUSTODY_FEASIBILITY.json',encoding='utf-8'))
+          frozen=json.load(open('research/G03_R6E_OOB_ORIGIN_NO_EXTERNAL_AUTHORITY.json',encoding='utf-8'))
+          assert [g['id'] for g in x['required_native_gates']]==[g['id'] for g in frozen['required_gates']]
+          assert len(x['required_native_gates'])==12
+          assert len(x['nine_source_perspectives'])==9
+          assert x['independently_executed_specialist_reviews']==0
+          assert x['independent_custodian_enrolled'] is False
+          assert x['native_admission_gates_unmet']==12
+          assert x['r6g']=='LOCKED_BY_SEQUENCE'
+          assert x['production']=='NOT_AUTHORIZED'
+          print('R6_EXTERNAL_CUSTODY=NOT_ENROLLED; OWNER_OOB=NOT_AUTHENTICATED; 12_GATES=UNMET; R6G=LOCKED')
+          PY
