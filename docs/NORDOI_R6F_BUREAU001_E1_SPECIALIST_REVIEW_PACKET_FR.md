@@ -1,3 +1,5 @@
+> **DIRECTIVE E2 PRIORITAIRE — TESTS HUMAINS INTERDITS.** Le propriétaire a interdit définitivement tout test humain de NORDOI. Les démarches de recrutement ou de remise de ce dossier à des personnes pour tester le projet sont **ANNULÉES, NON ENVOYÉES ET NON AUTORISÉES**. Le contenu E1 ci-dessous est archivé comme proposition historique et ne sert plus de mode opératoire. Pour les tests, appliquer [E2 — Exécutions machines uniquement](NORDOI_R6F_BUREAU001_E2_NO_HUMAN_MACHINE_ONLY_FR.md). Les neuf rôles sont des fonctions d'analyse, pas des personnes. Les verrous natifs restent non satisfaits.
+
 # NORDOI G0.3 · R6F / BUREAU-001 — E1
 
 ## Dossier de remise aux neuf fonctions pour revues réellement exécutées

@@ -1,0 +1,101 @@
+name: NORDOI G0.3 R6F BUREAU001 E2 zero-human actual machine testing
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E2_NO_HUMAN_TESTING_POLICY.json'
+      - 'scripts/bureau_001_e2_machine_only.py'
+      - 'scripts/test_bureau_001_e2_machine_only.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E2_NO_HUMAN_MACHINE_ONLY_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e2_machine_only.yml'
+      - 'docs/NORDOI_R6F_BUREAU001_E1_*'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  zero-human-policy-and-source-pins:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enforce real owner zero-human-testing directive and frozen git sources
+        run: python -B scripts/bureau_001_e2_machine_only.py --audit
+      - name: E2 24 policy, source and machine evidence parsing negative tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e2_machine_only.py' -v
+      - name: Original RoadMapGuardian unchanged research-only gate
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Verify R1 frozen source 99 git blobs
+        run: python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Verify historical E1 nine source roles remain NOT_SUBMITTED
+        run: python -B scripts/bureau_001_r2_review_intake.py --audit
+      - name: Do not fabricate external administrative independence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          d=json.load(open('governance/NORDOI_R6F_BUREAU001_E2_NO_HUMAN_TESTING_POLICY.json'))
+          assert not d['human_testers_allowed']
+          assert not d['human_reviewer_outreach_allowed']
+          assert not d['human_review_packet_distribution_allowed']
+          assert d['historic_review_status']=='0_INDEPENDENT_SPECIALIST_SUBMISSIONS'
+          assert len(d['nine_bureau_machine_test_functions'])==9
+          assert d['native_admission_gates_unmet']==12
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('HUMAN_TESTERS=0_FORBIDDEN; MACHINE_ROLE_SUITE_MAPPINGS=9; INDEPENDENT_REVIEWS=0; NATIVE=12_UNMET')
+          PY
+
+  nine-actual-machine-suites-macos-intel:
+    runs-on: macos-15-intel
+    needs: zero-human-policy-and-source-pins
+    if: always() && !cancelled() && needs.zero-human-policy-and-source-pins.result == 'success'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run nine genuine role-specific tests on actual Intel macOS without human testers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/bureau_001_e2_machine_only.py --run --output "$RUNNER_TEMP/nordoi_e2_machine_only"
+      - name: Independently check actual nine machine execution records and limits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,pathlib,hashlib
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e2_machine_only'
+          s=json.loads((p/'E2_MACHINE_EVIDENCE.json').read_text())
+          names=['ATLAS','FERRUM','BOUNDARY','CIPHER','LEDGER','CAPSTONE','ADVERSARY','VERITY','GUARDIAN']
+          assert s['runner_os']=='Darwin'
+          assert s['role_suite_count_executed']==9
+          assert [x['role'] for x in s['machine_results']]==names
+          assert all(x['status']=='PASS' and x['exit_code']==0
+                     and x['human_tester'] is False
+                     and x['claimed_independent_specialist'] is False
+                     and hashlib.sha256((p/(x['role']+'.log')).read_bytes()).hexdigest()==x['log_sha256']
+                     for x in s['machine_results'])
+          assert s['all_nine_machine_suites_passed'] is True
+          assert s['real_human_testers']==0
+          assert s['independent_specialist_reviews_received']==0
+          assert s['outside_administrative_authority_authenticated'] is False
+          assert s['native_admission_gates_unmet']==12
+          assert s['r6g']=='LOCKED_BY_SEQUENCE'
+          assert s['production']=='NOT_AUTHORIZED'
+          print('E2_MACHINE_SUITES=9/9_REAL_PASS; HUMAN_TESTERS=0; INDEPENDENT_SPECIALIST_REVIEWS=0; EXTERNAL_AUTHORITY=NOT_PROVEN')
+          PY
+      - name: Preserve machine test logs and SHA256 as CI evidence, not external signatures
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E2_NINE_MACHINE_SUITES_MAC_INTEL_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e2_machine_only/
+          retention-days: 30
+          if-no-files-found: error

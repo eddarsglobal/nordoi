@@ -1,0 +1,110 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E2-ZERO-HUMAN-TESTING-POLICY-V1",
+  "project": "eddarsglobal/nordoi",
+  "source_e1_exact_head": "90f2ea2d7fde2116aaabb3afb3def35650afa3d5",
+  "owner_instruction": "NORDOI will never use human testers for any testing",
+  "authority": "OWNER_TESTING_SCOPE_POLICY_NOT_NATIVE_ADMISSION",
+  "scope": "ALL_FUTURE_NORDOI_TESTING_AND_REVIEW_EXECUTION",
+  "frozen_source_policy": "Do not rewrite the 99 R1 pinned sources RoadMap.md or Bureau.md; E2 supersedes human-tester solicitation proposals in the additive E1 documents",
+  "human_testers_allowed": false,
+  "human_reviewer_outreach_allowed": false,
+  "human_review_packet_distribution_allowed": false,
+  "human_test_execution_count": 0,
+  "manual_owner_privileged_authorization": "STILL_REQUIRED_BY_FROZEN_GOVERNANCE_AND_IS_NOT_A_TEST",
+  "machine_only_supported_testing": [
+    "DETERMINISTIC_PYTHON_TESTS",
+    "RUST_UNIT_AND_NATIVE_OS_TESTS",
+    "GITHUB_ACTIONS_EXECUTION",
+    "LOCALLY_ISOLATED_MACHINE_RUNS",
+    "AI_ASSISTED_ANALYSIS_ONLY_WHEN_ACTUALLY_EXECUTED_WITH_TRACEABLE_EVIDENCE"
+  ],
+  "nine_bureau_machine_test_functions": [
+    {
+      "role": "ATLAS",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "FERRUM",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "BOUNDARY",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "CIPHER",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "LEDGER",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "CAPSTONE",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "ADVERSARY",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "VERITY",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    },
+    {
+      "role": "GUARDIAN",
+      "execution_type": "MACHINE_TEST_SUITE_NOT_INDEPENDENT_SPECIALIST_ATTESTATION",
+      "status": "SCHEDULED_ONLY_NOT_EXECUTED",
+      "actual_log_sha256": null,
+      "independent_administrative_authority": false
+    }
+  ],
+  "superseded_e1_actions": [
+    "E1_UNSENT_HUMAN_SPECIALIST_INVITATIONS_DO_NOT_SEND",
+    "E1_UNSENT_EXTERNAL_HUMAN_TESTER_BRIEF_DO_NOT_SEND",
+    "E1_REQUIREMENT_FOR_NINE_HUMAN_TESTERS_NOT_COMPATIBLE_WITH_OWNER_POLICY"
+  ],
+  "must_not_fabricate": [
+    "REAL_INDEPENDENT_SPECIALIST_SIGNATURES",
+    "EXTERNALLY_AUTHENTICATED_OOB_ROOT",
+    "GLOBALLY_PROTECTED_MONOTONIC_LEDGER",
+    "INDEPENDENT_ADMIN_QUORUM",
+    "PRODUCTION_CERTIFICATION"
+  ],
+  "historic_review_status": "0_INDEPENDENT_SPECIALIST_SUBMISSIONS",
+  "real_external_custodian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "formal_r6f_closure": "HOLD_MISSING_INDEPENDENT_EVIDENCE",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "pr_merges": "NONE",
+  "decision": "E2_MACHINE_ONLY_TESTING_ALLOWED_RESEARCH_DENY_ONLY",
+  "next_valid_evidence": "Actual machine-executed test logs, source commit pins and reproducible failures, not signatures of independent human specialists"
+}

@@ -1,3 +1,5 @@
+> **DIRECTIVE E2 PRIORITAIRE — AUCUN HUMAIN POUR TESTER NORDOI.** L'invitation et le recrutement de tiers décrits plus bas sont **ANNULÉS ; AUCUN MESSAGE N'A ÉTÉ ENVOYÉ**. Cette page E1 est conservée uniquement comme trace historique d'une proposition écartée ; elle **ne doit pas être utilisée pour contacter un testeur humain**. Voir [E2 — Politique de tests exclusivement machines](NORDOI_R6F_BUREAU001_E2_NO_HUMAN_MACHINE_ONLY_FR.md). Aucun gardien externe n'est authentifié/enrôlé et R6G demeure verrouillé.
+
 # NORDOI G0.3 · R6F / BUREAU-001 — E1 / IND-OPERATOR
 
 ## Cahier d'exigences pour un véritable gardien indépendant — non contacté
