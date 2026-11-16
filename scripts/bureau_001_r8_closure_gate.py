@@ -148,9 +148,8 @@ def check_sources(r7plan,registry,original,r6,dossier):
             "NORDOI-G03-R6F-BUREAU001-R8-CLOSURE-DECISION-RESEARCH-V1" and
             dossier["parent_r7_exact_head"]==PARENT and
             dossier["project"]==PROJECT and
-            dossier["research_only"] is not True if "research_only" in dossier
-            else dossier["audit_scope"]==
-                 "SOURCE_BASED_COORDINATOR_CHECK_OF_CLOSURE_PRECONDITIONS_NOT_INDEPENDENT_EXECUTED_REVIEWS",
+            dossier["audit_scope"]==
+              "SOURCE_BASED_COORDINATOR_CHECK_OF_CLOSURE_PRECONDITIONS_NOT_INDEPENDENT_EXECUTED_REVIEWS",
             "R8_INVALID_CLOSURE_DOSSIER_IDENTITY")
     # Avoid implicit approvals: exact R7 upstream no external real-world proofs.
     require(r7plan["parent_r6_exact_head"]==r7.PARENT and
