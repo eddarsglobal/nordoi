@@ -43,8 +43,8 @@ jobs:
 
   real-nine-machine-suites-exact-head-macos-intel:
     runs-on: macos-15-intel
-    needs: exact-pr-head-provenance-and-real-filesystem-negatives
-    if: always() && !cancelled() && needs.exact-pr-head-provenance-and-real-filesystem-negatives.result == 'success'
+    # Independent real test job: performs its own source/HEAD audit and
+    # must not be indefinitely blocked by another macOS runner queue.
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
