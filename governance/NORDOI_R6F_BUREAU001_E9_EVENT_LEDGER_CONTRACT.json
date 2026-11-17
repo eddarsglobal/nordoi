@@ -1,0 +1,50 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E9-RECORDED-EVENT-LEDGER-CONSISTENCY-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e8_exact_head": "bf4c0d66256ad3a871e44cae39808af5ea1418d4",
+  "prior_e8": {
+    "specialized_run_id": 44036977230,
+    "specialized_success": 4,
+    "rust_run_id": 44036977539,
+    "rust_success": 5
+  },
+  "hypothesis": "E8 local reconciliation trusts caller-supplied event fields. An administrator can replace branch B claimed nonce and recompute its predictable unkeyed event hash; E8 returns split_brain_detected=false even while both real SQLite ledgers persist the same nonce. Binding the event to the recorded SQLite row detects the local contradictory claim, not an external or global custody proof.",
+  "research_steps": [
+    "two_real_fork_sqlite_commits_with_genuine_e6_ssh_signature",
+    "actual_e8_split_brain_detected_before_forgery",
+    "recompute_local_b_event_hash_for_different_nonce",
+    "actual_e8_reconcile_false_negative_conflict_flag",
+    "new_guard_rejects_event_to_sqlite_row_mismatch",
+    "unchanged_authentic_records_still_conflict_block"
+  ],
+  "bureau_functions": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "independent_bureau_agents_executed": 0,
+  "independent_specialist_reviews": 0,
+  "human_testers_allowed": false,
+  "human_testers_executed": 0,
+  "external_witness_receipts": 0,
+  "no_network": true,
+  "no_export_external_keys": true,
+  "permission_to_merge": false,
+  "external_custodian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "external_complete_fork_enumeration": "NOT_VERIFIED",
+  "formal_r6f_closure": "HOLD_MISSING_INDEPENDENT_EVIDENCE",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "research_policy": "LOCAL_NEGATIVE_PROOF_ONLY_ZERO_HUMANS_DENY_ALL_NATIVE_EFFECTS",
+  "pre_ci_verdict": "IN_PROGRESS_UNQUALIFIED"
+}
