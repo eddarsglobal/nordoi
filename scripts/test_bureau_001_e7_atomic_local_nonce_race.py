@@ -37,8 +37,8 @@ class E7PortableSourceAndRealSQLite(unittest.TestCase):
     def test_02_e6_qualified_at_exact_parent_head(self):
         p=e7.e3.strictly_load(e7.e3.real_file_bytes(ROOT/e7.CONTRACT))
         self.assertEqual(p["parent_e6_exact_head"],e7.PARENT)
-        self.assertEqual(p["predecessor_e6"]["specialized_jobs_completed_success"],4)
-        self.assertEqual(p["predecessor_e6"]["rust_jobs_completed_success"],5)
+        self.assertEqual(p["prior_e6"]["specialized_jobs_completed_success"],4)
+        self.assertEqual(p["prior_e6"]["rust_jobs_completed_success"],5)
     def test_03_owner_permanently_bans_human_testers(self):
         p=e7.e3.strictly_load(e7.e3.real_file_bytes(ROOT/e7.CONTRACT))
         self.assertFalse(p["human_testers_allowed"])
