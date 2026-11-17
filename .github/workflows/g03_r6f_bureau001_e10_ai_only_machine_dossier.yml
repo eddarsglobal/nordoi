@@ -1,0 +1,134 @@
+name: NORDOI G0.3 R6F E10 actual AI-only Bureau machine evidence
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E10_AI_ONLY_MACHINE_DOSSIER.json'
+      - 'scripts/bureau_001_e10_ai_only_machine_dossier.py'
+      - 'scripts/test_bureau_001_e10_ai_only_machine_dossier.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E10_AI_ONLY_MACHINE_EVIDENCE_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e10_ai_only_machine_dossier.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e10-nine-real-bureau-machine-functions:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin exact PR HEAD and 99 original R1 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E10 source contract expected BLOCK exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+            'scripts/bureau_001_e10_ai_only_machine_dossier.py','--audit',
+            '--expected-head',os.environ['EXPECTED_HEAD']],
+            capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['automated_roles_configured']==9
+          assert d['actual_machine_checks_executed']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['human_testers']==0 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          print('E10_SOURCE_CONTRACT=BLOCK_EXPECTED')
+          PY
+      - name: Twenty-four E10 actual machine policy and tamper tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e10_ai_only_machine_dossier.py' -v
+      - name: Execute nine real Bureau-function OS processes and manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e10_machine_bundle'
+          p=subprocess.run([sys.executable,'-B',
+            'scripts/bureau_001_e10_ai_only_machine_dossier.py','--exercise',
+            '--expected-head',os.environ['EXPECTED_HEAD'],
+            '--output-dir',str(folder)],
+            capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          m=json.loads((folder/'MANIFEST.json').read_text())
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['actual_distinct_child_processes']==9
+          assert d['generated_report_files']==9
+          assert d['contradiction_matrix_rows']==5
+          assert d['actual_external_authority_proven'] is False
+          assert d['result']=='BLOCK'
+          assert m['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert len(m['reports'])==9
+          assert len({r['pid'] for r in m['reports']})==9
+          assert m['formal_independent_reviews']==0
+          assert m['external_witness_receipts']==0
+          assert m['native_admission_gates_unmet']==12
+          assert m['r6g']=='LOCKED_BY_SEQUENCE'
+          assert m['human_testers']==0
+          assert d['output_manifest_sha256']==hashlib.sha256(
+            (folder/'MANIFEST.json').read_bytes()).hexdigest()
+          print('E10_REAL_MACHINE_FUNCTIONS=9/9_CHECKS')
+          print('E10_REAL_DISTINCT_OS_PROCESSES=9/9')
+          print('E10_CONTRADICTION_MATRIX=5_SOURCE_ANCHORED_ROWS')
+          print('E10_MANIFEST_SHA256='+d['output_manifest_sha256'])
+          print('E10_INDEPENDENT_REVIEWS=0; NATIVE_GATES=12_UNMET; R6G=LOCKED')
+          PY
+      - name: Original E2 through E9 real regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e2_machine_only e3_exact_head_provenance e4_coherent_evidence_tampering e5_separate_witness_contract e6_signed_receipt_rebinding e7_atomic_local_nonce_race e8_local_ledger_split_brain e9_event_ledger_binding; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: Original deterministic RoadMapGuardian
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Genuine R4M signed macOS XPC CDHash six native tests serial
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final exact head and AI-only policy non-promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E10_AI_ONLY_MACHINE_DOSSIER.json'))
+          assert p['human_testers_allowed'] is False and p['owner_manual_test_duty'] is False
+          assert p['independent_specialist_reviews']==0
+          assert p['actual_external_witness_receipts']==0
+          assert p['immutable_controls']['native_admission_gates_unmet']==12
+          assert p['immutable_controls']['r6g']=='LOCKED_BY_SEQUENCE'
+          assert p['immutable_controls']['production']=='NOT_AUTHORIZED'
+          print('E10_OWNER=FOUNDER_DIRECTION_NOT_MANUAL_TESTS')
+          print('E10_AI_ONLY=TRUE; ZERO_HUMANS; NO_EXTERNAL_CERTIFICATION')
+          PY
+      - name: Preserve genuine Mac Intel nine-role machine dossier
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E10_NINE_AI_ONLY_MACHINE_REPORTS_MAC_INTEL
+          path: ${{ runner.temp }}/nordoi_e10_machine_bundle/
+          retention-days: 30
+          if-no-files-found: error
