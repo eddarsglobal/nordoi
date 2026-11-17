@@ -1,0 +1,133 @@
+name: NORDOI G0.3 R6F E12 AI-only twelve native evidence intake
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E12_TWELVE_GATE_INTAKE.json'
+      - 'scripts/bureau_001_e12_ai_only_native_evidence_intake.py'
+      - 'scripts/test_bureau_001_e12_ai_only_native_evidence_intake.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E12_AI_NATIVE_EVIDENCE_INTAKE_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e12_ai_only_evidence_intake.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e12-external-evidence-intake-denial:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Real source exact HEAD 99 pinned R1 Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E12 native admission contract must remain BLOCK 12/12
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+              'scripts/bureau_001_e12_ai_only_native_evidence_intake.py',
+              '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+              capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['intake_gate_count']==12 and d['actual_external_anchor_count']==0
+          assert d['native_admission_gates_unmet']==12 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['human_testers']==0 and d['production']=='NOT_AUTHORIZED'
+          print('E12_SOURCE_AUDIT=12_GATES_UNMET_EXPECTED_BLOCK')
+          PY
+      - name: E12 twenty-four machine-only evidence-intake tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e12_ai_only_native_evidence_intake.py' -v
+      - name: Real POSIX Ed25519 same-admin evidence attack denied
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+              'scripts/bureau_001_e12_ai_only_native_evidence_intake.py',
+              '--exercise','--expected-head',os.environ['EXPECTED_HEAD']],
+              capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK'
+          assert d['reason']=='E12_REAL_SSHSIG_SIGNED_SELF_CLAIMS_DENIED_ALL_TWELVE_GATES'
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['true_posix_local_ed25519_signatures_verified']==2
+          assert d['naive_self_attestation_would_open_twelve'] is True
+          assert d['actual_external_trust_roots']==0
+          assert d['actual_accepted_external_evidence']==0
+          assert d['all_twelve_native_gates_remain_unmet'] is True
+          assert d['human_testing_performed'] is False
+          assert d['native_effect_performed'] is False
+          assert d['native_admission_gates_unmet']==12 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          print('E12_REAL_ED25519_LOCAL_VALID=TRUE_BUT_NOT_EXTERNAL')
+          print('E12_SELF_CLAIMED_MET=12_REJECTED')
+          print('E12_EXTERNAL_ROOTS=0; NATIVE_GATES=12_UNMET')
+          if sys.platform=='darwin' and os.uname().machine=='x86_64':
+              folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e12_machine_result'
+              folder.mkdir(mode=0o700,exist_ok=False)
+              blob=(json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+              (folder/'E12_TWELVE_GATE_REAL_SIGNER_DENIAL.json').write_bytes(blob)
+              print('E12_MACHINE_RESULT_SHA256='+hashlib.sha256(blob).hexdigest())
+          PY
+      - name: Prior E2 to E11 machine regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e2_machine_only e3_exact_head_provenance e4_coherent_evidence_tampering e5_separate_witness_contract e6_signed_receipt_rebinding e7_atomic_local_nonce_race e8_local_ledger_split_brain e9_event_ledger_binding e10_ai_only_machine_dossier e11_rebound_machine_dossier; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: Original RoadMapGuardian negative policy and source gate
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Genuine six signed native R4M XPC CDHash tests serial
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final exact HEAD, no humans, no independent invented authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E12_TWELVE_GATE_INTAKE.json'))
+          assert p['human_testers_allowed'] is False
+          assert p['real_independent_bureau_audits']==0
+          assert p['external_trust_roots_enrolled']==0
+          assert p['external_witness_receipts_authenticated']==0
+          assert len(p['required_native_gates'])==12
+          assert all(r['status']=='UNMET_INDEPENDENT_EXTERNAL_EVIDENCE'
+                     for r in p['required_native_gates'])
+          assert p['review_limits']['native_admission_gates_unmet']==12
+          assert p['review_limits']['r6g']=='LOCKED_BY_SEQUENCE'
+          assert p['review_limits']['production']=='NOT_AUTHORIZED'
+          print('E12_12/12_NATIVE_GATES=UNMET; AI_ONLY_NO_HUMAN_TESTERS')
+          PY
+      - name: Preserve Mac Intel actual SSHSIG claim denial evidence
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E12_TWELVE_NATIVE_GATES_MAC_INTEL_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e12_machine_result/
+          retention-days: 30
+          if-no-files-found: error
