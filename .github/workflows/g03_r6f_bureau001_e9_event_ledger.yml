@@ -1,0 +1,133 @@
+name: NORDOI G0.3 R6F E9 actual event ledger consistency
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E9_EVENT_LEDGER_CONTRACT.json'
+      - 'scripts/bureau_001_e9_event_ledger_binding.py'
+      - 'scripts/test_bureau_001_e9_event_ledger_binding.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E9_EVENT_LEDGER_BOUNDARY_FR.md'
+      - 'docs/NORDOI_G03_BUREAU_CURRENT_STATUS_20261117_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e9_event_ledger.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e9-real-signed-event-ledger-rebinding:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact pull request head and 99 original R1 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E9 source audit must refuse with exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+            'scripts/bureau_001_e9_event_ledger_binding.py',
+            '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+            capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['result']=='BLOCK' and d['native_admission_gates_unmet']==12
+          assert d['real_human_testers']==0 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('E9_SOURCE_AUDIT=EXPECTED_BLOCK_2')
+          PY
+      - name: E9 twenty-four real local ledger and POSIX SSHSIG tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e9_event_ledger_binding.py' -v
+      - name: Genuine signed E8 fork and E9 event contradiction experiment
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+            'scripts/bureau_001_e9_event_ledger_binding.py',
+            '--exercise','--expected-head',os.environ['EXPECTED_HEAD']],
+            capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='E9_REAL_LOCAL_EVENT_LEDGER_SUBSTITUTION_CAUGHT_DENY_ONLY'
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['genuine_local_ssh_signatures_verified'] is True
+          assert d['actual_distinct_e8_worker_processes']==2
+          assert d['real_independent_sqlite_forks']==2
+          assert d['honest_e8_conflict'] is True
+          assert d['falsified_local_event_hash_recomputed'] is True
+          assert d['old_e8_split_brain_conflict_flag_false_negative'] is True
+          assert d['old_e8_result_remained_block'] is True
+          assert d['persisted_sqlite_rows_unchanged'] is True
+          assert d['new_event_to_sqlite_guard_rejected'] is True
+          assert d['genuine_unmodified_events_reconcile_to_block'] is True
+          assert d['external_complete_history_proven'] is False
+          assert d['real_external_witness_receipts']==0
+          assert d['result']=='BLOCK' and d['native_admission_gates_unmet']==12
+          print('E9_REAL_E8_FALSE_NEGATIVE_FLAG=REPRODUCED_NO_NATIVE_ADMISSION')
+          print('E9_REAL_PERSISTED_LEDGER_GUARD=REJECTS_FALSIFIED_EVENT')
+          print('E9_INDEPENDENT_GLOBAL_HISTORY=NOT_VERIFIED')
+          if sys.platform=='darwin' and os.uname().machine=='x86_64':
+              folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e9_machine_result'
+              folder.mkdir(mode=0o700,exist_ok=False)
+              blob=(json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+              (folder/'E9_REAL_EVENT_VS_LEDGER.json').write_bytes(blob)
+              print('E9_MACHINE_RESULT_SHA256='+hashlib.sha256(blob).hexdigest())
+          PY
+      - name: E2 to E8 original machine regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e2_machine_only e3_exact_head_provenance e4_coherent_evidence_tampering e5_separate_witness_contract e6_signed_receipt_rebinding e7_atomic_local_nonce_race e8_local_ledger_split_brain; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: Existing RoadMapGuardian still refuses native promotion
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Original genuine signed R4M macOS XPC CDHash six serial
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Exact head and fail-closed owner policy unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E9_EVENT_LEDGER_CONTRACT.json'))
+          assert p['human_testers_allowed'] is False and p['human_testers_executed']==0
+          assert p['external_witness_receipts']==0
+          assert p['native_admission_gates_unmet']==12
+          assert p['r6g']=='LOCKED_BY_SEQUENCE' and p['production']=='NOT_AUTHORIZED'
+          assert p['permission_to_merge'] is False
+          print('E9_ZERO_HUMAN_TESTERS=TRUE; R6G_LOCKED; NO_PRODUCTION')
+          PY
+      - name: Preserve Mac Intel genuine E9 result and digest
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E9_EVENT_LEDGER_MAC_INTEL_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e9_machine_result/
+          retention-days: 30
+          if-no-files-found: error
