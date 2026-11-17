@@ -238,22 +238,35 @@ def exercise(root,head,folder):
          "E10_OUTPUT_DIRECTORY_MUST_BE_FRESH")
     output.mkdir(mode=0o700)
     checks=[]
-    for role in ROLES:
-        p=subprocess.run([sys.executable,"-B",
-             str(Path(__file__).resolve()),"--role",role,
-             "--expected-head",head,"--root",str(root)],
-             cwd=root,capture_output=True,timeout=120)
-        need(p.returncode==2,"E10_ACTUAL_ROLE_PROCESS_FAILED:"+role)
-        d=sealed_report(p.stdout)
-        need(d["role"]==role and d["source_head"]==head,
-             "E10_REPORT_SOURCE_ROLE_MISMATCH")
-        need(d["source_sha256"]==
-             {path:digest(source(root,path)) for path in TARGETS[role]},
-             "E10_SOURCE_SHA_NOT_ACTUALLY_CHECKED")
-        fn=role+".json"
-        (output/fn).write_bytes(p.stdout)
-        checks.append({"role":role,"path":fn,
-                       "report_sha256":digest(p.stdout),"pid":d["pid"]})
+    children=[]
+    try:
+        # Launch all nine actual role processes before collecting any output.
+        # Their overlapping lifetimes make OS PID reuse impossible.
+        for role in ROLES:
+            p=subprocess.Popen([sys.executable,"-B",
+                str(Path(__file__).resolve()),"--role",role,
+                "--expected-head",head,"--root",str(root)],
+                cwd=root,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            children.append((role,p))
+        for role,p in children:
+            raw,err=p.communicate(timeout=120)
+            need(p.returncode==2,
+                 "E10_ACTUAL_ROLE_PROCESS_FAILED:"+role+":"+err[:160].decode(errors="replace"))
+            d=sealed_report(raw)
+            need(d["role"]==role and d["source_head"]==head
+                 and d["pid"]==p.pid,"E10_REPORT_SOURCE_ROLE_PID_MISMATCH")
+            need(d["source_sha256"]==
+                 {path:digest(source(root,path)) for path in TARGETS[role]},
+                 "E10_SOURCE_SHA_NOT_ACTUALLY_CHECKED")
+            fn=role+".json"
+            (output/fn).write_bytes(raw)
+            checks.append({"role":role,"path":fn,
+                           "report_sha256":digest(raw),"pid":d["pid"]})
+    finally:
+        for _,p in children:
+            if p.poll() is None:
+                p.kill()
+                p.communicate()
     need(len({x["pid"] for x in checks})==9,
          "E10_NINE_DISTINCT_OS_PROCESSES_NOT_EXECUTED")
     manifest={
