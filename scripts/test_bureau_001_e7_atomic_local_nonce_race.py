@@ -4,6 +4,7 @@
 and distinct OS-process concurrency tests. All research results remain BLOCK.
 """
 import os
+from contextlib import closing
 from pathlib import Path
 import shutil
 import sqlite3
@@ -52,7 +53,7 @@ class E7PortableSourceAndRealSQLite(unittest.TestCase):
     def test_05_create_real_sqlite_disposable_table(self):
         db=e7.initialize(self.root)
         self.assertTrue(db.is_file())
-        with sqlite3.connect(db) as c:
+        with closing(sqlite3.connect(db)) as c:
             cols=c.execute("PRAGMA table_info(research_local_spent)").fetchall()
         self.assertEqual(len(cols),4)
     def test_06_new_sqlite_nonce_is_not_spent(self):
@@ -73,7 +74,7 @@ class E7PortableSourceAndRealSQLite(unittest.TestCase):
     def test_09_namespace_and_nonce_compose_unique_primary(self):
         db=e7.initialize(self.root)
         e7.consume_atomic(db,NONCE,RECEIPT,head())
-        with sqlite3.connect(db) as c:
+        with closing(sqlite3.connect(db)) as c:
             row=c.execute("SELECT namespace,challenge_nonce_sha256 FROM "
                           "research_local_spent").fetchone()
         self.assertEqual(row,(e7.NAMESPACE,NONCE))
@@ -86,7 +87,7 @@ class E7PortableSourceAndRealSQLite(unittest.TestCase):
     def test_11_real_db_is_stable_across_process_reopen(self):
         db=e7.initialize(self.root)
         e7.consume_atomic(db,NONCE,RECEIPT,head())
-        with sqlite3.connect(db) as c:
+        with closing(sqlite3.connect(db)) as c:
             self.assertEqual(c.execute("SELECT COUNT(*) FROM research_local_spent")
                              .fetchone()[0],1)
     def test_12_real_same_admin_snapshot_restore_erases_local_floor(self):
