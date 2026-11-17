@@ -61,6 +61,13 @@ class E10MachineTests(unittest.TestCase):
         d=e10.role_check(ROOT,head(),"ATLAS")
         raw=e10.canonical(d)
         self.assertEqual(e10.sealed_report(raw)["role"],"ATLAS")
+        # Native Windows stdout must preserve LF exactly (no CRLF injection).
+        p=subprocess.run([sys.executable,"-B",str(ROOT/"scripts"/
+            "bureau_001_e10_ai_only_machine_dossier.py"),
+            "--role","ATLAS","--expected-head",head()],
+            cwd=ROOT,capture_output=True,timeout=60)
+        self.assertEqual(p.returncode,2,p.stderr)
+        self.assertEqual(p.stdout,e10.canonical(e10.sealed_report(p.stdout)))
     def test_20_false_independent_role_report_is_rejected(self):
         d=e10.role_check(ROOT,head(),"FERRUM")
         d["formal_independent_review"]="CERTIFIED"
