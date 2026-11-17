@@ -1,0 +1,130 @@
+name: NORDOI G0.3 R6F BUREAU001 E4 coherent machine evidence tampering
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E4_COHERENT_EVIDENCE_TAMPERING.json'
+      - 'scripts/bureau_001_e4_coherent_evidence_tampering.py'
+      - 'scripts/test_bureau_001_e4_coherent_evidence_tampering.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E4_COHERENT_EVIDENCE_TAMPERING_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e4_coherent_tampering.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e4-portable-source-and-actual-filesystem-negative-cases:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Real E4 source and unchanged historical gate audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          python -B scripts/bureau_001_e4_coherent_evidence_tampering.py --audit --expected-head "$EXPECTED_HEAD"
+      - name: E4 24 source and actual filesystem paired evidence tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e4_coherent_evidence_tampering.py' -v
+      - name: E3 prior 24 exact-head and adversarial log tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e3_exact_head_provenance.py' -v
+      - name: E2 prior 24 zero human and source pin controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e2_machine_only.py' -v
+      - name: Original RoadMapGuardian admission gate unchanged
+        run: python -B scripts/roadmap_guardian.py --audit
+
+  e4-real-nine-log-coherent-mutation-macos-intel:
+    runs-on: macos-15-intel
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact HEAD & prior source audit before experimental data generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          python -B scripts/bureau_001_e4_coherent_evidence_tampering.py --audit --expected-head "$EXPECTED_HEAD"
+      - name: Execute actual nine Rust Python macOS machine suites for evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/bureau_001_e2_machine_only.py --run --output "$RUNNER_TEMP/nordoi_e4_real_machine_evidence"
+      - name: Check actual evidence and emit genuinely pre-tamper local snapshot SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/bureau_001_e3_exact_head_provenance.py --verify --expected-head "$EXPECTED_HEAD" --evidence-dir "$RUNNER_TEMP/nordoi_e4_real_machine_evidence"
+          python -B - <<'PY'
+          import hashlib,os,pathlib,json
+          p=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e4_real_machine_evidence'
+          data=(p/'E2_MACHINE_EVIDENCE.json').read_bytes()
+          d=json.loads(data)
+          assert d['source_head_before_after']==os.environ['EXPECTED_HEAD']
+          assert d['all_nine_machine_suites_passed'] is True
+          assert d['runner_os']=='Darwin' and d['runner_architecture']=='x86_64'
+          print("E4_PR_HEAD="+d['source_head_before_after'])
+          print("E4_ACTUAL_NINE_ROLE_SUITES=9/9_PASS")
+          print("E4_PRE_TAMPER_MANIFEST_SHA256="+hashlib.sha256(data).hexdigest())
+          PY
+      - name: Actual OS process reproduces coherent log-and-manifest tampering on isolated copies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/bureau_001_e4_coherent_evidence_tampering.py \
+            --exercise --expected-head "$EXPECTED_HEAD" \
+            --evidence-dir "$RUNNER_TEMP/nordoi_e4_real_machine_evidence" \
+            | tee "$RUNNER_TEMP/e4_coherent_exercise.json"
+      - name: Verify E3 accepted paired forgery, prior anchor detects, rewritten local anchor fails to protect
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,pathlib,hashlib
+          t=pathlib.Path(os.environ['RUNNER_TEMP'])
+          data=(t/'e4_coherent_exercise.json').read_bytes()
+          r=json.loads(data)
+          assert r['result']=='E4_REAL_NINE_MACHINE_EVIDENCE_COHERENT_TAMPER_REPRODUCED',r
+          assert r['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert r['real_original_e3_nine_logs_verified']==9
+          assert r['forged_copy_e3_accepted_in_new_process'] is True
+          assert r['same_admin_log_and_manifest_both_modified'] is True
+          assert r['unchanged_prior_local_anchor_detected'] is True
+          assert r['rewritten_same_admin_anchor_passes_again'] is True
+          assert r['true_independent_anchor_exists'] is False
+          assert r['original_machine_evidence_untouched'] is True
+          assert r['real_human_testers']==0
+          assert r['native_admission_gates_unmet']==12
+          assert r['r6g']=='LOCKED_BY_SEQUENCE'
+          assert r['production']=='NOT_AUTHORIZED'
+          print("E4_REAL_COHERENT_MUTATION=REPRODUCED_ON_ACTUAL_NINE_ROLE_LOGS")
+          print("E4_E3_ACCEPTS_FORGED_COHERENT_COPY=TRUE")
+          print("E4_PRIOR_UNCHANGED_LOCAL_ANCHOR_DETECTS=TRUE")
+          print("E4_REWRITTEN_SAME_ADMIN_ANCHOR_FAILS_TO_PROTECT=TRUE")
+          print("E4_INDEPENDENT_EXTERNAL_CUSTODIAN=NOT_ENROLLED")
+          print("E4_EXERCISE_SHA256="+hashlib.sha256(data).hexdigest())
+          (t/'nordoi_e4_real_machine_evidence'/'E4_COHERENT_EXERCISE.json').write_bytes(data)
+          PY
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+      - name: Upload genuine logs and bounded research result
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E4_COHERENT_TAMPER_REAL_MACHINE_LOGS_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e4_real_machine_evidence/
+          retention-days: 30
+          if-no-files-found: error
