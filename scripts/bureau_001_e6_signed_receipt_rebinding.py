@@ -107,7 +107,7 @@ def make(head,manifest_sha,previous_sha,nonce_sha,pub_sha,now=1200,
     return canonical(parse(canonical(p),head))
 
 def refuse(reason,**info):
-    return dict(
+    d=dict(
         result="BLOCK",reason=reason,
         cryptographic_signature_valid=info.get("cryptographic_signature_valid",False),
         signed_source_head=info.get("signed_source_head"),
@@ -122,6 +122,10 @@ def refuse(reason,**info):
         global_monotonic_antirollback="NOT_VERIFIED",
         r6f="IN_PROGRESS_UNCERTIFIED",
         r6g="LOCKED_BY_SEQUENCE",production="NOT_AUTHORIZED")
+    # Preserve measured negative-lab details but never permit a caller to
+    # override the fixed BLOCK / native-lock / independent-authority fields.
+    d.update({k:v for k,v in info.items() if k not in d})
+    return d
 
 def verify_local(raw,signature,allowed,public,head,manifest,previous,
                  challenge,now,spent_local=(),min_local_epoch=0):
