@@ -1,0 +1,48 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E8-LOCAL-LEDGER-SPLIT-BRAIN-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e7_exact_head": "81c84f116b3ae6003b84c335e47af4d1b84637ef",
+  "prior_e7": {
+    "specialized_run_id": 44033036777,
+    "specialized_success": 4,
+    "rust_run_id": 44033036774,
+    "rust_success": 5
+  },
+  "research_question": "Two independent SQLite files forked from one empty state can each make one correct atomic nonce consumption for the same genuinely signed E6 receipt. Local reconciliation can detect divergent consumption event IDs only if all branches are preserved, but cannot provide an independent global witness.",
+  "experiment_stages": [
+    "fork_two_closed_sqlite_files",
+    "true_distinct_process_signed_receipt_verification",
+    "one_atomic_local_commit_per_fork",
+    "local_reconciliation_detects_double_branch_event",
+    "withheld_branch_evidence_fail_closed"
+  ],
+  "automated_bureau_functions": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "actual_independent_bureau_agents_executed": 0,
+  "independent_specialist_reviews": 0,
+  "human_testers_allowed": false,
+  "physical_test_humans": 0,
+  "no_network": true,
+  "no_credentials_export": true,
+  "independent_external_receipts": 0,
+  "external_custodian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "formal_r6f_closure": "HOLD_MISSING_INDEPENDENT_EVIDENCE",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "permission_to_merge": false,
+  "verification_claim": "LOCAL_FORK_DETECTION_RESEARCH_ONLY_NOT_PREVENTION_OF_ALL_BRANCHES",
+  "policy": "ZERO_HUMAN_TESTERS_AND_NO_NATIVE_ADMISSION"
+}
