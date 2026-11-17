@@ -1,0 +1,194 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E5-SEPARATE-WITNESS-TRUST-CONTRACT-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e4_exact_head": "0c4a4f5b1b349edb445871c4980daba57e936a59",
+  "mandate": "DESIGN_AND_NEGATIVE_AUDIT_OF_SEPARATE_EVIDENCE_WITNESS_NOT_ENROLLMENT",
+  "prior_e4_observed": {
+    "actual_mac_intel_machine_suites": "9/9_PASS",
+    "coherent_same_admin_log_and_manifest_forgery": "REPRODUCED",
+    "prior_unmodified_local_anchor_detects": true,
+    "rewritten_same_admin_anchor_fails_to_protect": true,
+    "real_machine_manifest_sha256": "099a23953ba7815556d82b393555a7ab475aa4b946684325e85c9e7e2392b77e",
+    "real_exercise_sha256": "6beba105ff9df2c6b3980f5c09e4846c677dc51afa0b73953874a8d85be4d61f",
+    "github_ci_specialized_run": 44023579163,
+    "general_rust_run": 44023579257,
+    "github_ci": "10/10_SUCCESS",
+    "artifact_id": 14301887658,
+    "artifact_zip_sha256": "469b13d2084c0144f1d3a499b76f1d965178080da864a6bdae599becbb794435",
+    "source_of_observation": "EXACT_GITHUB_ACTIONS_MAC_INTEL_JOB_OUTPUT_NOT_EXTERNAL_ATTESTATION"
+  },
+  "trust_domains": [
+    {
+      "id": "producer",
+      "controlled_by": "NORDOI_LOCAL_ADMIN",
+      "may_modify": "source checkout, local machine logs, local manifest and local OOB assertions",
+      "independent_from_local": false
+    },
+    {
+      "id": "local_signer",
+      "controlled_by": "NORDOI_LOCAL_ADMIN",
+      "may_modify": "local SSHSIG private keys, signed local claims and files",
+      "independent_from_local": false
+    },
+    {
+      "id": "candidate_witness",
+      "controlled_by": "UNESTABLISHED",
+      "may_modify": "no externally authorized state is present",
+      "independent_from_local": null
+    },
+    {
+      "id": "owner_oob_anchor",
+      "controlled_by": "NOT_AUTHENTICATED",
+      "may_modify": "unverified fingerprint references only",
+      "independent_from_local": null
+    },
+    {
+      "id": "external_floor",
+      "controlled_by": "NOT_ENROLLED",
+      "may_modify": "no independent epoch/nonce/revocation high-water",
+      "independent_from_local": null
+    }
+  ],
+  "proof_obligations": [
+    {
+      "id": "independent_root",
+      "proof_obligation": "Owner separately authenticates exact guardian public-key fingerprint through channel beyond local administrative control",
+      "status": "NOT_AUTHENTICATED",
+      "real_evidence_sha256": null,
+      "cryptographically_authenticated_external": false
+    },
+    {
+      "id": "operator_domain",
+      "proof_obligation": "Real independent administrative authority, exclusive secrets and meaningful inability of local admin to rewrite witness ledger",
+      "status": "NOT_ENROLLED",
+      "real_evidence_sha256": null,
+      "cryptographically_authenticated_external": false
+    },
+    {
+      "id": "freshness",
+      "proof_obligation": "Signer-bound fresh challenge and exact data/event sequence, replay/cross-protocol rejection",
+      "status": "NOT_VERIFIED",
+      "real_evidence_sha256": null,
+      "cryptographically_authenticated_external": false
+    },
+    {
+      "id": "external_monotonicity",
+      "proof_obligation": "Independently protected append-only key epoch/revocation/spent-nonce floors surviving full local restore including R5Q",
+      "status": "NOT_VERIFIED",
+      "real_evidence_sha256": null,
+      "cryptographically_authenticated_external": false
+    },
+    {
+      "id": "threshold_and_recovery",
+      "proof_obligation": "Actually distinct custodian quorum with externally controlled recovery and rotation review",
+      "status": "NOT_PROVEN",
+      "real_evidence_sha256": null,
+      "cryptographically_authenticated_external": false
+    },
+    {
+      "id": "formal_approval",
+      "proof_obligation": "Authentic Bureau review and separate explicit owner authorization after external evidence",
+      "status": "NOT_DECIDED",
+      "real_evidence_sha256": null,
+      "cryptographically_authenticated_external": false
+    }
+  ],
+  "required_protocol_fields": [
+    "protocol",
+    "project",
+    "source_head",
+    "producer_manifest_sha256",
+    "previous_witness_receipt_sha256",
+    "challenge_nonce_sha256",
+    "declared_key_epoch",
+    "declared_revocation_floor",
+    "declared_spent_nonce_floor",
+    "locally_claimed_separate_admin",
+    "locally_claimed_oob_verified",
+    "locally_claimed_external_quorum",
+    "locally_claimed_authorization"
+  ],
+  "claim_semantics": "UNTRUSTED_LOCAL_ASSERTIONS_ONLY",
+  "witness_receipts_received": 0,
+  "independent_witness_keys_authenticated": 0,
+  "external_network_called": false,
+  "no_human_testers": true,
+  "local_cryptographic_signatures_are_external_proof": false,
+  "independent_operator": "NOT_ENROLLED",
+  "independent_specialist_reviews": 0,
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "external_quorum": "NOT_PROVEN",
+  "formal_bureau_certification": "PENDING",
+  "exact_native_admission_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "independent_quorum",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "state": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "promoted": false
+    }
+  ],
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "decision": "HOLD_INDEPENDENT_WITNESS_CONTRACT_NOT_ACTUAL_PROOF",
+  "operator_contacted": false,
+  "owner_authorization_to_enroll": false,
+  "next_action": "ACTUAL_SEPARATE_AUTHORITY_WOULD_BE_REQUIRED_FOR_FULL_PROOF_BUT_NOT_RECRUITED_FOR_TESTING",
+  "research_only": true
+}
