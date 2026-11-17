@@ -1,0 +1,126 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E12-TWELVE-REAL-EVIDENCE-INTAKE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e11_exact_head": "96e56f954721eb96f3526e529a27b2456bd2e8ce",
+  "prior_e11": {
+    "specialized_run_id": 44077394937,
+    "specialized_success": 4,
+    "rust_run_id": 44077394930,
+    "rust_success": 5
+  },
+  "mandate": "R6F required real external-evidence intake contract and adversarial machine gate before R6G, NEVER a local self-certified promotion.",
+  "owner": "Noureddine Eddars",
+  "founder_role": "DIRECTOR_NO_MANUAL_TEST_DUTY",
+  "execution": "AI_AND_AUTOMATION_ONLY",
+  "human_testers_allowed": false,
+  "machine_bureau_roles": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "real_independent_bureau_audits": 0,
+  "external_trust_roots_enrolled": 0,
+  "external_witness_receipts_authenticated": 0,
+  "required_native_gates": [
+    {
+      "id": "owner_oob_authenticated_root",
+      "required_evidence_kind": "independently_authentic_owner_root",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "actual_external_custodian_identity",
+      "required_evidence_kind": "independently_attested_custodian_identity",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "distinct_administrative_control_domains",
+      "required_evidence_kind": "separate_admin_root_of_control",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "guardian_key_pinned_out_of_band",
+      "required_evidence_kind": "outside_channel_pinned_guardian_key",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "independently_signed_os_attestation",
+      "required_evidence_kind": "independent_os_attestation_signature",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "signed_fresh_challenge_and_exact_history",
+      "required_evidence_kind": "bound_fresh_challenge_signature_and_history",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "independent_os_domain_and_host_witness",
+      "required_evidence_kind": "independently_attested_separate_host",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "externally_monotonic_key_epoch",
+      "required_evidence_kind": "externally_enforced_epoch_register",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "protected_global_revocation_floor",
+      "required_evidence_kind": "externally_rollback_protected_revocation_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "protected_global_spent_nonce_floor",
+      "required_evidence_kind": "externally_rollback_protected_nonce_floor",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "independent_quorum",
+      "required_evidence_kind": "separately_authorized_distinct_control_quorum",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    },
+    {
+      "id": "independent_recovery_rotation_audit",
+      "required_evidence_kind": "independent_recovery_and_rotation_proof",
+      "status": "UNMET_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "self_declaration_acceptable": false
+    }
+  ],
+  "provenance_trust_policy": {
+    "accept_only_out_of_band_anchored_external_control": false,
+    "reason": "NONE_ENROLLED_OR_INDEPENDENTLY_AUTHENTICATED",
+    "self_declarations_never_satisfy_gates": true,
+    "cryptographically_valid_same_admin_receipt_only_local": true,
+    "machine_can_prepare_formalities": true,
+    "machine_can_automatically_verify_when_real_trust_exists": true,
+    "do_not_fabricate_external_authority": true
+  },
+  "review_limits": {
+    "formal_independent_reviews": "NOT_SUBMITTED",
+    "owner_oob_root": "NOT_AUTHENTICATED",
+    "external_custodian": "NOT_ENROLLED",
+    "global_monotonic_antirollback": "NOT_VERIFIED",
+    "independent_quorum": "NOT_PROVEN",
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "native_admission_gates_unmet": 12,
+    "production": "NOT_AUTHORIZED",
+    "merge_allowed": false
+  },
+  "negative_challenge_proof": "A locally genuine Ed25519 SSHSIG, even paired with twelve self-declared MET labels and an optimistic naive gate, must never be promoted to independently authenticated external authority."
+}
