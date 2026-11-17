@@ -355,7 +355,9 @@ def main(argv=None):
         d=deny("E10_SOURCE_OR_NINE_PROCESS_EXPERIMENT_NOT_QUALIFIED",
                error_type=type(ex).__name__)
         code=3
-    print(canonical(d).decode(),end="")
+    # Byte-exact canonical JSON: avoid Windows text stdout CRLF conversion.
+    sys.stdout.buffer.write(canonical(d))
+    sys.stdout.buffer.flush()
     return code
 
 if __name__=="__main__":raise SystemExit(main())
