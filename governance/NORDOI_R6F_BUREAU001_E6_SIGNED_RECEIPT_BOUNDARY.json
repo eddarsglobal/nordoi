@@ -1,0 +1,90 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E6-LOCAL-SIGNED-RECEIPT-REBOUNDARY-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e5_exact_head": "ccad109eff3931b7c0417bf5e25e3291617bd5c7",
+  "scope": "RESEARCH_ONLY_REAL_LOCAL_OPENSSH_RECEIPT_CRYPTO_NEVER_EXTERNAL_PROOF",
+  "predecessor_e5_cis": {
+    "specialized_run_id": 44025229325,
+    "specialized_success": 4,
+    "general_run_id": 44025229249,
+    "general_success": 5
+  },
+  "prior_e4_finding": "SAME_ADMIN_COHERENT_LOG_MANIFEST_AND_PRIOR_LOCAL_ANCHOR_REWRITE_REPRODUCED",
+  "e6_research_question": "Can a cryptographically genuine source/challenge/history-bound SSHSIG signed receipt still be replayed, and replaced with a new same-admin signed receipt, without externally anchored signer identity and independently stored monotonic history?",
+  "receipt_schema": "NORDOI-R6F-E6-LOCAL-SIGNED-WITNESS-RECEIPT-DENY-ONLY-V1",
+  "ssh_namespace": "nordoi-r6f-e6-local-witness-receipt",
+  "receipt_identity": "same-admin-research-fixture",
+  "required_fields": [
+    "protocol",
+    "project",
+    "source_head",
+    "manifest_sha256",
+    "previous_receipt_sha256",
+    "challenge_nonce_sha256",
+    "candidate_public_sha256",
+    "key_epoch",
+    "revocation_floor",
+    "spent_nonce_floor",
+    "issued_at",
+    "expires_at",
+    "claimed_external_custody"
+  ],
+  "proof_boundaries": [
+    {
+      "id": "exact_source_binding",
+      "meaning": "signature over exact PR HEAD and immutable manifest bytes",
+      "status": "LOCAL_CRYPTO_TEST_ONLY"
+    },
+    {
+      "id": "fresh_challenge",
+      "meaning": "one-time challenge from independent nonce authority cannot be verified by a local copy alone",
+      "status": "LOCAL_REPLAY_NEGATIVE_ONLY"
+    },
+    {
+      "id": "history_predecessor",
+      "meaning": "signed previous receipt digest must match externally retained immutable predecessor",
+      "status": "NO_EXTERNAL_PREDECESSOR"
+    },
+    {
+      "id": "cross_domain_key_root",
+      "meaning": "candidate signer public key must be OOB authenticated as independent, not merely match same-admin allowlist",
+      "status": "NOT_AUTHENTICATED"
+    },
+    {
+      "id": "protected_floors",
+      "meaning": "revocation, nonce and key epoch floors survive R5Q full local rollback",
+      "status": "NOT_VERIFIED"
+    },
+    {
+      "id": "independent_authorization",
+      "meaning": "genuine separation/quorum/owner decision required before any native admission",
+      "status": "NOT_OBTAINED"
+    }
+  ],
+  "local_proofs_expected": [
+    "true Ed25519 SSHSIG verifies exact received canonical receipt",
+    "tampered receipt without resigning fails true OpenSSH verification",
+    "wrong SSHSIG namespace fails true OpenSSH verification",
+    "wrong source, challenge or previous receipt SHA fail binding checks",
+    "local spent nonce list detects replay if unchanged",
+    "second process without retained spent history accepts same local signed receipt again",
+    "same admin can genuinely sign re-bound receipt again without independently authenticated witness",
+    "true R5Q rollback defeats local-only monotonic spent ledger"
+  ],
+  "external_capabilities_implemented": false,
+  "real_external_signer_authenticated": false,
+  "real_external_receipts_received": 0,
+  "true_external_monotonic_ledger_verified": false,
+  "human_testers_allowed": false,
+  "operator_contacted": false,
+  "independent_specialist_reviews": 0,
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "external_custodian": "NOT_ENROLLED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "formal_closure": "HOLD_MISSING_INDEPENDENT_EVIDENCE",
+  "decision": "LOCAL_CRYPTO_VALIDITY_AND_LACK_OF_EXTERNAL_TRUST_DISTINCT_DENY_ONLY"
+}
