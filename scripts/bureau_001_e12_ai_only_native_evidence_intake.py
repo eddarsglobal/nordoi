@@ -145,7 +145,7 @@ def unsafe_naive_self_promotion(claim):
             and all(r["asserted_state"]=="MET"
                     for r in claim["claimed_native_gate_states"]))
 
-def intake_untrusted_json(root,head,raw,local_crypto_valid=False):
+def intake_untrusted_json(root,head,raw):
     audit(root,head)
     c=e3.strictly_load(raw)
     require(set(c)=={
@@ -175,16 +175,16 @@ def intake_untrusted_json(root,head,raw,local_crypto_valid=False):
             and tuple(r["id"] for r in gates)==GATES
             and all(r["asserted_state"] in ("MET",UNMET) for r in gates),
             "E12_SELF_CLAIM_MISSING_DUPLICATE_OR_UNKNOWN_GATE")
-    require(type(local_crypto_valid) is bool,
-            "E12_CRYPTO_VALIDITY_NOT_MACHINE_BOOL")
-    # Not even a real LOCAL SSHSIG can authenticate an external control root.
-    # Provenance of local signature is supplied by actual e6 verify, never the JSON.
+    # This intake parser neither receives nor trusts a 'crypto_valid' boolean.
+    # Genuine OpenSSH verification occurs only in the separate E6 OS subprocess.
+    # A caller-supplied flag must never be described as a verified signature.
     return deny("E12_SELF_DECLARATIONS_AND_LOCAL_SSHSIG_CANNOT_UNLOCK_GATES",
         exact_source_head=head,
         untrusted_claims_count=12,
         self_declarations_all_met=unsafe_naive_self_promotion(c),
         naive_only_self_claim_gate_would_promote=unsafe_naive_self_promotion(c),
-        actual_local_sshsig_verified=local_crypto_valid,
+        local_sshsig_verified_by_intake=False,
+        untrusted_local_receipt_digest_present=(digest is not None),
         verified_external_trust_anchors=0,
         external_issuer_authentication="NOT_VERIFIED",
         trusted_external_gate_admissions=0)
@@ -206,10 +206,10 @@ def exercise(root,head):
         untrusted=asserted_claim(head,all_met=True,
                                  local_receipt_sha=receipt_hash)
         raw=e11.e10.canonical(untrusted)
-        checked=intake_untrusted_json(root,head,raw,local_crypto_valid=True)
+        checked=intake_untrusted_json(root,head,raw)
         require(checked["result"]=="BLOCK"
                 and checked["naive_only_self_claim_gate_would_promote"] is True
-                and checked["actual_local_sshsig_verified"] is True
+                and checked["local_sshsig_verified_by_intake"] is False
                 and checked["trusted_external_gate_admissions"]==0
                 and checked["native_admission_gates_unmet"]==12,
                 "E12_REAL_LOCAL_SIGNER_FALSE_NATIVE_AUTHORITY")
