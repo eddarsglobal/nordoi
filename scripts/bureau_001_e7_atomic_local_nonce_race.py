@@ -13,6 +13,7 @@ exit 3 for a failed scientific experiment/source check. No humans, external
 service, native admission, production, new privileges or Git writes.
 """
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -135,7 +136,7 @@ def connect(db):
 def initialize(root):
     db=ledger_path(root)
     require(not db.exists(),"E7_DISPOSABLE_DB_ALREADY_EXISTS")
-    with connect(db) as c:
+    with closing(connect(db)) as c:
         c.execute("BEGIN IMMEDIATE")
         c.execute("CREATE TABLE research_local_spent("
                   "namespace TEXT NOT NULL, "
@@ -151,7 +152,7 @@ def initialize(root):
 def count_nonce(db,nonce):
     require(type(nonce) is str and e6.SHA.fullmatch(nonce),
             "E7_INVALID_NONCE_SHA")
-    with connect(db) as c:
+    with closing(connect(db)) as c:
         row=c.execute(
           "SELECT COUNT(*) FROM research_local_spent "
           "WHERE namespace=? AND challenge_nonce_sha256=?",
@@ -163,7 +164,7 @@ def consume_atomic(db,nonce,receipt_sha,head):
                 for v in (nonce,receipt_sha)) and
             type(head) is str and e6.SHA40.fullmatch(head),
             "E7_ATOMIC_RECEIPT_CONTEXT_INVALID")
-    with connect(db) as c:
+    with closing(connect(db)) as c:
         try:
             c.execute("BEGIN IMMEDIATE")
             count=c.execute(
