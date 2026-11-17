@@ -193,7 +193,7 @@ def exercise(root,head):
     audit(root,head)
     require(e6.r4.is_posix_ssh(),
             "E12_ACTUAL_POSIX_OPENSSH_REQUIRED_NOT_SIMULATED")
-    with tempfile.TemporaryDirectory(prefix="nordoi-e12-real-sshsig-") as home:
+    with tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5q-r5s-r5t-e12-real-sshsig-") as home:
         p=Path(home);os.chmod(p,0o700)
         fixture=e6.local_crypto_fixture(p,head)
         actual=e6.check_second_process(fixture)
@@ -244,7 +244,7 @@ def main(argv=None):
         d=audit(root,a.expected_head) if a.audit else exercise(root,a.expected_head)
         code=2
     except (Blocked,e11.Blocked,e11.e10.Blocked,e3.Rejected,
-            e6.Blocked,e6.e5.Blocked,guardian.Blocked,
+            e6.Blocked,e6.e5.Blocked,e6.ssh.Refused,e6.signer.Refused,guardian.Blocked,
             KeyError,TypeError,ValueError,OSError) as err:
         d=deny("E12_EVIDENCE_INTAKE_OR_CRYPTO_LAB_NOT_QUALIFIED",
                error_type=type(err).__name__)
