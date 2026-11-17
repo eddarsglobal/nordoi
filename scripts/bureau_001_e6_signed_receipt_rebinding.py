@@ -227,7 +227,7 @@ def local_crypto_fixture(root,head):
 
 def check_second_process(data,**overrides):
     root=Path(__file__).resolve().parents[1]
-    opts=dict(
+    opts={
         "--expected-head" : data["head"],
         "--receipt" : str(data["receipt"]),
         "--signature" : str(data["signature"]),
@@ -236,7 +236,7 @@ def check_second_process(data,**overrides):
         "--manifest-sha" : data["manifest"],
         "--previous-sha" : data["previous"],
         "--challenge-sha" : data["nonce"],
-        "--now" : "1200")
+        "--now" : "1200"}
     opts.update(overrides)
     cmd=[sys.executable,"-B",str(Path(__file__).resolve()),
          "--verify-local"]
