@@ -1,0 +1,117 @@
+name: NORDOI G0.3 R6F BUREAU001 E6 real signed local receipt and history binding
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E6_SIGNED_RECEIPT_BOUNDARY.json'
+      - 'scripts/bureau_001_e6_signed_receipt_rebinding.py'
+      - 'scripts/test_bureau_001_e6_signed_receipt_rebinding.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E6_REAL_SIGNED_RECEIPT_LIMITS_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e6_signed_receipt.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e6-true-local-receipt-crypto-and-external-nogo:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact PR HEAD and original frozen 99 source blob audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E6 signed receipt source contract — exit 2 BLOCK required, exit 3 forbidden
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,"-B",
+              "scripts/bureau_001_e6_signed_receipt_rebinding.py",
+              "--audit","--expected-head",os.environ["EXPECTED_HEAD"]],
+              capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d["reason"]=="E6_LOCAL_RECEIPT_CRYPTO_PROVENANCE_CONTRACT_UNMET",d
+          assert d["result"]=="BLOCK"
+          assert d["authenticated_external_witness_receipts"]==0
+          assert d["human_testers"]==0 and d["native_admission_gates_unmet"]==12
+          assert d["r6g"]=="LOCKED_BY_SEQUENCE" and d["production"]=="NOT_AUTHORIZED"
+          print("E6_SOURCE_AUDIT=EXPECTED_DENY_2; NATIVE_GATES=12_UNMET")
+          PY
+      - name: 24 new E6 controls — 18 portable and six real POSIX OpenSSH cases
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e6_signed_receipt_rebinding.py' -v
+      - name: Real E6 separate-process local signed receipt replay, re-sign and true R5Q
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,"-B",
+             "scripts/bureau_001_e6_signed_receipt_rebinding.py",
+             "--exercise","--expected-head",os.environ["EXPECTED_HEAD"]],
+             capture_output=True,text=True,timeout=600)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d["reason"]=="E6_TWO_REAL_LOCAL_REBOUND_RECEIPTS_AND_CROSS_PROCESS_REPLAY_DENIED",d
+          assert d["real_signed_local_receipts"]==2
+          assert d["first_signature_verified_in_real_second_process"] is True
+          assert d["untracked_replay_accepted_in_new_process"] is True
+          assert d["local_spent_set_detected"] is True
+          assert d["changed_bytes_without_signature_refused"] is True
+          assert d["different_manifest_resigned_by_same_admin"] is True
+          assert d["wrong_signature_namespace_refused"] is True
+          assert d["original_r5q_three_file_rollback_reproduced"] is True
+          assert d["independently_authenticated_guardian"] is False
+          assert d["authenticated_external_witness_receipts"]==0
+          assert d["native_admission_gates_unmet"]==12
+          print("E6_TRUE_LOCAL_CRYPTO=VERIFIED; CONTEXT_REPLAY_REBOUNDARY=REPRODUCED; EXTERNAL_AUTHORITY=ZERO; NO_HUMANS")
+          PY
+      - name: E5 prior contract 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e5_separate_witness_contract.py' -v
+      - name: E4 coherent same-admin tamper 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e4_coherent_evidence_tampering.py' -v
+      - name: E3 exact source-head 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e3_exact_head_provenance.py' -v
+      - name: E2 no human policy 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e2_machine_only.py' -v
+      - name: Original RoadMapGuardian 12 native gates remain locked
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Native signed macOS XPC CDHash six PASS serial no waiver
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Real source HEAD remains unchanged after tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          d=json.load(open("governance/NORDOI_R6F_BUREAU001_E6_SIGNED_RECEIPT_BOUNDARY.json"))
+          assert d["human_testers_allowed"] is False
+          assert d["external_capabilities_implemented"] is False
+          assert d["real_external_receipts_received"]==0
+          assert d["owner_oob_root"]=="NOT_AUTHENTICATED"
+          assert d["global_monotonic_antirollback"]=="NOT_VERIFIED"
+          assert d["native_admission_gates_unmet"]==12
+          assert d["r6g"]=="LOCKED_BY_SEQUENCE" and d["production"]=="NOT_AUTHORIZED"
+          print("E6=RESEARCH_ONLY; HUMAN_TESTERS=0; INDEPENDENT_WITNESS_RECEIPTS=0; R6G=LOCKED")
+          PY
