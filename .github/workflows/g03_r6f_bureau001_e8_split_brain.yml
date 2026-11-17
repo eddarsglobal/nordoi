@@ -1,0 +1,109 @@
+name: NORDOI G0.3 R6F E8 local ledger split brain
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e8-split-brain:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact head and original pinned R1 blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E8 audit BLOCK must exit 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_e8_local_ledger_split_brain.py','--audit','--expected-head',os.environ['EXPECTED_HEAD']],capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['native_admission_gates_unmet']==12 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          PY
+      - name: E8 24 machine-only tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e8_local_ledger_split_brain.py' -v
+      - name: Real two process OpenSSH and split SQLite branches
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          p=subprocess.run([sys.executable,'-B','scripts/bureau_001_e8_local_ledger_split_brain.py','--exercise','--expected-head',os.environ['EXPECTED_HEAD']],capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['real_signed_receipt_verified_by_both'] is True
+          assert d['distinct_os_processes']==2
+          assert d['disjoint_sqlite_database_files']==2
+          assert d['same_nonce_locally_committed_on_each_fork'] is True
+          assert d['local_split_brain_detected_on_reconciliation'] is True
+          assert d['missing_branch_evidence_blocked'] is True
+          assert d['original_pre_fork_ledger_still_unspent'] is True
+          assert d['globally_monotonic_antirollback_verified'] is False
+          assert d['result']=='BLOCK' and d['native_admission_gates_unmet']==12
+          print('E8_TRUE_LOCAL_SPLIT_BRAIN=2_FORK_COMMITS')
+          print('E8_RECONCILIATION=CONFLICT_BLOCKED')
+          print('E8_GLOBAL_COMPLETENESS=NOT_VERIFIED')
+          if sys.platform=='darwin' and os.uname().machine=='x86_64':
+              folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e8_machine_result'
+              folder.mkdir(mode=0o700,exist_ok=False)
+              blob=(json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+              (folder/'E8_REAL_SPLIT_BRAIN.json').write_bytes(blob)
+              print('E8_MACHINE_RESULT_SHA256='+hashlib.sha256(blob).hexdigest())
+          PY
+      - name: Original E2 through E7 regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e2_machine_only e3_exact_head_provenance e4_coherent_evidence_tampering e5_separate_witness_contract e6_signed_receipt_rebinding e7_atomic_local_nonce_race; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: Original RoadMapGuardian
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Genuine signed macOS XPC CDHash R4M six serial no waiver
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final exact source and twelve native gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E8_LEDGER_SPLIT_BRAIN_CONTRACT.json'))
+          assert p['human_testers_allowed'] is False and p['physical_test_humans']==0
+          assert p['native_admission_gates_unmet']==12
+          assert p['r6g']=='LOCKED_BY_SEQUENCE' and p['production']=='NOT_AUTHORIZED'
+          PY
+      - name: Preserve Mac Intel real evidence
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E8_MAC_INTEL_SPLIT_BRAIN_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e8_machine_result/
+          retention-days: 30
+          if-no-files-found: error
