@@ -1,0 +1,110 @@
+name: NORDOI G0.3 R6F BUREAU001 E5 independent witness contract deny-only
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E5_SEPARATE_WITNESS_CONTRACT.json'
+      - 'scripts/bureau_001_e5_separate_witness_contract.py'
+      - 'scripts/test_bureau_001_e5_separate_witness_contract.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E5_SEPARATE_WITNESS_DESIGN_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e5_witness_contract.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e5-witness-trust-contract-four-real-platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact Git source checkout and no change to historical R1 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E5 six proof obligations and twelve external native gates must DENY with exit 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+              'scripts/bureau_001_e5_separate_witness_contract.py',
+              '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+              capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['reason']=='E5_WITNESS_PROOF_OBLIGATIONS_CLASSIFIED_AND_UNMET',d
+          assert d['witness_proof_obligations']==6
+          assert d['actual_external_receipts']==0
+          assert d['human_testers']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['production']=='NOT_AUTHORIZED'
+          print('E5_SOURCE=PASS_EXPECTED_DENY_2; SIX_EXTERNAL_OBLIGATIONS=UNMET; NO_HUMAN_TESTERS')
+          PY
+      - name: E5 24 real source protocol and POSIX OpenSSH and R5Q cases
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e5_separate_witness_contract.py' -v
+      - name: Genuine two local SSHSIG plus real R5Q rollback still fail closed
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e5_separate_witness_contract.py',
+             '--exercise','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='E5_REAL_LOCAL_SSHSIG_FALSE_WITNESS_AND_R5Q_ROLLBACK_STILL_NO_EXTERNAL_AUTHORITY',d
+          assert d['observed_local_signatures_verified']==2
+          assert d['genuine_r5q_cross_epoch_rollback_reproduced'] is True
+          assert d['claimed_quorum_and_owner_oob_root_refused'] is True
+          assert d['six_proof_obligations_unmet'] is True
+          assert d['authorized_native_gates']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['production']=='NOT_AUTHORIZED'
+          print('E5_TRUE_LOCAL_SSHSIG=2_VERIFIED; R5Q=REAL_ROLLBACK; EXTERNAL_WITNESS=NONE; AUTHORITY=DENIED')
+          PY
+      - name: Original E4 24 real filesystem coherent rewrite boundary tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e4_coherent_evidence_tampering.py' -v
+      - name: Original E3 24 exact-head and log provenance negative controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e3_exact_head_provenance.py' -v
+      - name: E2 zero-human source and role evidence controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e2_machine_only.py' -v
+      - name: Original 12 gate RoadMapGuardian no-go still enforced
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Native signed macOS XPC CDHash six real serial no waiver
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final no-human no-external-receipts controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E5_SEPARATE_WITNESS_CONTRACT.json'))
+          assert p['witness_receipts_received']==0
+          assert p['independent_witness_keys_authenticated']==0
+          assert all(x['real_evidence_sha256'] is None for x in p['proof_obligations'])
+          assert all(not x['promoted'] for x in p['exact_native_admission_gates'])
+          assert len(p['exact_native_admission_gates'])==12
+          assert p['no_human_testers'] and not p['operator_contacted']
+          assert p['r6g']=='LOCKED_BY_SEQUENCE' and p['production']=='NOT_AUTHORIZED'
+          print('E5_PROOF_SCOPE=DESIGN_DENY_ONLY; HUMAN_TESTERS=0; EXTERNAL_AUTHORITIES=0; R6G=LOCKED')
+          PY
