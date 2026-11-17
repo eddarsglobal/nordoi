@@ -105,7 +105,7 @@ class E12Portable(unittest.TestCase):
 class E12GenuineOSSignature(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.temp=tempfile.TemporaryDirectory(prefix="nordoi-e12-true-ssh-")
+        cls.temp=tempfile.TemporaryDirectory(prefix="nordoi-r5l-r5q-r5s-r5t-e12-true-ssh-")
         cls.home=Path(cls.temp.name)
         os.chmod(cls.home,0o700)
         cls.fixture=e12.e6.local_crypto_fixture(cls.home,head())
@@ -136,8 +136,11 @@ class E12GenuineOSSignature(unittest.TestCase):
         self.assertTrue(a["cryptographic_signature_valid"])
         self.assertTrue(b["cryptographic_signature_valid"])
     def test_23_real_wrong_namespace_signature_not_external_authority(self):
+        bad_receipt=self.home/"e12_wrong_namespace_receipt.json"
+        bad_receipt.write_bytes(self.fixture["raw"])
+        if os.name!="nt":os.chmod(bad_receipt,0o600)
         sig=e12.e6.signer.sign_local(
-            self.fixture["receipt"],self.fixture["key"],
+            bad_receipt,self.fixture["key"],
             namespace="nordoi-e12-adversarial-wrong-namespace")
         checked=e12.e6.check_second_process(
             self.fixture,**{"--signature":str(sig)})
