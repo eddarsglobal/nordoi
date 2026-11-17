@@ -61,7 +61,7 @@ def audit(root,head):
     require(p["schema"]==SCHEMA and
          p["project"]=="eddarsglobal/nordoi" and
          p["parent_e6_exact_head"]==PARENT and
-         p["predecessor_e6"]=={
+         p["prior_e6"]=={
              "specialized_run_id":44030442674,
              "specialized_jobs_completed_success":4,
              "rust_run_id":44030442683,
