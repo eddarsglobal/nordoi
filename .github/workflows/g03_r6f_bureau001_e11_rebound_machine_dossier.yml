@@ -1,0 +1,128 @@
+name: NORDOI G0.3 R6F E11 genuine machine dossier rebind
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E11_REBOUND_MACHINE_EVIDENCE.json'
+      - 'scripts/bureau_001_e11_rebound_machine_dossier.py'
+      - 'scripts/test_bureau_001_e11_rebound_machine_dossier.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E11_REBOUND_MACHINE_EVIDENCE_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e11_rebound_machine_dossier.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e11-real-coherent-source-evidence-rebind:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact PR head, original R1 source blobs and clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Audit E11 source and deny-only governance expected exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e11_rebound_machine_dossier.py',
+             '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=90)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['e11_lab_executed'] is False and d['human_testers']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          print('E11_SOURCE_AUDIT=PASS_EXPECTED_BLOCK_2')
+          PY
+      - name: E11 24 real machine-only tests with coherent on-disk tamper
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e11_rebound_machine_dossier.py' -v
+      - name: Actual coherent report+manifest forge and rebind source proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e11_rebound_machine_dossier.py',
+             '--exercise','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['actual_e10_role_processes']==9 and d['actual_e10_report_files']==9
+          assert d['old_e10_validator_accepted_coherently_rewritten_report'] is True
+          assert d['attack_recomputed_report_and_manifest_hashes'] is True
+          assert d['new_source_rebound_guard_rejected_coherent_rewrite'] is True
+          assert d['restored_original_source_reports_passed'] is True
+          assert d['real_source_file_changed'] is False
+          assert d['external_custody_proven'] is False
+          assert d['human_testing_performed'] is False
+          assert d['native_admission_gates_unmet']==12 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          print('E11_REAL_COHERENT_REHASH_ACCEPTED_BY_OLD_E10=TRUE_BLOCK_ONLY')
+          print('E11_TRUE_SOURCE_REBIND_GUARD=REJECTED_FORGED_REPORT')
+          print('E11_RESTORED_ORIGINAL_REPORTS=PASS_LOCAL_ONLY')
+          print('E11_INDEPENDENT_EXTERNAL_WITNESS=NONE; R6G=LOCKED')
+          if sys.platform=='darwin' and os.uname().machine=='x86_64':
+              folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e11_machine_result'
+              folder.mkdir(mode=0o700,exist_ok=False)
+              blob=(json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+              (folder/'E11_ACTUAL_REPORT_MANIFEST_REHASH.json').write_bytes(blob)
+              print('E11_MACHINE_RESULT_SHA256='+hashlib.sha256(blob).hexdigest())
+          PY
+      - name: All E2 to E10 original machine regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e2_machine_only e3_exact_head_provenance e4_coherent_evidence_tampering e5_separate_witness_contract e6_signed_receipt_rebinding e7_atomic_local_nonce_race e8_local_ledger_split_brain e9_event_ledger_binding e10_ai_only_machine_dossier; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: Original RoadMapGuardian
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Genuine signed macOS R4M six XPC CDHash tests in series
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final source head, zero human tests, twelve native gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E11_REBOUND_MACHINE_EVIDENCE.json'))
+          assert c['human_testers_allowed'] is False
+          assert c['founder_manual_test_duty'] is False
+          assert c['formal_independent_specialist_reviews']==0
+          assert c['native_admission_gates_unmet']==12
+          assert c['r6g']=='LOCKED_BY_SEQUENCE' and c['production']=='NOT_AUTHORIZED'
+          assert c['permission_to_merge'] is False
+          print('E11_SOURCE_EXACT; ZERO_HUMANS; NO_NATIVE_ADMISSION')
+          PY
+      - name: Preserve real Mac Intel E11 source-bound result
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E11_REAL_COHERENT_REHASH_MAC_INTEL_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e11_machine_result/
+          retention-days: 30
+          if-no-files-found: error
