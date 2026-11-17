@@ -1,0 +1,51 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E11-REBOUND-MACHINE-REPORTS-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e10_exact_head": "ae84f34795c680a6929453f0d4723bec47189a4e",
+  "prior_e10": {
+    "specialized_run_id": 44067965884,
+    "specialized_success": 4,
+    "rust_run_id": 44067966070,
+    "rust_success": 5
+  },
+  "objective": "Show coherent same-admin modification of E10 local role source hash and manifest SHA can pass the old local dossier validator; add narrow evidence-to-live-exact-Git-source rebind guard without any independent witness claim.",
+  "attack_steps": [
+    "create_genuine_e10_nine_process_report_bundle",
+    "verify_untampered_e10_manifest",
+    "forge_one_local_role_source_sha256",
+    "recalculate_local_report_digest_in_manifest",
+    "reproduce_old_local_validator_false_acceptance",
+    "new_guard_compares_every_role_source_sha_to_actual_repo_bytes",
+    "restore_original_bytes_and_revalidate"
+  ],
+  "roles": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "founder": "Noureddine Eddars",
+  "execution": "AI_AND_AUTOMATED_MACHINES_ONLY",
+  "human_testers_allowed": false,
+  "founder_manual_test_duty": false,
+  "independent_bureau_agents_launched": 0,
+  "formal_independent_specialist_reviews": 0,
+  "same_admin_report_signature_is_independent": false,
+  "external_witness_receipts": 0,
+  "external_custodian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "unknown_external_branches_proven_complete": false,
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "permission_to_merge": false,
+  "pre_ci_verdict": "IN_PROGRESS_UNQUALIFIED",
+  "evidence_boundary": "RECOMPUTING_LOCAL_SOURCE_HASHES_AGAINST_EXACT_GIT_HEAD_DOES_NOT_PROVE_INDEPENDENT_EXTERNAL_CUSTODY"
+}
