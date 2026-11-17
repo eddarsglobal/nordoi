@@ -23,10 +23,9 @@ def encode(c):
 class E12Portable(unittest.TestCase):
     def setUp(self):
         self.claim=e12.asserted_claim(head())
-    def check(self,c=None,crypto=False):
+    def check(self,c=None):
         return e12.intake_untrusted_json(
-            ROOT,head(),encode(self.claim if c is None else c),
-            local_crypto_valid=crypto)
+            ROOT,head(),encode(self.claim if c is None else c))
     def test_01_source_audit_block(self):
         self.assertEqual(e12.audit(ROOT,head())["result"],"BLOCK")
     def test_02_exact_parent_e11_green(self):
@@ -80,10 +79,11 @@ class E12Portable(unittest.TestCase):
     def test_15_fake_receipt_digest_invalid(self):
         c=copy.deepcopy(self.claim);c["local_same_admin_receipt_sha256"]="short"
         with self.assertRaisesRegex(e12.Blocked,"RECEIPT_HASH_INVALID"):self.check(c)
-    def test_16_even_machine_crypto_valid_bool_is_not_authority(self):
+    def test_16_untrusted_receipt_digest_is_not_cryptographic_verification(self):
         c=e12.asserted_claim(head(),local_receipt_sha="a"*64)
-        d=self.check(c,crypto=True)
-        self.assertTrue(d["actual_local_sshsig_verified"])
+        d=self.check(c)
+        self.assertTrue(d["untrusted_local_receipt_digest_present"])
+        self.assertFalse(d["local_sshsig_verified_by_intake"])
         self.assertEqual(d["authenticated_external_witness_receipts"],0)
         self.assertEqual(d["native_admission_gates_unmet"],12)
     def test_17_caller_cannot_override_denial(self):
@@ -124,8 +124,8 @@ class E12GenuineOSSignature(unittest.TestCase):
     def test_21_genuine_local_signature_and_twelve_self_claims_denied(self):
         raw=e12.asserted_claim(head(),local_receipt_sha=hashlib.sha256(
             self.fixture["raw"]).hexdigest())
-        d=e12.intake_untrusted_json(ROOT,head(),encode(raw),
-                                    local_crypto_valid=True)
+        d=e12.intake_untrusted_json(ROOT,head(),encode(raw))
+        self.assertFalse(d["local_sshsig_verified_by_intake"])
         self.assertTrue(d["naive_only_self_claim_gate_would_promote"])
         self.assertEqual(d["trusted_external_gate_admissions"],0)
     def test_22_replay_locally_valid_still_no_outside_domain(self):
