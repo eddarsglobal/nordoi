@@ -1,0 +1,88 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E10-NINE-AUTOMATED-FUNCTIONAL-EVIDENCE-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e9_exact_head": "c789f02c637d9d8215772a67ca2e85cef35e64af",
+  "prior_e9": {
+    "specialized_run_id": 44056262617,
+    "specialized_success": 4,
+    "rust_run_id": 44056262413,
+    "rust_success": 5
+  },
+  "purpose": "Execute nine distinct real machine process checks with actual source SHA and logs; assemble contradiction matrix and intake evidence contract. No fake nine-agent/independent reviewer quorum.",
+  "founder": "Noureddine Eddars",
+  "founder_role": "FOUNDER_DIRECTION_AND_ASSISTANCE_NOT_MANUAL_TESTER",
+  "execution_policy": "AI_AND_AUTOMATION_ALL_TECHNICAL_TESTS_DOCUMENTATION_FORMALITIES",
+  "roles": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "role_machine_verdict": "MACHINE_CHECK_PASS_ONLY",
+  "real_independent_ai_agents_launched": 0,
+  "independent_specialist_reviews": 0,
+  "external_legal_or_human_testers": 0,
+  "human_testers_allowed": false,
+  "owner_manual_test_duty": false,
+  "actual_external_witness_receipts": 0,
+  "actual_external_guardian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "external_quorum": "NOT_PROVEN",
+  "formal_bureau_reviews": "NOT_SUBMITTED",
+  "contradictions": [
+    {
+      "id": "C01",
+      "source": "scripts/bureau_001_e6_signed_receipt_rebinding.py",
+      "finding": "VALID_LOCAL_SSHSIG_DOES_NOT_PROVE_INDEPENDENT_OPERATOR",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "C02",
+      "source": "scripts/bureau_001_e7_atomic_local_nonce_race.py",
+      "finding": "ATOMIC_LOCAL_NONCE_LEDGER_IS_ROLLBACKABLE_BY_SAME_ADMIN",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "C03",
+      "source": "scripts/bureau_001_e8_local_ledger_split_brain.py",
+      "finding": "TWO_LOCAL_LEDGER_FORKS_CAN_COMMIT_SAME_NONCE",
+      "status": "UNRESOLVED"
+    },
+    {
+      "id": "C04",
+      "source": "scripts/bureau_001_e9_event_ledger_binding.py",
+      "finding": "UNKEYED_EVENT_HASH_CAN_MISREPORT_CONFLICT_WHILE_ALL_REMAIN_BLOCK",
+      "status": "LOCALLY_MITIGATED_IN_E9_LAB_ONLY"
+    },
+    {
+      "id": "C05",
+      "source": "governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json",
+      "finding": "NINE_MACHINE_FUNCTIONS_ARE_NOT_INDEPENDENT_FORMAL_REVIEWS",
+      "status": "FORMAL_REVIEWS_NOT_SUBMITTED"
+    }
+  ],
+  "external_evidence_intake": {
+    "must_have_real_distinct_administrative_control": true,
+    "must_have_owner_oob_authenticated_root": true,
+    "must_have_protected_monotonic_history": true,
+    "must_have_real_external_witness_receipts": true,
+    "must_have_true_independent_quorum": true,
+    "self_certified_or_same_admin_artifacts_must_be_rejected": true,
+    "can_be_prepared_and_checked_by_AI": true,
+    "fabrication_allowed": false,
+    "current_acceptance": "NONE"
+  },
+  "immutable_controls": {
+    "native_admission_gates_unmet": 12,
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "production": "NOT_AUTHORIZED",
+    "permission_to_merge": false
+  }
+}
