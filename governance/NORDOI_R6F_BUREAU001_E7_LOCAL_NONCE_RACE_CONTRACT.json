@@ -1,0 +1,110 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E7-ATOMIC-LOCAL-NONCE-CONSUMPTION-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e6_exact_head": "ab3858d2c909b91c997782993b5c1739f49286b8",
+  "prior_e6": {
+    "specialized_run_id": 44030442674,
+    "specialized_jobs_completed_success": 4,
+    "rust_run_id": 44030442683,
+    "rust_jobs_completed_success": 5,
+    "actual_e6_findings": [
+      "GENUINE_LOCAL_ED25519_SSHSIG_VALID_WITHOUT_INDEPENDENT_ADMIN",
+      "CROSS_PROCESS_REPLAY_ACCEPTED_WITHOUT_SHARED_SPENT_STATE",
+      "SAME_ADMIN_CAN_GENUINELY_RESIGN_ANOTHER_MANIFEST",
+      "R5Q_REAL_THREE_FILE_COHERENT_ROLLBACK_REMAINS"
+    ]
+  },
+  "research_hypothesis": "Two true OS processes can both pass a read-before-write local nonce check for the same genuine signed receipt; an actual SQLite BEGIN IMMEDIATE/unique-key transaction serializes that local race to exactly one committed spent record, but a same-admin offline rollback can re-enable nonce reuse.",
+  "research_scope": "DISPOSABLE_LOCAL_RESEARCH_SQLITE_AND_TRUE_OS_PROCESSES_NOT_NATIVE_ADMISSION",
+  "physical_test_humans": 0,
+  "human_testers_allowed": false,
+  "replay_research_design": [
+    {
+      "id": "naive",
+      "method": "TWO_REAL_PROCESS_READ_CHECK_THEN_BARRIER_BEFORE_CONSUME",
+      "expected": "2_STALE_LOCAL_ELIGIBILITY_OBSERVATIONS_NO_NATIVE_ADMISSION"
+    },
+    {
+      "id": "atomic",
+      "method": "TWO_REAL_PROCESS_BEGIN_IMMEDIATE_UNIQUE_NONCE_TRANSACTION",
+      "expected": "1_LOCAL_COMMITTED_SPENT_1_LOCAL_DUPLICATE_BLOCKED"
+    },
+    {
+      "id": "restart",
+      "method": "NEW_REAL_PROCESS_WITH_PERSISTED_SQLITE_RECORD",
+      "expected": "LOCAL_DUPLICATE_BLOCKED_AFTER_RESTART"
+    },
+    {
+      "id": "restored",
+      "method": "CLOSED_DISPOSABLE_SQLITE_SNAPSHOT_RESTORED_BY_SAME_ADMIN",
+      "expected": "LOCAL_RECEIPT_SPEND_CAN_REOCCUR_AFTER_ROLLBACK"
+    },
+    {
+      "id": "historic_r5q",
+      "method": "REAL_ORIGINAL_R5Q_THREE_FILE_COHERENT_ROLLBACK",
+      "expected": "GLOBAL_HIGH_WATER_STILL_UNPROVEN"
+    }
+  ],
+  "automated_bureau_functions": [
+    {
+      "id": "ATLAS",
+      "task": "transaction invariants and SQLite schema"
+    },
+    {
+      "id": "FERRUM",
+      "task": "real POSIX OpenSSH and native macOS XPC verification"
+    },
+    {
+      "id": "BOUNDARY",
+      "task": "two real OS processes with file barrier and no privilege"
+    },
+    {
+      "id": "CIPHER",
+      "task": "genuine exact local SSHSIG and nonce-binding evidence"
+    },
+    {
+      "id": "LEDGER",
+      "task": "atomic unique nonce record and same-admin rollback limits"
+    },
+    {
+      "id": "CAPSTONE",
+      "task": "no positive native admission or production path"
+    },
+    {
+      "id": "ADVERSARY",
+      "task": "check-then-act concurrency, replay and actual restoration"
+    },
+    {
+      "id": "VERITY",
+      "task": "exact PR HEAD, four-OS CI, regression and original gate evidence"
+    },
+    {
+      "id": "GUARDIAN",
+      "task": "C3 C8 C14 C20 and 12 exact external admission gates unchanged"
+    }
+  ],
+  "bureau_roles_actual_independent_agents_executed": 0,
+  "independent_specialist_reviews": 0,
+  "protocol_namespace": "nordoi-r6f-e6-local-witness-receipt",
+  "sqlite_table": "research_local_spent",
+  "local_nonce_primary_key": [
+    "namespace",
+    "challenge_nonce_sha256"
+  ],
+  "sqlite_transaction": "BEGIN IMMEDIATE_AND_PRIMARY_KEY_CONFLICT_REFUSE",
+  "no_credential_export": true,
+  "no_network": true,
+  "actual_independent_witness_receipts": 0,
+  "actual_independent_witness_keys": 0,
+  "independent_operator": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "external_global_antirollback": "NOT_VERIFIED",
+  "formal_r6f_closure": "HOLD_MISSING_INDEPENDENT_EVIDENCE",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "permission_to_merge": false,
+  "policy": "RESEARCH_ONLY_TRUE_MACHINE_RESULTS_NEVER_EXTERNAL_CERTIFICATION",
+  "decision_pre_ci": "PENDING_ACTUAL_MAC_INTEL_POSIX_CI_AND_GITHUB_TEST_GATE"
+}

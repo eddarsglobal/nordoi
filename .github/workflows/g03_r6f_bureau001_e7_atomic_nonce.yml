@@ -1,0 +1,138 @@
+name: NORDOI G0.3 R6F BUREAU001 E7 real concurrent nonce atomicity
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E7_LOCAL_NONCE_RACE_CONTRACT.json'
+      - 'scripts/bureau_001_e7_atomic_local_nonce_race.py'
+      - 'scripts/test_bureau_001_e7_atomic_local_nonce_race.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E7_REAL_ATOMIC_NONCE_RACE_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e7_atomic_nonce.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e7-real-local-nonce-race-and-atomic-consumption:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact PR head and frozen 99 R1 Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E7 source and contract check must refuse native entry with exit 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import os,sys,subprocess,json
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e7_atomic_local_nonce_race.py',
+             '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='E7_LOCAL_ATOMIC_NONCE_RACE_PROTOCOL_RESEARCH_ONLY',d
+          assert d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['native_admission_gates_unmet']==12
+          assert d['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['real_human_testers']==0
+          assert d['production']=='NOT_AUTHORIZED'
+          print('E7_SOURCE_AUDIT=PASS_WITH_EXPECTED_DENY_2; NO_NATIVE_ADMISSION')
+          PY
+      - name: 24 new E7 real SQLite and two OS process tests on POSIX
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e7_atomic_local_nonce_race.py' -v
+      - name: Full genuine E7 concurrent OpenSSH and SQLite experiment
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import os,sys,subprocess,json,pathlib,hashlib
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e7_atomic_local_nonce_race.py',
+             '--exercise','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stderr,p.stdout)
+          d=json.loads(p.stdout)
+          assert d['reason']=='E7_REAL_TWO_PROCESS_LOCAL_NONCE_RACE_AND_ATOMIC_FIX_WITH_ROLLBACK_LIMIT',d
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['two_real_concurrent_naive_unspent_reads']==2
+          assert d['atomic_distinct_processes']==2
+          assert d['atomic_local_committed']==1
+          assert d['atomic_local_duplicates_blocked']==1
+          assert d['persisted_local_nonce_replay_blocked_after_restart'] is True
+          assert d['same_admin_old_sqlite_snapshot_restored'] is True
+          assert d['local_replay_after_rollback_committed_again'] is True
+          assert d['original_r5q_three_file_rollback_reproduced'] is True
+          assert d['externally_protected_monotonic_floor'] is False
+          assert d['native_admission_gates_unmet']==12
+          assert d['real_human_testers']==0 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          print('E7_REAL_NAIVE_DOUBLE_STALE_READ=2/2_REPRODUCED')
+          print('E7_REAL_ATOMIC_LOCAL_SQLITE=1_SPENT_1_DUPLICATE_BLOCKED')
+          print('E7_REAL_RESTART_NONCE=BLOCKED_LOCALLY')
+          print('E7_SAME_ADMIN_LOCAL_SQLITE_RESTORE_REPLAY=REPRODUCED')
+          print('E7_REAL_R5Q=REPRODUCED; INDEPENDENT_EXTERNAL_WITNESS=NONE')
+          if sys.platform=='darwin' and os.uname().machine=='x86_64':
+              folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e7_machine_result'
+              folder.mkdir(mode=0o700,exist_ok=False)
+              blob=(json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+              (folder/'E7_ACTUAL_MACHINE_EXPERIMENT.json').write_bytes(blob)
+              print('E7_MACHINE_RESULT_SHA256='+hashlib.sha256(blob).hexdigest())
+          PY
+      - name: E6 true local signed receipt and R5Q 24 tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e6_signed_receipt_rebinding.py' -v
+      - name: E5 witness trust design 24 negative controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e5_separate_witness_contract.py' -v
+      - name: E4 real coherent evidence tamper 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e4_coherent_evidence_tampering.py' -v
+      - name: E3 exact PR source log evidence 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e3_exact_head_provenance.py' -v
+      - name: E2 zero-human and source pin 24 controls
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e2_machine_only.py' -v
+      - name: Original RoadMapGuardian still forbids twelve native admissions
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Genuine R4M macOS signed XPC CDHash native six serial no waiver
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final exact source and deny-only owner policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E7_LOCAL_NONCE_RACE_CONTRACT.json'))
+          assert p['human_testers_allowed'] is False
+          assert p['physical_test_humans']==0
+          assert p['actual_independent_witness_receipts']==0
+          assert p['native_admission_gates_unmet']==12
+          assert p['r6g']=='LOCKED_BY_SEQUENCE'
+          assert p['production']=='NOT_AUTHORIZED'
+          print('E7_RESEARCH_ONLY=TRUE; ZERO_HUMAN_TESTERS; NO_EXTERNAL_CERTIFICATION; R6G=LOCKED')
+          PY
+      - name: Preserve actual Intel Mac E7 machine result with SHA for audit
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E7_REAL_LOCAL_NONCE_RACE_MAC_INTEL_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e7_machine_result/
+          retention-days: 30
+          if-no-files-found: error
