@@ -361,7 +361,9 @@ fn run() -> u8 {
                 Some(Path::new(&arguments[5]))
             }
             _ => {
-                report_usage_error("integrated-bundle-run requires exact --grant-output-dir syntax");
+                report_usage_error(
+                    "integrated-bundle-run requires exact --grant-output-dir syntax",
+                );
                 return EXIT_USAGE;
             }
         };
