@@ -10,6 +10,7 @@ import argparse
 import json
 from pathlib import Path
 import re
+import subprocess
 import sys
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -119,6 +120,24 @@ def verify_bundle(root,head,basedir):
                {x["id"] for x in c["e16_artifacts"]},
             "E17_MISSING_EXTRA_OR_SWAPPED_PLATFORM_BUNDLE")
     verified=0;total=0;aggregates=[]
+    # E16 SHA256 belongs to the runner checkout. Windows can convert text
+    # blob LF to worktree CRLF while Git blob identity remains unchanged.
+    # Compare only the two deterministic byte representations to the
+    # original E16 Git blob, never to arbitrary reporter-supplied hashes.
+    original_blobs={}
+    def source_digests(path,platform):
+        if path not in original_blobs:
+            proc=subprocess.run(["git","show",PARENT+":"+path],cwd=root,
+                capture_output=True,check=False,timeout=30)
+            require(proc.returncode==0,
+                    "E17_ORIGINAL_E16_GIT_BLOB_CANNOT_BE_READ:"+path)
+            original_blobs[path]=proc.stdout
+        blob=original_blobs[path]
+        values={sha(blob)}
+        if platform=="windows-latest":
+            crlf=blob.replace(b"\r\n",b"\n").replace(b"\n",b"\r\n")
+            values.add(sha(crlf))
+        return values
     for a in c["e16_artifacts"]:
         folder=base/a["id"]
         require(folder.is_dir() and not folder.is_symlink(),
@@ -181,7 +200,7 @@ def verify_bundle(root,head,basedir):
                 p=f["path"]
                 require(p in pins and f["source_git_blob_sha1"]==
                   pins[p]["git_blob_sha1"] and
-                  f["source_sha256"]==sha((root/p).read_bytes()),
+                  f["source_sha256"] in source_digests(p,a["id"]),
                   "E17_REAL_GIT_SOURCE_NOT_MATCHED_TO_ROLE")
                 checks=f["true_E14_test_records_by_platform"]
                 require([v["platform"] for v in checks]==
