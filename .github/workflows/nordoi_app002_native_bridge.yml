@@ -3,7 +3,7 @@ on:
   pull_request:
     paths:
       - 'src/bin/nordoi.rs'
-      - 'src/bin/nordoi_app002_bridge.rs'
+      - 'src/bin/nordoi/app002_bridge.rs'
       - 'examples/apps/app002_rule_bundle/**'
       - '.github/workflows/nordoi_app002_native_bridge.yml'
   workflow_dispatch:
