@@ -1,0 +1,5 @@
+module app.rules;
+
+const threshold = 60;
+
+fn approved(score) returns if score >= threshold { 1 } else { 0 };
