@@ -164,7 +164,7 @@ pub(super) fn run_app002_module_bundle_cli(
     let stderr = io::stderr();
     let mut err = stderr.lock();
     if err.write_all(output_receipt.as_bytes()).is_err() || err.flush().is_err() {
-        report_io_error("<stderr>", &"APP002 failed to write authentic P2.7 receipt");
+        report_plain_error("io", "<stderr>", "APP002 failed to write authentic P2.7 receipt");
         return EXIT_IO;
     }
 
