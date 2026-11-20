@@ -1,0 +1,11 @@
+module app.main;
+
+effect FileWrite;
+
+input key_code;
+const increment = 1;
+
+entry main writes "quality-decision" {
+    "decision.txt" emits "approved=true, score=" + key_code + ", next=" + (key_code + increment) + "\n";
+    "report.txt" emits "module-decision=approved, input=" + key_code + ", next=" + (key_code + increment) + "\n";
+};

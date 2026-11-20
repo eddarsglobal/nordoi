@@ -1,0 +1,3 @@
+module app.rules;
+
+fn approved(score) returns if score >= 60 { 1 } else { 0 };
