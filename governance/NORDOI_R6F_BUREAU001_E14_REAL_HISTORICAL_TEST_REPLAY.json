@@ -79,5 +79,6 @@
   "r6g": "LOCKED_BY_SEQUENCE",
   "production": "NOT_AUTHORIZED",
   "merge_authorized": false,
-  "pre_ci_verdict": "IN_PROGRESS_UNQUALIFIED"
+  "pre_ci_verdict": "IN_PROGRESS_UNQUALIFIED",
+  "founder_manual_test_duty": false
 }
