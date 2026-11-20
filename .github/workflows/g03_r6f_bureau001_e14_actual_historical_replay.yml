@@ -1,0 +1,140 @@
+name: NORDOI G0.3 R6F E14 actual 57 historical test target replay
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E14_REAL_HISTORICAL_TEST_REPLAY.json'
+      - 'scripts/bureau_001_e14_real_historical_test_replay.py'
+      - 'scripts/test_bureau_001_e14_real_historical_test_replay.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E14_REAL_HISTORICAL_REPLAY_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e14_actual_historical_replay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e14-57-actual-historical-targets:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Source exact HEAD and 99 frozen R1 Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E14 source and real historical runner audit expected BLOCK exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e14_real_historical_test_replay.py',
+             '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=180)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK'
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['expected_rust_targets']==24
+          assert d['expected_python_targets']==33
+          assert d['actual_tests_executed_by_audit']==0
+          assert d['native_admission_gates_unmet']==12 and d['human_testers']==0
+          print('E14_AUDIT=57_PINNED_TEST_FILE_TARGETS_NOT_EXECUTIONS')
+          PY
+      - name: New 24 E14 machine-only provenance parser and real smoke tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e14_real_historical_test_replay.py' -v
+      - name: ACTUAL 57 separate OS subprocess test runs and SHA per-target logs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          out=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e14_57_actual_replay'
+          p=subprocess.run([sys.executable,'-B',
+              'scripts/bureau_001_e14_real_historical_test_replay.py',
+              '--exercise','--expected-head',os.environ['EXPECTED_HEAD'],
+              '--output-dir',str(out)],
+              capture_output=True,text=True,timeout=5400)
+          if p.returncode!=2:
+              print('E14_REAL_57_TARGETS=NOT_QUALIFIED')
+              print('E14_EXECUTION_SUMMARY='+p.stdout[:12000])
+              print('E14_ERROR='+p.stderr[:12000])
+              if (out/'MANIFEST.json').is_file():
+                  m=json.loads((out/'MANIFEST.json').read_text())
+                  print('E14_FALLOUT_TARGETS='+json.dumps([
+                      {'target':r['target_path'],'reason':r['error'],
+                       'return_code':r['return_code'],'ran':r['ran_tests']}
+                      for r in m['records'] if not r['success']],sort_keys=True))
+              raise SystemExit('E14_FAIL_CLOSED_REAL_TEST_TARGETS')
+          d=json.loads(p.stdout)
+          m=json.loads((out/'MANIFEST.json').read_bytes())
+          assert d['result']=='BLOCK' and d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['actual_target_processes']==57
+          assert d['real_rust_test_targets']==24 and d['real_python_test_targets']==33
+          assert m['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert m['expected_target_count']==57 and len(m['records'])==57
+          assert m['passed_target_files']==57 and m['failed_or_empty_target_files']==0
+          assert m['real_subprocess_target_count']==57
+          assert m['rust_target_files']==24 and m['python_target_files']==33
+          assert m['test_cases_passed']==d['actual_test_cases_passed']
+          assert m['test_cases_skipped']==d['actual_test_cases_skipped']
+          assert m['native_admission_gates_unmet']==12 and m['r6g']=='LOCKED_BY_SEQUENCE'
+          assert m['independent_bureau_reviews']==0 and m['human_testers']==0
+          assert m['production']=='NOT_AUTHORIZED'
+          assert d['manifest_sha256']==hashlib.sha256(
+              (out/'MANIFEST.json').read_bytes()).hexdigest()
+          assert all(r['return_code']==0 and r['success'] and r['ran_tests']>0
+                     and r['passed_tests']+r['skipped_tests']==r['ran_tests']
+                     for r in m['records'])
+          print('E14_REAL_HISTORICAL_FILE_TARGETS=57/57_SUCCESS')
+          print('E14_RUST_NATIVE_FILE_TARGETS=24/24')
+          print('E14_PYTHON_FILE_TARGETS=33/33')
+          print('E14_ACTUAL_CASES_PASSED='+str(m['test_cases_passed']))
+          print('E14_EXPLICIT_SKIPPED_CASES='+str(m['test_cases_skipped']))
+          print('E14_ACTUAL_MANIFEST_SHA256='+d['manifest_sha256'])
+          print('E14_NATIVE_ADMISSION=BLOCKED; R6G=LOCKED')
+          PY
+      - name: Existing RoadMapGuardian and future native gates
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Exact source unchanged after true 57 target execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E14_REAL_HISTORICAL_TEST_REPLAY.json'))
+          assert c['human_testers_allowed'] is False
+          assert c['founder_manual_test_duty'] is False
+          assert c['expected_total_targets']==57
+          assert c['independent_bureau_reviews_completed']==0
+          assert c['external_witness_receipts']==0
+          assert c['native_admission_gates_unmet']==12
+          assert c['r6g']=='LOCKED_BY_SEQUENCE'
+          assert c['production']=='NOT_AUTHORIZED'
+          assert c['merge_authorized'] is False
+          print('E14_GOVERNANCE=ZERO_HUMANS_12_NATIVE_GATES_UNMET')
+          PY
+      - name: Preserve genuine per-target raw process logs even on test failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_e14_57_actual_replay/
+          retention-days: 30
+          if-no-files-found: warn
