@@ -1,0 +1,191 @@
+name: NORDOI G0.3 R6F E15 four-OS real E14 receipt reconciliation
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E15_FOUR_OS_RECEIPTS.json'
+      - 'scripts/bureau_001_e15_cross_os_receipt_reconciliation.py'
+      - 'scripts/test_bureau_001_e15_cross_os_receipt_reconciliation.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E15_CROSS_OS_RECEIPT_RECONCILIATION_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e15_cross_os_receipts.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  e15-frozen-four-os-228-logs:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact E15 source head and 99 frozen R1 Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Verify GitHub E14 previous run artifact IDs names and archival state
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/eddarsglobal/nordoi/actions/runs/44713831052/artifacts?per_page=100" > "$RUNNER_TEMP/e15_real_e14_artifact_metadata.json"
+          python -B - <<'PY'
+          import json,os
+          p=json.load(open('governance/NORDOI_R6F_BUREAU001_E15_FOUR_OS_RECEIPTS.json'))
+          j=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],
+             'e15_real_e14_artifact_metadata.json')))
+          expected={(x['github_artifact_id'],x['github_artifact_name'])
+                    for x in p['artifacts']}
+          observed={(x['id'],x['name']) for x in j['artifacts']
+                    if not x['expired']}
+          assert observed==expected,(observed,expected)
+          assert len(expected)==4
+          print('E15_GITHUB_E14_ARTIFACT_IDS=4_VERIFIED_REAL_API_METADATA')
+          PY
+      - name: Get real Mac Intel E14 artifact from pinned GitHub run
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_macos-15-intel
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e15_e14_artifacts/macos-15-intel
+      - name: Get real Apple Silicon E14 artifact from pinned GitHub run
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_macos-15
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e15_e14_artifacts/macos-15
+      - name: Get real Linux E14 artifact from pinned GitHub run
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_ubuntu-latest
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e15_e14_artifacts/ubuntu-latest
+      - name: Get real Windows E14 artifact from pinned GitHub run
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_windows-latest
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e15_e14_artifacts/windows-latest
+      - name: Exact E14 parent contract source audit expected BLOCK 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e15_cross_os_receipt_reconciliation.py',
+             '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=180)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK'
+          assert d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['artifacts_expected']==4
+          assert d['historical_target_paths']==57
+          assert d['logs_not_downloaded_by_audit']==228
+          assert d['native_admission_gates_unmet']==12
+          print('E15_C20_SOURCE_AUDIT=BLOCK_EXPECTED')
+          PY
+      - name: Twenty-four true E15 downloaded-artifact integrity and tamper tests
+        env:
+          E15_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e15_e14_artifacts
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e15_cross_os_receipt_reconciliation.py' -v
+      - name: Recheck real four E14 artifacts and 228 raw logs, write E15 evidence
+        env:
+          E15_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e15_e14_artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nordoi_e15_result"
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          output=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e15_result'/'E15_RECONCILIATION.json'
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e15_cross_os_receipt_reconciliation.py',
+             '--exercise','--expected-head',os.environ['EXPECTED_HEAD'],
+             '--artifact-dir',os.environ['E15_ARTIFACT_DIR'],
+             '--result-path',str(output)],
+             capture_output=True,text=True,timeout=300)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          record=json.loads(output.read_bytes())
+          assert d['result']=='BLOCK'
+          assert d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['actual_artifacts_rechecked']==4
+          assert d['actual_prior_historical_log_files_verified']==228
+          assert d['total_cases_passed']==3629
+          assert d['total_cases_skipped']==251
+          assert d['no_new_historical_test_executions_claimed'] is True
+          assert record['parent_head_e14']=='deb34302acdbe18563ab06eb10d852865e3b3c6a'
+          assert record['real_prior_ci_artifacts_rechecked']==4
+          assert record['genuine_prior_raw_logs_verified']==228
+          assert record['native_admission_gates_unmet']==12
+          assert record['human_testers']==0
+          assert record['external_witness_receipts']==0
+          assert record['r6g']=='LOCKED_BY_SEQUENCE'
+          assert record['production']=='NOT_AUTHORIZED'
+          assert hashlib.sha256(output.read_bytes()).hexdigest()==d['generated_result_sha256']
+          print('E15_FROZEN_ACTUAL_E14_GITHUB_ARTIFACTS=4/4_VERIFIED')
+          print('E15_REAL_E14_RAW_LOGS=228/228_SHA_AND_SOURCE_BOUND')
+          print('E15_CASES_PREVIOUSLY_PASSED=3629')
+          print('E15_CASES_PREVIOUSLY_SKIPPED=251_NOT_PASS')
+          print('E15_GENUINE_EXPERIMENT=RECONCILIATION_NOT_NEW_REPLAY')
+          print('E15_RESULT_SHA256='+d['generated_result_sha256'])
+          print('E15_NATIVE_ADMISSION=12_UNMET; R6G=LOCKED')
+          PY
+      - name: Prior E13 and E14 source and real narrow regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B -m unittest discover -s scripts -p 'test_bureau_001_e13_retrospective_coverage.py' -v
+          python -B -m unittest discover -s scripts -p 'test_bureau_001_e14_real_historical_test_replay.py' -v
+      - name: Original RoadMapGuardian
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Final exact Git head and 12 locked native gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E15_FOUR_OS_RECEIPTS.json'))
+          assert c['human_testers_allowed'] is False
+          assert c['founder_manual_test_duty'] is False
+          assert c['independent_specialist_reviews']==0
+          assert c['independent_external_witness_receipts']==0
+          assert c['native_admission_gates_unmet']==12
+          assert c['r6g']=='LOCKED_BY_SEQUENCE'
+          assert c['production']=='NOT_AUTHORIZED'
+          assert c['permission_to_merge'] is False
+          print('E15_GUARDIAN=NO_EXTERNAL_AUTHORITY_NO_NATIVE_PRODUCTION')
+          PY
+      - name: Archive E15 actual cross-OS comparison result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E15_ACTUAL_RECONCILIATION_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_e15_result/
+          retention-days: 30
+          if-no-files-found: warn
