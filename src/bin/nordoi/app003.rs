@@ -373,6 +373,10 @@ pub(super) fn run_app003_integrated_cli(
         }
     };
 
+    if let Err(error) = validate_module_name_v13(entry_module) {
+        report_plain_error("integrated-bundle-run", entry_module, &error);
+        return EXIT_FRONTEND;
+    }
     let path = module_path_v13(source_root, entry_module);
     let (name, text) = match load_source(path.as_os_str()) {
         Ok(source) => source,
