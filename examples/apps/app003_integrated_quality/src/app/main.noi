@@ -1,0 +1,18 @@
+module app.main;
+
+import app.rules;
+
+effect FileWrite;
+input key_code;
+
+// APP-003 single effectful entry: imported pure selection and both file arms.
+entry main selects rules.approved(key_code) writes "quality-decision" {
+    approved {
+        "decision.txt" emits "approved=true, score=" + key_code + ", next=" + (key_code + 1) + "\n";
+        "report.txt" emits "module-decision=approved, input=" + key_code + ", next=" + (key_code + 1) + "\n";
+    }
+    rejected {
+        "decision.txt" emits "approved=false, score=" + key_code + ", next=" + (key_code + 1) + "\n";
+        "report.txt" emits "module-decision=rejected, input=" + key_code + ", next=" + (key_code + 1) + "\n";
+    }
+};

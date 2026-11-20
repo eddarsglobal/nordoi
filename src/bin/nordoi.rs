@@ -1,5 +1,7 @@
 #[path = "nordoi/app002_bridge.rs"]
 mod app002_bridge;
+#[path = "nordoi/app003.rs"]
+mod app003;
 
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
@@ -101,6 +103,7 @@ Usage:\n\
   nordoi dynamic-file-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
   nordoi bundle-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
   nordoi module-bundle-write <source-root> <entry-module> <approved.noi> <rejected.noi> <key-code> [--grant-output-dir <dir>]\n\
+  nordoi integrated-bundle-run <source-root> <entry-module> <key-code> [--grant-output-dir <dir>]\n\
   nordoi conformance [--json]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
@@ -152,6 +155,7 @@ Commands:\n\
   dynamic-file-write P2.6 write P2.4-style 2..8 runtime Int/Bool segments into one create-new file under exact FileWrite authority.\n\
   bundle-write     P2.7 publish 2..8 dynamic files as one bounded atomic bundle under exact per-target FileWrite authorities.\n\
   module-bundle-write APP-002 experimental native bridge: V1.3 module result INT(0/1) selects one of two prevalidated P2.7 branches with identical exact FileWrite targets and explicit host grant; no effectful imports.\n\
+  integrated-bundle-run APP-003 bounded single-entry .noi: source imports pure V1.3 rules and declares both guarded P2.7 file-writing branches, executed with explicit grant; NOT general effectful imports.\n\
   conformance      G0.1 report constitutional evidence coverage, full-v1 delivery planning estimate and Future-Native Gate status.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
@@ -335,6 +339,40 @@ fn run() -> u8 {
             }
         };
         return run_conformance_g01_cli(json);
+    }
+
+    if command.as_ref() == "integrated-bundle-run" {
+        if arguments.len() != 4 && arguments.len() != 6 {
+            report_usage_error(
+                "integrated-bundle-run expects <source-root> <entry-module> <key-code> [--grant-output-dir <dir>]",
+            );
+            return EXIT_USAGE;
+        }
+        let key_code = match arguments[3].to_string_lossy().parse::<u32>() {
+            Ok(value) => value,
+            Err(_) => {
+                report_usage_error("integrated-bundle-run requires unsigned 32-bit key-code");
+                return EXIT_USAGE;
+            }
+        };
+        let grant = match arguments.len() {
+            4 => None,
+            6 if arguments[4].as_os_str() == OsStr::new("--grant-output-dir") => {
+                Some(Path::new(&arguments[5]))
+            }
+            _ => {
+                report_usage_error(
+                    "integrated-bundle-run requires exact --grant-output-dir syntax",
+                );
+                return EXIT_USAGE;
+            }
+        };
+        return app003::run_app003_integrated_cli(
+            Path::new(&arguments[1]),
+            &arguments[2].to_string_lossy(),
+            key_code,
+            grant,
+        );
     }
 
     if command.as_ref() == "module-bundle-write" {

@@ -1,0 +1,91 @@
+name: NORDOI APP-003 one NOI entry, imported rules and P2.7 effects
+on:
+  pull_request:
+    paths:
+      - 'src/bin/nordoi.rs'
+      - 'src/bin/nordoi/app003.rs'
+      - 'examples/apps/app003_integrated_quality/**'
+      - '.github/workflows/nordoi_app003_single_noi.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  app003-actual-four-os:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact source and RoadMapGuardian admission gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          test -f src/bin/nordoi/app003.rs
+          test -f examples/apps/app003_integrated_quality/src/app/main.noi
+          test -f examples/apps/app003_integrated_quality/src/app/rules.noi
+      - name: Compile actual NORDOI Rust binary with APP003 compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Thirty-eight real imported-rule and file-effect tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve APP002 genuine real-binary bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve APP001 sixteen real-binary tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce approved and rejected bundles from same APP003 NOI source
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$RUNNER_TEMP/nordoi_app003_evidence"
+          mkdir -p "$BASE"
+          ENGINE="$PWD/target/debug/nordoi"
+          if [ "$RUNNER_OS" = "Windows" ]; then ENGINE="$ENGINE.exe"; fi
+          python -B examples/apps/app003_integrated_quality/run_app003.py \
+            --score 73 --engine "$ENGINE" --output-parent "$BASE" \
+            2>&1 | tee "$BASE/APP003_ACCEPTED.log"
+          grep -F "NORDOI_APP003=PASS" "$BASE/APP003_ACCEPTED.log"
+          grep -F "SELECTED_BRANCH=approved" "$BASE/APP003_ACCEPTED.log"
+          python -B examples/apps/app003_integrated_quality/run_app003.py \
+            --score 59 --engine "$ENGINE" --output-parent "$BASE" \
+            2>&1 | tee "$BASE/APP003_REJECTED.log"
+          grep -F "NORDOI_APP003=PASS" "$BASE/APP003_REJECTED.log"
+          grep -F "SELECTED_BRANCH=rejected" "$BASE/APP003_REJECTED.log"
+      - name: Verify source unchanged and preserve real release boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          echo "APP003_SINGLE_EFFECTFUL_NOI_ENTRY_WITH_IMPORTED_PURE_RULE=PASS"
+          echo "APP003_NATIVE_COMPILER_PROFILE=BOUNDED"
+          echo "APP003_GENERAL_EFFECTFUL_IMPORTS=NOT_CLAIMED"
+          echo "APP003_NATIVE_MERGE=NOT_AUTHORIZED"
+          echo "APP003_HUMAN_TESTERS=0"
+          echo "R6F=IN_PROGRESS_UNCERTIFIED;R6G=LOCKED_BY_SEQUENCE"
+          echo "NATIVE_ADMISSION_GATES=12_UNMET;PRODUCTION=NOT_AUTHORIZED"
+      - name: Preserve actual source-to-file outputs for independent review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP003_REAL_INTEGRATED_NOI_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_app003_evidence/
+          if-no-files-found: warn
+          retention-days: 30
