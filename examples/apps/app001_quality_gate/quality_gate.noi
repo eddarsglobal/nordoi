@@ -1,0 +1,12 @@
+module app.main;
+
+effect FileWrite;
+
+input key_code;
+const passing_score = 60;
+const increment = 1;
+
+entry main writes "quality-gate" {
+    "decision.txt" emits "approved=" + (key_code >= passing_score) + ", rejected=" + (key_code < passing_score) + ", score=" + key_code + "\n";
+    "report.txt" emits "score=" + key_code + ", next=" + (key_code + increment) + ", meets_threshold=" + (key_code >= passing_score) + "\n";
+};
