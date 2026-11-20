@@ -237,7 +237,7 @@ class NORDOIAPP002NativeRealTests(unittest.TestCase):
         self.assertIn("passing_score = 60",f.read_text())
         self.assertIn("entry main writes",f.read_text())
     def test_26_app002_requires_two_authentic_nordoi_profile_executions(self):
-        p=(ROOT/"src/bin/nordoi_app002_bridge.rs").read_text()
+        p=(ROOT/"src/bin/nordoi/app002_bridge.rs").read_text()
         self.assertIn("execute_module_graph_v13(",p)
         self.assertIn("execute_atomic_bundle_p27(",p)
         self.assertNotIn("std::process::Command",p)
