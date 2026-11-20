@@ -13,7 +13,6 @@ permissions:
   actions: read
 env:
   EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-  E15_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e15_e14_artifacts
   GH_TOKEN: ${{ github.token }}
 jobs:
   e15-frozen-four-os-228-logs:
@@ -109,8 +108,12 @@ jobs:
           print('E15_C20_SOURCE_AUDIT=BLOCK_EXPECTED')
           PY
       - name: Twenty-four true E15 downloaded-artifact integrity and tamper tests
+        env:
+          E15_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e15_e14_artifacts
         run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e15_cross_os_receipt_reconciliation.py' -v
       - name: Recheck real four E14 artifacts and 228 raw logs, write E15 evidence
+        env:
+          E15_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e15_e14_artifacts
         shell: bash
         run: |
           set -euo pipefail
