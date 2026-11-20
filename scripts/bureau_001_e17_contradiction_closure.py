@@ -120,14 +120,15 @@ def verify_bundle(root,head,basedir):
                {x["id"] for x in c["e16_artifacts"]},
             "E17_MISSING_EXTRA_OR_SWAPPED_PLATFORM_BUNDLE")
     verified=0;total=0;aggregates=[]
-    # E16 SHA256 belongs to the runner checkout. Windows can convert text
-    # blob LF to worktree CRLF while Git blob identity remains unchanged.
+    # Checkout is deliberately shallow: read the exact PR HEAD Git blob,
+    # whose identity was already checked against the frozen R1 manifest.
+    # Windows may convert Git LF blobs to CRLF in its worktree.
     # Compare only the two deterministic byte representations to the
     # original E16 Git blob, never to arbitrary reporter-supplied hashes.
     original_blobs={}
     def source_digests(path,platform):
         if path not in original_blobs:
-            proc=subprocess.run(["git","show",PARENT+":"+path],cwd=root,
+            proc=subprocess.run(["git","show",head+":"+path],cwd=root,
                 capture_output=True,check=False,timeout=30)
             require(proc.returncode==0,
                     "E17_ORIGINAL_E16_GIT_BLOB_CANNOT_BE_READ:"+path)
