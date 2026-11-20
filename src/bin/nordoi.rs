@@ -1,3 +1,4 @@
+#[path = "nordoi/app002_bridge.rs"]
 mod app002_bridge;
 
 use nordoi_kernel::{
