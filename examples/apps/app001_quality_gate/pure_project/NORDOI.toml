@@ -1,0 +1,5 @@
+[project]
+name = "app001-quality-rules"
+version = "0.1.0"
+entry = "app.main"
+source-root = "src"
