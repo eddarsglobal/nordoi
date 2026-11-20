@@ -127,7 +127,7 @@ impl<'a> App003Cursor<'a> {
         let mut depth = 1usize;
         let mut i = self.at;
         while i < self.tokens.len() {
-            match self.tokens[i].kind {
+            match &self.tokens[i].kind {
                 TokenKind::Punctuation('{') => depth += 1,
                 TokenKind::Punctuation('}') => {
                     depth -= 1;
