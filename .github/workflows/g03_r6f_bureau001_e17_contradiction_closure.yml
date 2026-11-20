@@ -1,0 +1,188 @@
+name: NORDOI G0.3 R6F E17 actual contradiction closure gate audit
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E17_CLOSURE_GATES.json'
+      - 'scripts/bureau_001_e17_contradiction_closure.py'
+      - 'scripts/test_bureau_001_e17_contradiction_closure.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E17_CONTRADICTION_CLOSURE_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e17_contradiction_closure.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  e17-four-os-e16-evidence-closure:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact source HEAD and 99 original frozen Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Verify exact four original E16 GitHub artifact IDs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/eddarsglobal/nordoi/actions/runs/44720657493/artifacts?per_page=100" > "$RUNNER_TEMP/e17_e16_artifact_api.json"
+          python -B - <<'PY'
+          import json,os
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E17_CLOSURE_GATES.json'))
+          r=json.load(open(os.path.join(os.environ['RUNNER_TEMP'],'e17_e16_artifact_api.json')))
+          expected={(x['github_artifact_id'],x['github_artifact_name'])
+                    for x in c['e16_artifacts']}
+          observed={(x['id'],x['name']) for x in r['artifacts'] if not x['expired']}
+          assert expected==observed,(expected,observed)
+          assert len(expected)==4
+          print('E17_AUTHENTIC_GITHUB_E16_ARCHIVE_IDENTITIES=4/4_VERIFIED')
+          PY
+      - name: Fetch real E16 Mac Intel nine reports
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E16_NINE_REAL_MACHINE_REPORTS_macos-15-intel
+          run-id: 44720657493
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e17_e16_artifacts/macos-15-intel
+      - name: Fetch real E16 Apple Silicon nine reports
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E16_NINE_REAL_MACHINE_REPORTS_macos-15
+          run-id: 44720657493
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e17_e16_artifacts/macos-15
+      - name: Fetch real E16 Linux nine reports
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E16_NINE_REAL_MACHINE_REPORTS_ubuntu-latest
+          run-id: 44720657493
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e17_e16_artifacts/ubuntu-latest
+      - name: Fetch real E16 Windows nine reports
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E16_NINE_REAL_MACHINE_REPORTS_windows-latest
+          run-id: 44720657493
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e17_e16_artifacts/windows-latest
+      - name: E17 source-only exact gate audit must return BLOCK
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e17_contradiction_closure.py',
+             '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=180)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK'
+          assert d['exact_head']==os.environ['EXPECTED_HEAD']
+          assert d['real_archived_machine_reports_rechecked']==0
+          assert d['native_admission_gates_unmet']==12
+          print('E17_EXACT_HEAD_SOURCE_CLOSURE_AUDIT=BLOCK_EXPECTED')
+          PY
+      - name: Twenty-four E17 real archive and adversarial no-promotion tests
+        env:
+          E17_E16_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e17_e16_artifacts
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e17_contradiction_closure.py' -v
+      - name: Verify archived 36 machine reports and classify 28 contradiction rows
+        env:
+          E17_E16_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e17_e16_artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nordoi_e17_qualified_result"
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          out=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e17_qualified_result'/'E17_CLOSURE_GATES.json'
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e17_contradiction_closure.py',
+             '--exercise','--expected-head',os.environ['EXPECTED_HEAD'],
+             '--artifact-dir',os.environ['E17_E16_ARTIFACT_DIR'],
+             '--result-path',str(out)],
+             capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout);record=json.loads(out.read_bytes())
+          assert d['result']=='BLOCK'
+          assert d['exact_head']==os.environ['EXPECTED_HEAD']
+          assert d['e16_machine_reports_verified']==36
+          assert d['e16_contradiction_records_verified']==28
+          assert d['open_closure_conditions']==6
+          assert d['technical_provenance_reconciled']==1
+          assert record['open_blockers']==6
+          assert record['native_admission_gates_unmet']==12
+          assert record['formal_independent_reviews']==0
+          assert record['outside_signed_receipts']==0
+          assert record['r6g']=='LOCKED_BY_SEQUENCE'
+          assert record['production']=='NOT_AUTHORIZED'
+          assert record['e17_does_not_reexecute_e14_or_e16'] is True
+          assert record['e17_does_not_certify_machine_roles_as_independent'] is True
+          assert hashlib.sha256(out.read_bytes()).hexdigest()==d['output_sha256']
+          print('E17_REAL_ARCHIVED_E16_MACHINE_REPORTS=36/36_SHA_BOUND')
+          print('E17_REAL_E16_CONTRADICTION_RECORDS=28/28_REVALIDATED')
+          print('E17_DISTINCT_OPEN_BLOCKERS=6')
+          print('E17_LIMITED_TECHNICAL_PROVENANCE_GAP=1_RESOLVED')
+          print('E17_FORMAL_INDEPENDENT_CERTIFICATIONS=0')
+          print('E17_NATIVE_ADMISSION_GATES=12_UNMET; R6G=LOCKED')
+          print('E17_REAL_RESULT_SHA256='+d['output_sha256'])
+          PY
+      - name: E16 source regression and RoadMapGuardian deny check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Real signed R4M six macOS XPC/CDHash cases in serial
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Preserve exact HEAD, formal Bureau NOT_SUBMITTED and all twelve native locks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E17_CLOSURE_GATES.json'))
+          h=json.load(open('governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json'))
+          assert all(x['review_status']=='NOT_SUBMITTED' for x in h['review_functions'])
+          assert c['human_testers_allowed'] is False
+          assert c['founder_manual_test_duty'] is False
+          assert c['allow_merge'] is False
+          assert c['closure_policy']['native_conditions_unmet']==12
+          assert c['closure_policy']['native_conditions_met']==0
+          assert c['closure_policy']['r6g']=='LOCKED_BY_SEQUENCE'
+          assert c['closure_policy']['production']=='NOT_AUTHORIZED'
+          print('E17_NO_FALSE_R6F_CERTIFICATION_NO_HUMAN_TESTERS')
+          PY
+      - name: Archive actual E17 source-bound closure decision
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E17_REAL_CLOSURE_GATES_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_e17_qualified_result/
+          retention-days: 30
+          if-no-files-found: warn
