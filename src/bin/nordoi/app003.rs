@@ -39,7 +39,10 @@ impl<'a> App003Cursor<'a> {
     fn new(source: &'a SourceText) -> Result<Self, String> {
         let lexed = lex(source).map_err(|e| format!("APP003 lexical error: {e}"))?;
         let mut tokens = Vec::new();
-        for token in lexed.into_iter().filter(|t| !t.is_trivia() && t.kind() != &TokenKind::Eof) {
+        for token in lexed
+            .into_iter()
+            .filter(|t| !t.is_trivia() && t.kind() != &TokenKind::Eof)
+        {
             let span = token.span();
             let raw = source
                 .slice(span)
@@ -52,7 +55,11 @@ impl<'a> App003Cursor<'a> {
                 end: span.end().get() as usize,
             });
         }
-        Ok(Self { source, tokens, at: 0 })
+        Ok(Self {
+            source,
+            tokens,
+            at: 0,
+        })
     }
 
     fn peek(&self) -> Option<&App003Token> {
@@ -60,9 +67,10 @@ impl<'a> App003Cursor<'a> {
     }
 
     fn next(&mut self) -> Result<App003Token, String> {
-        let token = self.peek().cloned().ok_or_else(|| {
-            format!("APP003 unexpected end of source at token {}", self.at)
-        })?;
+        let token = self
+            .peek()
+            .cloned()
+            .ok_or_else(|| format!("APP003 unexpected end of source at token {}", self.at))?;
         self.at += 1;
         Ok(token)
     }
@@ -255,8 +263,20 @@ fn compile_app003_single_entry(
 
     // Compile both arms, even the one not selected by the rule. This ensures
     // failed syntax and mismatched permissions cannot be hidden in dead arms.
-    let approved = compile_arm(&module, &bundle_quoted, &approved_body, "<app003-approved>", 200)?;
-    let rejected = compile_arm(&module, &bundle_quoted, &rejected_body, "<app003-rejected>", 201)?;
+    let approved = compile_arm(
+        &module,
+        &bundle_quoted,
+        &approved_body,
+        "<app003-approved>",
+        200,
+    )?;
+    let rejected = compile_arm(
+        &module,
+        &bundle_quoted,
+        &rejected_body,
+        "<app003-rejected>",
+        201,
+    )?;
     if approved.bundle_name() != rejected.bundle_name()
         || approved.file_count() != rejected.file_count()
         || approved.required_capabilities() != rejected.required_capabilities()
@@ -267,12 +287,8 @@ fn compile_app003_single_entry(
         );
     }
 
-    let pure_entry = SourceText::new(
-        SourceId::new(1),
-        format!("<app003-pure-{module}>"),
-        pure,
-    )
-    .map_err(|e| format!("APP003 cannot construct imported rule entry: {e}"))?;
+    let pure_entry = SourceText::new(SourceId::new(1), format!("<app003-pure-{module}>"), pure)
+        .map_err(|e| format!("APP003 cannot construct imported rule entry: {e}"))?;
 
     Ok(App003Compiled {
         entry_module: module,
@@ -469,7 +485,10 @@ pub(super) fn run_app003_integrated_cli(
     let real_receipt = receipt.render_text();
     let stderr = io::stderr();
     let mut err = stderr.lock();
-    if let Err(error) = err.write_all(real_receipt.as_bytes()).and_then(|_| err.flush()) {
+    if let Err(error) = err
+        .write_all(real_receipt.as_bytes())
+        .and_then(|_| err.flush())
+    {
         report_io_error("<stderr>", &error);
         return EXIT_IO;
     }
