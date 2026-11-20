@@ -1,0 +1,85 @@
+name: NORDOI APP-002 real native module-to-P2.7 rule bridge
+on:
+  pull_request:
+    paths:
+      - 'src/bin/nordoi.rs'
+      - 'src/bin/nordoi_app002_bridge.rs'
+      - 'examples/apps/app002_rule_bundle/**'
+      - '.github/workflows/nordoi_app002_native_bridge.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  native-bridge-actual-four-os:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact source and preliminary RoadMapGuardian audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+      - name: Compile real NORDOI with new native CLI bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Twenty-six real APP-002 module-to-effect adversarial tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve APP-001 actual sixteen-program regression suite
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce actual approved and rejected file bundles with native bridge
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$RUNNER_TEMP/nordoi_app002_real_evidence"
+          mkdir -p "$BASE"
+          ENGINE="$PWD/target/debug/nordoi"
+          if [ "$RUNNER_OS" = "Windows" ]; then ENGINE="$ENGINE.exe"; fi
+          python -B examples/apps/app002_rule_bundle/run_app002.py \
+            --score 73 --engine "$ENGINE" --output-parent "$BASE" \
+            2>&1 | tee "$BASE/APP002_ACCEPTED.log"
+          grep -F "NORDOI_APP002=PASS" "$BASE/APP002_ACCEPTED.log"
+          grep -F "SELECTED_BRANCH=approved" "$BASE/APP002_ACCEPTED.log"
+          python -B examples/apps/app002_rule_bundle/run_app002.py \
+            --score 59 --engine "$ENGINE" --output-parent "$BASE" \
+            2>&1 | tee "$BASE/APP002_REJECTED.log"
+          grep -F "NORDOI_APP002=PASS" "$BASE/APP002_REJECTED.log"
+          grep -F "SELECTED_BRANCH=rejected" "$BASE/APP002_REJECTED.log"
+      - name: Verify zero new ambient effects, source unchanged and no fake authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          echo "APP002_REAL_NORDOI_RUST_RULE_TO_P27_BRIDGE=PASS"
+          echo "APP002_SOURCE_IMPORT_EFFECTFUL_COMBINED_LANGUAGE_PROFILE=NOT_IMPLEMENTED"
+          echo "APP002_EXTERNAL_AUTHORITY=NONE"
+          echo "APP002_HUMAN_TESTERS=0"
+          echo "R6F=IN_PROGRESS_UNCERTIFIED; R6G=LOCKED_BY_SEQUENCE"
+          echo "NATIVE_ADMISSION_GATES=12_UNMET; PRODUCTION=NOT_AUTHORIZED"
+      - name: Retain genuine native application outputs including logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP002_REAL_NATIVE_BRIDGE_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_app002_real_evidence/
+          retention-days: 30
+          if-no-files-found: warn
