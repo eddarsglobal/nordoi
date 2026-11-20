@@ -1,0 +1,78 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E17-CONTRADICTION-CLOSURE-GATES-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e16_exact_head": "dc6f9d54872a1aad899800280bb74e64eb3fe9fd",
+  "prior_e16": {
+    "specialized_run_id": 44720657493,
+    "specialized_success": 4,
+    "rust_run_id": 44720657509,
+    "rust_success": 5,
+    "e8_run_id": 44720657394,
+    "e8_success": 4
+  },
+  "source_handoff": "governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json",
+  "source_e16_contract": "governance/NORDOI_R6F_BUREAU001_E16_NINE_MACHINE_REVIEW_CONTRACT.json",
+  "e16_artifacts": [
+    {
+      "id": "macos-15-intel",
+      "github_artifact_id": 14621492812,
+      "github_artifact_name": "NORDOI_E16_NINE_REAL_MACHINE_REPORTS_macos-15-intel",
+      "manifest_sha256": "a9b563c9eb525d8b3732340e59ea93b60e4e9a6ae794997b92ec9bed99535bad"
+    },
+    {
+      "id": "macos-15",
+      "github_artifact_id": 14621781982,
+      "github_artifact_name": "NORDOI_E16_NINE_REAL_MACHINE_REPORTS_macos-15",
+      "manifest_sha256": "0b676441d00d06bf7b3ab72c774a610d724a76e33970ff6bb648d4d053ebefdb"
+    },
+    {
+      "id": "ubuntu-latest",
+      "github_artifact_id": 14622180298,
+      "github_artifact_name": "NORDOI_E16_NINE_REAL_MACHINE_REPORTS_ubuntu-latest",
+      "manifest_sha256": "9211139b25e01365ac4ba0b721aa7945e1221cfdca75442264a22a7228bd6277"
+    },
+    {
+      "id": "windows-latest",
+      "github_artifact_id": 14621413674,
+      "github_artifact_name": "NORDOI_E16_NINE_REAL_MACHINE_REPORTS_windows-latest",
+      "manifest_sha256": "ee8e88093ae3775ad8b496050bc50420202d73c4f3faf83e01aafeb413ce793f"
+    }
+  ],
+  "expected_archive_count": 4,
+  "expected_machine_role_reports": 36,
+  "expected_contradiction_records": 28,
+  "machine_report_assurance": "FOUR_ARCHIVED_GITHUB_MACHINE_REVIEW_SETS_NOT_INDEPENDENT_AUTHORITIES",
+  "expected_open_issues": [
+    "CROSS_OS_SKIPS_NOT_NATIVE_EQUIVALENCE",
+    "E14_PER_TARGET_PIDS_NOT_CAPTURED",
+    "LOCAL_SIGNATURE_NOT_INDEPENDENT_CUSTODY",
+    "FOUR_GITHUB_ARTIFACTS_SAME_ADMIN_DOMAIN",
+    "NINE_MACHINE_FUNCTIONS_NOT_FORMAL_REVIEWS",
+    "TWELVE_EXTERNAL_NATIVE_ADMISSIONS_UNMET"
+  ],
+  "expected_technical_resolved": [
+    "HISTORIC_GIT_PINS_NOT_RUNTIME_PROOF"
+  ],
+  "closure_policy": {
+    "technical_source_evidence": "SATISFIED_FOR_LIMITED_HISTORICAL_PROVENANCE",
+    "formal_nine_bureau_reports": "NOT_SUBMITTED",
+    "independent_owner_root": "NOT_AUTHENTICATED",
+    "external_custodian": "NOT_ENROLLED",
+    "global_monotonic_antirollback": "NOT_VERIFIED",
+    "independent_quorum": "NOT_PROVEN",
+    "outside_signed_receipts": 0,
+    "native_conditions_met": 0,
+    "native_conditions_unmet": 12,
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "production": "NOT_AUTHORIZED"
+  },
+  "owner": "Noureddine Eddars",
+  "technical_execution": "AI_AND_AUTOMATION_ONLY",
+  "human_testers_allowed": false,
+  "founder_manual_test_duty": false,
+  "allow_self_certifying_from_nine_machine_reports": false,
+  "allow_same_admin_signature_as_independence": false,
+  "allow_merge": false,
+  "status_before_exact_ci": "IN_PROGRESS_UNQUALIFIED"
+}
