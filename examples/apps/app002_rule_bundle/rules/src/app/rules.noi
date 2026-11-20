@@ -1,5 +1,3 @@
 module app.rules;
 
-const threshold = 60;
-
-fn approved(score) returns if score >= threshold { 1 } else { 0 };
+fn approved(score) returns if score >= 60 { 1 } else { 0 };
