@@ -1,0 +1,136 @@
+name: NORDOI G0.3 R6F E13 real retrospective evidence coverage
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E13_RETRO_COVERAGE_CONTRACT.json'
+      - 'scripts/bureau_001_e13_retrospective_coverage.py'
+      - 'scripts/test_bureau_001_e13_retrospective_coverage.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E13_RETROSPECTIVE_COVERAGE_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e13_retrospective_coverage.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  e13-real-retrospective-coverage:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact source and historical 99 pinned Git blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: E13 99 blob source-only contract must BLOCK exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+            'scripts/bureau_001_e13_retrospective_coverage.py',
+            '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+            capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['source_pins_reported']==99
+          assert d['formal_independent_roles_submitted']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['human_testers']==0 and d['r6g']=='LOCKED_BY_SEQUENCE'
+          print('E13_SOURCE_AUDIT=99_PINNED_SOURCE_FILES_NOT_99_RUNTIME_TESTS')
+          PY
+      - name: 24 genuinely automated E13 provenance and adversarial tests
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e13_retrospective_coverage.py' -v
+      - name: Actual git ls-tree frozen 99 blobs and 57 false run claims proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+            'scripts/bureau_001_e13_retrospective_coverage.py',
+            '--exercise','--expected-head',os.environ['EXPECTED_HEAD']],
+            capture_output=True,text=True,timeout=480)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK' and d['exact_source_head']==os.environ['EXPECTED_HEAD']
+          assert d['actual_git_tree_blobs_compared_to_frozen_manifest']==99
+          assert d['actual_historical_rust_source_test_files']==24
+          assert d['actual_historical_python_source_test_pairs']==33
+          assert d['actual_r6b_r6e_snapshot_blobs']==4
+          assert d['actual_historical_bureau_basis_blobs']==5
+          assert d['forged_self_asserted_all_tests_pass']==57
+          assert d['false_positive_naive_coverage_reproduced'] is True
+          assert d['strict_coverage_guard_rejected_execution_laundering'] is True
+          assert d['missing_rust_test_file_claim_rejected'] is True
+          assert d['actual_history_tests_reexecuted_by_this_program']==0
+          assert d['no_claim_of_absence_of_prior_ci_tests'] is True
+          assert d['human_testers']==0
+          assert d['native_admission_gates_unmet']==12
+          assert d['r6g']=='LOCKED_BY_SEQUENCE' and d['production']=='NOT_AUTHORIZED'
+          print('E13_REAL_GIT_TREE_SOURCE_BLOBS=99/99_EXACT')
+          print('E13_HISTORICAL_TEST_FILES=24_RUST_33_PYTHON_PAIRS')
+          print('E13_FALSE_RUNTIME_PASS_CLAIM=57_DETECTED_AND_BLOCKED')
+          print('E13_INDEPENDENT_EXPERIMENT_TEST_EXECUTION=NOT_CLAIMED')
+          if sys.platform=='darwin' and os.uname().machine=='x86_64':
+              folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e13_machine_result'
+              folder.mkdir(mode=0o700,exist_ok=False)
+              blob=(json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+              (folder/'E13_TRUE_GIT_TREE_COVERAGE_BOUNDS.json').write_bytes(blob)
+              print('E13_MACHINE_RESULT_SHA256='+hashlib.sha256(blob).hexdigest())
+          PY
+      - name: Original E2 through E12 machine-only regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e2_machine_only e3_exact_head_provenance e4_coherent_evidence_tampering e5_separate_witness_contract e6_signed_receipt_rebinding e7_atomic_local_nonce_race e8_local_ledger_split_brain e9_event_ledger_binding e10_ai_only_machine_dossier e11_rebound_machine_dossier e12_ai_only_native_evidence_intake; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: Original RoadMapGuardian policy still denies native privilege
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Six genuine signed macOS XPC CDHash R4M native tests serial
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final exact head AI-only and native gate lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E13_RETRO_COVERAGE_CONTRACT.json'))
+          assert c['human_testers_allowed'] is False
+          assert c['founder_manual_test_duty'] is False
+          assert c['actual_independent_specialist_reviews']==0
+          assert c['actual_external_witness_receipts']==0
+          assert c['native_admission_gates_unmet']==12
+          assert c['r6g']=='LOCKED_BY_SEQUENCE'
+          assert c['production']=='NOT_AUTHORIZED'
+          assert c['permission_to_merge'] is False
+          print('E13_ZERO_HUMAN_TESTERS; ZERO_FORMAL_INDEPENDENT_AUDITS; NO_NATIVE_ADMISSION')
+          PY
+      - name: Archive Mac Intel actual tree comparison machine result
+        if: matrix.os == 'macos-15-intel'
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E13_MAC_INTEL_REAL_RETRO_COVERAGE_RESEARCH_ONLY
+          path: ${{ runner.temp }}/nordoi_e13_machine_result/
+          retention-days: 30
+          if-no-files-found: error
