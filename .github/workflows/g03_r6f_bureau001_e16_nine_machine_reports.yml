@@ -1,0 +1,216 @@
+name: NORDOI G0.3 R6F E16 nine real source-anchored Bureau machine reviews
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_R6F_BUREAU001_E16_NINE_MACHINE_REVIEW_CONTRACT.json'
+      - 'scripts/bureau_001_e16_nine_machine_review_dossier.py'
+      - 'scripts/test_bureau_001_e16_nine_machine_review_dossier.py'
+      - 'docs/NORDOI_R6F_BUREAU001_E16_NINE_SOURCE_ANCHORED_MACHINE_REPORTS_FR.md'
+      - '.github/workflows/g03_r6f_bureau001_e16_nine_machine_reports.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  GH_TOKEN: ${{ github.token }}
+jobs:
+  e16-real-nine-source-bound-machine-reviews:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact PR source and R1 99 historical Git pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/bureau_001_r1_audit.py --audit
+      - name: Authenticate GitHub API artifact IDs on pinned prior E14 and E15 runs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/eddarsglobal/nordoi/actions/runs/44713831052/artifacts?per_page=100" > "$RUNNER_TEMP/e16_e14_real_api.json"
+          gh api "repos/eddarsglobal/nordoi/actions/runs/44716501372/artifacts?per_page=100" > "$RUNNER_TEMP/e16_e15_real_api.json"
+          python -B - <<'PY'
+          import json,os
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E16_NINE_MACHINE_REVIEW_CONTRACT.json'))
+          e15=json.load(open('governance/NORDOI_R6F_BUREAU001_E15_FOUR_OS_RECEIPTS.json'))
+          r=os.environ['RUNNER_TEMP']
+          a=json.load(open(os.path.join(r,'e16_e14_real_api.json')))
+          b=json.load(open(os.path.join(r,'e16_e15_real_api.json')))
+          wanted={(x['github_artifact_id'],x['github_artifact_name'])
+                  for x in e15['artifacts']}
+          real={(x['id'],x['name']) for x in a['artifacts'] if not x['expired']}
+          assert real==wanted,(real,wanted)
+          anchor=c['e15_anchor']
+          live={(x['id'],x['name']) for x in b['artifacts'] if not x['expired']}
+          assert (anchor['artifact_id'],anchor['artifact_name']) in live,live
+          assert len(wanted)==4
+          print('E16_GITHUB_REAL_E14_ARTIFACT_IDS=4/4_VERIFIED')
+          print('E16_GITHUB_REAL_E15_ANCHOR_ID=VERIFIED')
+          PY
+      - name: Download real Mac Intel E14 historical logs
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_macos-15-intel
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e16_e14_artifacts/macos-15-intel
+      - name: Download real Apple Silicon E14 historical logs
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_macos-15
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e16_e14_artifacts/macos-15
+      - name: Download real Linux E14 historical logs
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_ubuntu-latest
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e16_e14_artifacts/ubuntu-latest
+      - name: Download real Windows E14 historical logs
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E14_REAL_57_TEST_TARGETS_windows-latest
+          run-id: 44713831052
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e16_e14_artifacts/windows-latest
+      - name: Download genuine Mac Intel E15 reconciled artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: NORDOI_E15_ACTUAL_RECONCILIATION_macos-15-intel
+          run-id: 44716501372
+          repository: eddarsglobal/nordoi
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/nordoi_e16_e15_anchor
+      - name: E16 source-only contract expected BLOCK exit two
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import json,os,subprocess,sys
+          p=subprocess.run([sys.executable,'-B',
+             'scripts/bureau_001_e16_nine_machine_review_dossier.py',
+             '--audit','--expected-head',os.environ['EXPECTED_HEAD']],
+             capture_output=True,text=True,timeout=120)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          assert d['result']=='BLOCK'
+          assert d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['source_anchored_machine_reports_executed']==0
+          assert d['native_admission_gates_unmet']==12
+          print('E16_SOURCE_ONLY=PASS_EXPECTED_BLOCK')
+          PY
+      - name: Twenty-four new genuine-source Bureau report and tamper tests
+        env:
+          E16_E14_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e16_e14_artifacts
+          E16_E15_ANCHOR_FILE: ${{ runner.temp }}/nordoi_e16_e15_anchor/E15_RECONCILIATION.json
+        run: python -B -m unittest discover -s scripts -p 'test_bureau_001_e16_nine_machine_review_dossier.py' -v
+      - name: Actually launch nine Bureau machine-function OS processes
+        env:
+          E16_E14_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e16_e14_artifacts
+          E16_E15_ANCHOR_FILE: ${{ runner.temp }}/nordoi_e16_e15_anchor/E15_RECONCILIATION.json
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          folder=pathlib.Path(os.environ['RUNNER_TEMP'])/'nordoi_e16_nine_real_reports'
+          cmd=[sys.executable,'-B',
+             'scripts/bureau_001_e16_nine_machine_review_dossier.py',
+             '--exercise','--expected-head',os.environ['EXPECTED_HEAD'],
+             '--artifact-dir',os.environ['E16_E14_ARTIFACT_DIR'],
+             '--e15-anchor',os.environ['E16_E15_ANCHOR_FILE'],
+             '--output-dir',str(folder)]
+          p=subprocess.run(cmd,capture_output=True,text=True,timeout=900)
+          assert p.returncode==2,(p.returncode,p.stdout,p.stderr)
+          d=json.loads(p.stdout)
+          manifest=json.loads((folder/'MANIFEST.json').read_bytes())
+          assert d['result']=='BLOCK'
+          assert d['source_head']==os.environ['EXPECTED_HEAD']
+          assert d['real_bureau_machine_child_processes']==9
+          assert d['source_anchored_machine_reports']==9
+          assert d['contradictions_recorded']==7
+          assert d['actual_prior_e14_log_checks']==228
+          assert d['actual_formal_independent_bureau_reports']==0
+          assert d['native_admission_gates_unmet']==12
+          assert manifest['source_head_e16']==os.environ['EXPECTED_HEAD']
+          assert manifest['real_machine_processes']==9
+          assert len(manifest['reports'])==9 and len(manifest['contradictions'])==7
+          assert len({x['pid'] for x in manifest['reports']})==9
+          assert manifest['formal_independent_specialist_reviews']==0
+          assert manifest['external_witness_receipts']==0
+          assert manifest['r6g']=='LOCKED_BY_SEQUENCE'
+          assert d['manifest_sha256']==hashlib.sha256(
+             (folder/'MANIFEST.json').read_bytes()).hexdigest()
+          print('E16_REAL_NINE_OS_MACHINE_FUNCTIONS=9/9_SOURCE_BOUND')
+          print('E16_SOURCE_ANCHORED_NINE_REPORTS=9/9_CHECKED')
+          print('E16_E14_ACTUAL_228_LOGS=VERIFIED_AGAIN')
+          print('E16_CONTRADICTIONS=7_SOURCE_AND_LIMIT_ANCHORED')
+          print('E16_FORMAL_INDEPENDENT_SPECIALIST_REVIEWS=0')
+          print('E16_NINE_MACHINE_MANIFEST_SHA256='+d['manifest_sha256'])
+          print('E16_NATIVE_GATES=12_UNMET; R6G=LOCKED')
+          PY
+      - name: Reread original E15 24 real artifact checks plus E13 and E14 regressions
+        env:
+          E15_ARTIFACT_DIR: ${{ runner.temp }}/nordoi_e16_e14_artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          for stage in e13_retrospective_coverage e14_real_historical_test_replay e15_cross_os_receipt_reconciliation; do
+            python -B -m unittest discover -s scripts -p "test_bureau_001_$stage.py" -v
+          done
+      - name: RoadMapGuardian original source-and-authority negative audit
+        run: python -B scripts/roadmap_guardian.py --audit
+      - name: Genuine signed macOS R4M six native XPC/CDHash cases serial
+        if: runner.os == 'macOS'
+        timeout-minutes: 8
+        run: cargo test --offline --release --test g03_r4m_pinned_code_identity_lab -- --nocapture --test-threads=1
+      - name: Final exact HEAD and formal Bureau NOT_SUBMITTED unchanged
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B - <<'PY'
+          import json
+          c=json.load(open('governance/NORDOI_R6F_BUREAU001_E16_NINE_MACHINE_REVIEW_CONTRACT.json'))
+          h=json.load(open('governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json'))
+          assert len(h['review_functions'])==9
+          assert all(x['review_status']=='NOT_SUBMITTED' and x['formal_verdict'] is None
+                     for x in h['review_functions'])
+          assert c['formal_independent_reviews_submitted']==0
+          assert c['external_authentic_witnesses']==0
+          assert c['human_testers_allowed'] is False
+          assert c['native_admission_gates_unmet']==12
+          assert c['r6g']=='LOCKED_BY_SEQUENCE'
+          assert c['production']=='NOT_AUTHORIZED'
+          assert c['merge_authorized'] is False
+          print('E16_NINE_REAL_MACHINE_REPORTS_ARE_NOT_NINE_EXTERNAL_CERTIFICATES')
+          PY
+      - name: Preserve genuine nine OS machine reports including on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_E16_NINE_REAL_MACHINE_REPORTS_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_e16_nine_real_reports/
+          retention-days: 30
+          if-no-files-found: warn
