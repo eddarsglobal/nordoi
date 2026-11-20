@@ -1,0 +1,76 @@
+name: NORDOI APP-001 actual useful quality-gate application
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app001_quality_gate/**'
+      - '.github/workflows/nordoi_app001_real_application.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  app001-four-os-real-program:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact PR HEAD before execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          test -f examples/apps/app001_quality_gate/quality_gate.noi
+          test -f examples/apps/app001_quality_gate/pure_project/NORDOI.toml
+      - name: Build actual existing NORDOI executable without network dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Run 16 real quality-gate, security-negative and pure-package checks
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce real human-readable quality decision and file bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$RUNNER_TEMP/nordoi_app001_evidence"
+          mkdir -p "$BASE"
+          ENGINE="$PWD/target/debug/nordoi"
+          if [ "$RUNNER_OS" = "Windows" ]; then ENGINE="$ENGINE.exe"; fi
+          python -B examples/apps/app001_quality_gate/run_app001.py \
+            --score 73 --engine "$ENGINE" --output-parent "$BASE" \
+            2>&1 | tee "$BASE/APP001_RUN.log"
+          grep -F "NORDOI_APP001=PASS" "$BASE/APP001_RUN.log"
+          grep -F "APPROVED=true" "$BASE/APP001_RUN.log"
+      - name: Source not modified, no new effect grant or R6G promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          echo "APP001_REAL_NORDOI_RUNTIME=PASS"
+          echo "APP001_CROSS_PROFILE_DIRECT_FUSION=NOT_CLAIMED"
+          echo "APP001_HUMAN_TESTERS=0"
+          echo "APP001_R6G=LOCKED_BY_SEQUENCE"
+          echo "APP001_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive real per-platform program outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP001_REAL_OUTPUT_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_app001_evidence/
+          if-no-files-found: warn
+          retention-days: 30
