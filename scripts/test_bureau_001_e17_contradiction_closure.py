@@ -80,7 +80,8 @@ class E17RealArchiveTests(unittest.TestCase):
                 self.assertEqual(source["source_git_blob_sha1"],
                     self.pins[source["path"]]["git_blob_sha1"])
                 self.assertEqual(source["source_sha256"],
-                    e17.sha((ROOT/source["path"]).read_bytes()))
+                    e17.sha(subprocess.check_output(["git","show",
+                        self.h+":"+source["path"]],cwd=ROOT)))
     def test_14_real_reports_confirm_formal_review_NOT_SUBMITTED(self):
         for osname,_,_ in e17.ARTS:
             r=e17.e3.strictly_load((self.folder/osname/"CIPHER.json").read_bytes())
