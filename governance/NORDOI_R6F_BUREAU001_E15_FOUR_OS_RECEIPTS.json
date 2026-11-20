@@ -1,0 +1,92 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E15-FOUR-OS-RECEIPT-RECONCILIATION-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e14_exact_head": "deb34302acdbe18563ab06eb10d852865e3b3c6a",
+  "prior_e14": {
+    "specialized_run_id": 44713831052,
+    "specialized_success": 4,
+    "rust_run_id": 44713831212,
+    "rust_success": 5,
+    "e8_run_id": 44713830975,
+    "e8_success": 4
+  },
+  "purpose": "Independently recheck exact downloaded E14 GitHub Actions artifact bundles: four platform-specific manifest hashes, actual 228 log files, Git source pins, commands, per-file real runtime outcomes and native skip distinctions. No independent external authority created.",
+  "artifacts": [
+    {
+      "id": "macos-15-intel",
+      "github_artifact_id": 14618857785,
+      "github_artifact_name": "NORDOI_E14_REAL_57_TEST_TARGETS_macos-15-intel",
+      "sha256_manifest": "5eb067fc94695dc1a99747afedbcfb95ef6ac615e8de7d50d9198f6f14d606c4",
+      "recorded_os": "Darwin",
+      "recorded_arch": "x86_64",
+      "expected_passed_cases": 1039,
+      "expected_skipped_cases": 3
+    },
+    {
+      "id": "macos-15",
+      "github_artifact_id": 14618821978,
+      "github_artifact_name": "NORDOI_E14_REAL_57_TEST_TARGETS_macos-15",
+      "sha256_manifest": "b84511f0065f440182c4e1f46944e635588691761b29c78f1f86bbeab7fc39c7",
+      "recorded_os": "Darwin",
+      "recorded_arch": "arm64",
+      "expected_passed_cases": 1039,
+      "expected_skipped_cases": 3
+    },
+    {
+      "id": "ubuntu-latest",
+      "github_artifact_id": 14617774638,
+      "github_artifact_name": "NORDOI_E14_REAL_57_TEST_TARGETS_ubuntu-latest",
+      "sha256_manifest": "cb5ce82242c912edc037c3e9678af2f54a2fb4659fbb9bb59f51c44514211977",
+      "recorded_os": "Linux",
+      "recorded_arch": "x86_64",
+      "expected_passed_cases": 881,
+      "expected_skipped_cases": 19
+    },
+    {
+      "id": "windows-latest",
+      "github_artifact_id": 14617984265,
+      "github_artifact_name": "NORDOI_E14_REAL_57_TEST_TARGETS_windows-latest",
+      "sha256_manifest": "6ee300dd620ff8e3fa7f8b005d12b378f0a46a5551c74e1c2f0539ccae53ddd2",
+      "recorded_os": "Windows",
+      "recorded_arch": "AMD64",
+      "expected_passed_cases": 670,
+      "expected_skipped_cases": 226
+    }
+  ],
+  "expected_platforms": 4,
+  "expected_target_files_per_platform": 57,
+  "expected_total_raw_logs": 228,
+  "historical_rust_targets_per_platform": 24,
+  "historical_python_targets_per_platform": 33,
+  "actual_subprocess_pid_evidence_in_e14": "NOT_CAPTURED_PER_TARGET",
+  "forbidden_claims": [
+    "SKIP_IS_PASS",
+    "GITHUB_ACTIONS_IS_INDEPENDENT_CUSTODIAN",
+    "FOUR_CI_RUNNERS_ARE_FOUR_INDEPENDENT_GUARDIANS",
+    "REHASHED_SAME_ADMIN_MANIFEST_IS_EXTERNAL_AUTHORITY"
+  ],
+  "negative_controls": [
+    "SWAP_TWO_PLATFORM_BUNDLES",
+    "ALTER_ONE_LOG_BYTE",
+    "REHASH_LOCAL_MANIFEST_WITHOUT_PINNED_REFERENCE",
+    "REMOVE_ONE_LOG_FILE",
+    "INCORRECT_TEST_CASE_SKIP_CLASSIFICATION",
+    "INJECT_UNPINNED_SOURCE_TARGET",
+    "ASSERT_NATIVE_GATES_MET"
+  ],
+  "founder": "Noureddine Eddars",
+  "technical_execution": "AI_AND_AUTOMATION_ONLY",
+  "founder_manual_test_duty": false,
+  "human_testers_allowed": false,
+  "independent_specialist_reviews": 0,
+  "independent_external_witness_receipts": 0,
+  "external_custodian": "NOT_ENROLLED",
+  "owner_oob_root": "NOT_AUTHENTICATED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "permission_to_merge": false,
+  "pre_ci_verdict": "IN_PROGRESS_UNQUALIFIED"
+}
