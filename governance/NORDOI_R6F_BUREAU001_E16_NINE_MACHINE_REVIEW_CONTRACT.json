@@ -1,0 +1,92 @@
+{
+  "schema": "NORDOI-G03-R6F-BUREAU001-E16-NINE-MACHINE-REVIEW-CONSOLIDATION-V1",
+  "project": "eddarsglobal/nordoi",
+  "parent_e15_exact_head": "8af265158bfbeb9c1406d2c310d505281dc98180",
+  "prior_e15": {
+    "specialized_run_id": 44716501372,
+    "specialized_success": 4,
+    "rust_run_id": 44716501419,
+    "rust_success": 5,
+    "e8_run_id": 44716501426,
+    "e8_success": 4
+  },
+  "source_handoff": "governance/NORDOI_BUREAU_R6F_HANDOFF_v1.json",
+  "source_e15_contract": "governance/NORDOI_R6F_BUREAU001_E15_FOUR_OS_RECEIPTS.json",
+  "e15_anchor": {
+    "github_run_id": 44716501372,
+    "artifact_id": 14618579942,
+    "artifact_name": "NORDOI_E15_ACTUAL_RECONCILIATION_macos-15-intel",
+    "sha256": "fc457cce0ad9004d66467f85be97376549c653f464cfa03427457646c97ca576"
+  },
+  "prior_e14_run_id": 44713831052,
+  "expected_actual_prior_e14_artifacts": 4,
+  "expected_actual_prior_e14_raw_logs": 228,
+  "expected_role_machine_processes": 9,
+  "expected_source_anchored_machine_reports": 9,
+  "role_source_targets": {
+    "ATLAS": [
+      "tests/g03_r4a_structured_native_lab.rs",
+      "tests/g03_r4v_independent_custody_admission_gate_lab.rs"
+    ],
+    "FERRUM": [
+      "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "tests/g03_r4f_linux_landlock_boundary_lab.rs",
+      "tests/g03_r4g_macos_seatbelt_boundary_lab.rs"
+    ],
+    "BOUNDARY": [
+      "tests/g03_r4e_cross_process_host_boundary_lab.rs",
+      "tests/g03_r4k_xpc_peer_identity_confused_deputy_lab.rs",
+      "research/test_g03_r6d_admin_domain_provenance.py"
+    ],
+    "CIPHER": [
+      "research/test_g03_r5x_signed_external_provenance.py",
+      "research/test_g03_r6a_oob_witness_challenge.py",
+      "research/test_g03_r6e_oob_origin_intake.py"
+    ],
+    "LEDGER": [
+      "research/test_g03_r5q_coherent_local_rollback.py",
+      "research/test_g03_r5z_preserved_witness_rollback.py"
+    ],
+    "CAPSTONE": [
+      "tests/g03_r4v_independent_custody_admission_gate_lab.rs",
+      "research/test_g03_r5f_admin_custody_disqualifiers.py"
+    ],
+    "ADVERSARY": [
+      "research/test_g03_r5q_coherent_local_rollback.py",
+      "research/test_g03_r6c_two_key_quorum_negative.py"
+    ],
+    "VERITY": [
+      "tests/g03_r4m_pinned_code_identity_lab.rs",
+      "research/test_g03_r6e_oob_origin_intake.py"
+    ],
+    "GUARDIAN": [
+      "research/test_g03_r6e_oob_origin_intake.py",
+      "tests/g03_r4q_two_authority_quorum_compromise_lab.rs"
+    ]
+  },
+  "contradiction_ids": [
+    "CROSS_OS_SKIPS_NOT_NATIVE_EQUIVALENCE",
+    "E14_PER_TARGET_PIDS_NOT_CAPTURED",
+    "LOCAL_SIGNATURE_NOT_INDEPENDENT_CUSTODY",
+    "FOUR_GITHUB_ARTIFACTS_SAME_ADMIN_DOMAIN",
+    "NINE_MACHINE_FUNCTIONS_NOT_FORMAL_REVIEWS",
+    "HISTORIC_GIT_PINS_NOT_RUNTIME_PROOF",
+    "TWELVE_EXTERNAL_NATIVE_ADMISSIONS_UNMET"
+  ],
+  "claim_policy": "REAL_MACHINE_EVIDENCE_CHECK_NOT_EXTERNAL_CERTIFIED_REVIEW",
+  "formal_independent_reviews_submitted": 0,
+  "external_authentic_witnesses": 0,
+  "out_of_band_owner_root": "NOT_AUTHENTICATED",
+  "independent_custodian": "NOT_ENROLLED",
+  "global_monotonic_antirollback": "NOT_VERIFIED",
+  "founder": "Noureddine Eddars",
+  "technical_execution": "AI_AND_AUTOMATION_ONLY",
+  "human_testers_allowed": false,
+  "founder_manual_test_duty": false,
+  "native_admission_gates_unmet": 12,
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "production": "NOT_AUTHORIZED",
+  "merge_authorized": false,
+  "pre_ci_verdict": "IN_PROGRESS_UNQUALIFIED"
+}
