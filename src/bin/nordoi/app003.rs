@@ -375,6 +375,50 @@ pub(super) fn run_app003_integrated_cli(
     key_code: u32,
     grant: Option<&Path>,
 ) -> u8 {
+    run_app003_integrated_inner(source_root, entry_module, key_code, grant, false)
+}
+
+/// APP-004 machine-oriented native CLI. On success, stdout is exactly one
+/// newline-terminated JSON object containing the actual V1.3/P2.7 receipts
+/// and published file contents. On failure, emit one JSON error envelope.
+/// Detailed diagnostics and the authentic P2.7 receipt remain on stderr.
+pub(super) fn run_app004_agent_json_cli(
+    source_root: &Path,
+    entry_module: &str,
+    key_code: u32,
+    grant: Option<&Path>,
+) -> u8 {
+    let exit = run_app003_integrated_inner(source_root, entry_module, key_code, grant, true);
+    if exit != EXIT_OK {
+        return emit_app004_error(exit, "NATIVE_OPERATION_FAILED");
+    }
+    exit
+}
+
+/// JSON errors are deliberately conservative: if the native core returned
+/// an error after a side effect, publication is UNKNOWN, never FALSE.
+pub(super) fn emit_app004_error(exit: u8, error_code: &str) -> u8 {
+    let report = format!(
+        "{{\"schema\":\"NORDOI_AGENT_BUNDLE_RESULT_V1\",\"status\":\"ERROR\",\"error_code\":\"{}\",\"exit_code\":{},\"publication\":\"UNKNOWN\"}}\\n",
+        json_escape_cli(error_code),
+        exit,
+    );
+    match write_stdout(report.as_bytes()) {
+        Ok(()) => exit,
+        Err(error) => {
+            report_io_error("<stdout>", &error);
+            EXIT_IO
+        }
+    }
+}
+
+fn run_app003_integrated_inner(
+    source_root: &Path,
+    entry_module: &str,
+    key_code: u32,
+    grant: Option<&Path>,
+    agent_json: bool,
+) -> u8 {
     // Fail closed before source processing, module computation and any file
     // creation. The user grants a specific host directory explicitly.
     let output_dir = match grant {
@@ -491,6 +535,46 @@ pub(super) fn run_app003_integrated_cli(
     {
         report_io_error("<stderr>", &error);
         return EXIT_IO;
+    }
+    // APP-004 emits a bounded, schema-versioned *native* JSON record with
+    // the actual P2.7 result bytes. No Python decision and no new authority.
+    // Field order, file ordering and escaping are stable by construction.
+    if agent_json {
+        let files = receipt
+            .files()
+            .iter()
+            .map(|file| {
+                format!(
+                    "{{\"name\":\"{}\",\"bytes\":{},\"content\":\"{}\",\"proof_sha256\":\"{}\"}}",
+                    json_escape_cli(file.file_name()),
+                    file.output_bytes(),
+                    json_escape_cli(file.output()),
+                    file.proof_sha256_hex(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let decision: u8 = if branch_name == "approved" { 1 } else { 0 };
+        let result = format!(
+            "{{\"schema\":\"NORDOI_AGENT_BUNDLE_RESULT_V1\",\"status\":\"COMMITTED\",\"entry_module\":\"{}\",\"key_code\":{},\"module_count\":{},\"decision\":{},\"selected\":\"{}\",\"bundle\":\"{}\",\"files\":[{}],\"authority\":{{\"mode\":\"EXPLICIT\",\"grant_count\":{},\"ambient\":\"NONE\",\"overwrite\":\"DENIED\"}},\"publication\":\"DIRECTORY_RENAME\",\"partial_final_state\":\"FORBIDDEN\",\"crash_durability\":\"UNCLAIMED\",\"rule_receipt_hex\":\"{}\",\"bundle_receipt_sha256\":\"{}\"}}\\n",
+            json_escape_cli(entry_module),
+            key_code,
+            rule.plan().module_count(),
+            decision,
+            branch_name,
+            json_escape_cli(receipt.bundle_name()),
+            files,
+            capabilities.len(),
+            hex_bytes(rule.canonical_v13_receipt_bytes()),
+            receipt.receipt_sha256_hex(),
+        );
+        return match write_stdout(result.as_bytes()) {
+            Ok(()) => EXIT_OK,
+            Err(error) => {
+                report_io_error("<stdout>", &error);
+                EXIT_IO
+            }
+        };
     }
     let summary = format!(
         "integrated-bundle-run entry-module=\"{}\" source-profile=APP003_SINGLE_NOI_IMPORTS_AND_EFFECTS modules={} original-key-code={} rule-result={} selected=\"{}\" bundle=\"{}\" files={} bridge=V13_PURE_RULE_TO_P27_EFFECT status=COMMITTED authority=EXPLICIT grant-count={} ambient-authority=NONE rule-receipt-hex={} bundle-receipt-sha256={} crash-durability=UNCLAIMED\n",
