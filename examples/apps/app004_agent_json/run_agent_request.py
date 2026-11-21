@@ -12,6 +12,10 @@ import subprocess
 import sys
 import tempfile
 
+# No bytecode written back into the tracked source checkout when this
+# adapter imports its proof checker on Windows, Linux or macOS.
+sys.dont_write_bytecode = True
+
 HERE=Path(__file__).resolve().parent
 REPO=HERE.parents[2]
 SOURCE_ROOT=REPO/"examples/apps/app003_integrated_quality/src"
