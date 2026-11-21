@@ -77,6 +77,61 @@ Le code de sortie POSIX reste non nul. En cas de syntaxe invalide : `BAD_ARGUMEN
 - Il ne s'agit pas d'une API réseau, d'un serveur agent MCP, d'un JSON d'entrée générique, ni d'une nouvelle capacité native privilégiée.
 - La publication P2.7 garde `crash_durability=UNCLAIMED`, sans garantie universelle face à une coupure électrique ou un adversaire local concurrent.
 
+## APP-004/R2 — requête JSON native sur stdin (pour les agents IA)
+
+Une fois `cargo build --offline --bin nordoi` exécuté, un agent peut
+transmettre **ses données d'entrée par stdin**, avec un JSON strict et versionné :
+
+```json
+{"schema":"NORDOI_AGENT_REQUEST_V1","key_code":73}
+```
+
+Commande native (le dossier `$OUT` doit exister et être neuf) :
+
+```bash
+printf '%s\n' '{"schema":"NORDOI_AGENT_REQUEST_V1","key_code":73}' \
+  | cargo run --offline --bin nordoi -- agent-request-json \
+      examples/apps/app003_integrated_quality/src app.main \
+      --grant-output-dir "$OUT"
+```
+
+Le résultat est **exactement le même JSON natif de succès ou refus qu'APP-004/R1**,
+dont la décision et les preuves cryptographiques des véritables fichiers P2.7.
+L'agent peut également appeler :
+
+```bash
+python3 examples/apps/app004_agent_json/run_agent_request.py --score 73
+```
+
+C'est une **interface machine complète requête/réponse**, sans serveur ni
+inférence IA requise lors de l'exécution. La requête n'autorise que la donnée
+`key_code` : la racine source, le module et surtout l'autorité FileWrite ne
+peuvent PAS être transmis dans le JSON. Ils doivent être fournis séparément
+en arguments explicites de la commande native.
+
+**Restrictions du parseur Rust** : UTF-8 obligatoire ; 4 096 octets maximum ;
+un seul objet JSON ; clés exactement `schema` et `key_code`, dans n'importe
+quel ordre ; espaces JSON et échappements de chaînes valides ; entier non
+signé u32, sans fraction, exposant ou dépassement ; doublons, champs
+supplémentaires, valeurs inattendues, sources mal formées et octets après
+l'objet refusés par défaut. Toute erreur d'entrée est une réponse JSON
+`status:"ERROR"` avec code de sortie non nul et
+`publication:"UNKNOWN"`, sans fausse promesse de non-écriture si
+l'échec survenait après un effet.
+
+**Preuves attendues** : 40 contrôles supplémentaires, dont des cas
+adversariaux d'injection de permission, champs dupliqués, mutations des
+règles importées, comparaison octet pour octet des reçus R1/R2,
+publication réelle de deux fichiers, refus du second écrasement et adaptateur
+agent Python sans recalcul de décision ; quatre OS dans la même matrice CI,
+en conservant les 31 contrôles APP-004/R1 et les 80 tests APP-001–003.
+Tests unitaires Rust supplémentaires sur la grammaire du protocole.
+
+Cette extension reste **APP-004/R2 sur la même PR DRAFT** tant que les
+conditions C20 d'APP-004 sur quatre OS ne sont pas clôturées. Pas d'ouverture
+anticipée d'APP-005, pas de tâche humaine, pas de création d'autorité native
+par déclaration.
+
 ## Validation et RoadMap / Bureau
 
 31 tests automatiques APP-004 sur le **vrai exécutable Rust**, sur quatre plateformes GitHub : Mac Intel, Apple Silicon, Windows, Linux. Ils exercent le contenu JSON, ses refus et sa détermination, les vraies permissions, les règles mutées, les fichiers exacts, l'intégrité des preuves, Unicode, l'absence d'écrasement, la continuité de la CLI APP-003 et l'utilisation par le client.
