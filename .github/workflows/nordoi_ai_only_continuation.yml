@@ -1,0 +1,53 @@
+name: NORDOI permanent AI-agent-only continuation gate
+on:
+  pull_request:
+    paths:
+      - 'governance/NORDOI_AI_AGENTS_ONLY_CONTINUATION_V1.json'
+      - 'docs/NORDOI_AI_AGENTS_ONLY_DEVELOPMENT_DIRECTIVE_20261121_FR.md'
+      - 'scripts/verify_ai_only_continuation.py'
+      - 'scripts/test_verify_ai_only_continuation.py'
+      - '.github/workflows/nordoi_ai_only_continuation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  no-human-development-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact HEAD, unchanged working tree and frozen historic gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          test -f governance/NORDOI_R6F_BUREAU001_E2_NO_HUMAN_TESTING_POLICY.json
+          test -f governance/NORDOI_R6F_BUREAU001_E12_TWELVE_GATE_INTAKE.json
+          python3 -B scripts/roadmap_guardian.py --audit
+      - name: Validate real AI-only, no human intervention, separate native attestation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/verify_ai_only_continuation.py --audit
+          python3 -B -m unittest discover -s scripts -p 'test_verify_ai_only_continuation.py' -v
+      - name: Verify source integrity and non-privileged research scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          echo "AI_AGENTS_DEVELOPING_FOR_AI_AGENTS=STANDING_OWNER_DIRECTIVE"
+          echo "HUMAN_TESTERS=FORBIDDEN"
+          echo "FOUNDER_MANUAL_DEVELOPMENT_GATE=NONE"
+          echo "INDEPENDENT_TRUST_PROOFS=REAL_OR_UNMET"
+          echo "AGENT_RESEARCH_CONTINUATION=ENABLED"
+          echo "UNAUTHORIZED_PRODUCTION_AND_PROTECTED_MERGE=DENIED"
