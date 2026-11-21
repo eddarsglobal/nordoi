@@ -1,0 +1,109 @@
+name: NORDOI APP-004 native machine JSON agent protocol
+on:
+  pull_request:
+    paths:
+      - 'src/bin/nordoi.rs'
+      - 'src/bin/nordoi/app003.rs'
+      - 'src/bin/nordoi/agent_request.rs'
+      - 'examples/apps/app004_agent_json/**'
+      - '.github/workflows/nordoi_app004_agent_json.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  native-json-actual-four-os:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact commit and autonomous-only RoadMap guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build real native NORDOI machine agent binary offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Thirty-one real APP004 Rust-to-JSON and denial tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Forty actual native JSON stdin request tests, no grant in request
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-eight APP003 true single-source tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 Rust rule bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 real bundle tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Real machine agent files and JSON for two opposite decisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="$RUNNER_TEMP/nordoi_app004_agent_evidence"
+          mkdir -p "$BASE"
+          ENGINE="$PWD/target/debug/nordoi"
+          if [ "$RUNNER_OS" = "Windows" ]; then ENGINE="$ENGINE.exe"; fi
+          python -B examples/apps/app004_agent_json/run_app004.py \
+            --score 73 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/approved.json"
+          python -B examples/apps/app004_agent_json/run_app004.py \
+            --score 59 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/rejected.json"
+          python -B examples/apps/app004_agent_json/run_agent_request.py \
+            --score 73 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/agent_request_approved.json"
+          python -B examples/apps/app004_agent_json/run_agent_request.py \
+            --score 59 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/agent_request_rejected.json"
+          python -B - "$BASE" <<'PY'
+          import json, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          yes=json.loads((p/"approved.json").read_text())
+          no=json.loads((p/"rejected.json").read_text())
+          assert yes["schema"]==no["schema"]=="NORDOI_AGENT_BUNDLE_RESULT_V1"
+          assert yes["status"]==no["status"]=="COMMITTED"
+          assert yes["decision"]==1 and yes["selected"]=="approved"
+          assert no["decision"]==0 and no["selected"]=="rejected"
+          assert len(yes["files"])==len(no["files"])==2
+          assert json.loads((p/"agent_request_approved.json").read_text())==yes
+          assert json.loads((p/"agent_request_rejected.json").read_text())==no
+          print("APP004_R2_NATIVE_JSON_STDIN_V1=PASS")
+          print("APP004_R2_JSON_ROUNDTRIPS=2")
+          print("APP004_GENUINE_MACHINE_JSON=PASS")
+          print("APP004_REAL_AGENT_DECISIONS=2")
+          print("APP004_REAL_P27_FILES=4")
+          PY
+      - name: Exact head and unmodified source after machine-only development
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP004_REAL_NATIVE_AGENT_JSON=PASS"
+          echo "APP004_HUMAN_TESTERS=0"
+          echo "APP004_AUTOMATED_RESEARCH=ALLOWED"
+          echo "APP004_CRASH_DURABILITY=UNCLAIMED"
+          echo "APP004_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive genuine agent JSON responses and real P2.7 files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP004_REAL_AGENT_JSON_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_app004_agent_evidence/
+          if-no-files-found: warn
+          retention-days: 30

@@ -1,3 +1,5 @@
+#[path = "nordoi/agent_request.rs"]
+mod agent_request;
 #[path = "nordoi/app002_bridge.rs"]
 mod app002_bridge;
 #[path = "nordoi/app003.rs"]
@@ -104,6 +106,8 @@ Usage:\n\
   nordoi bundle-write <path|-> <key-code> [--grant-output-dir <dir>]\n\
   nordoi module-bundle-write <source-root> <entry-module> <approved.noi> <rejected.noi> <key-code> [--grant-output-dir <dir>]\n\
   nordoi integrated-bundle-run <source-root> <entry-module> <key-code> [--grant-output-dir <dir>]\n\
+  nordoi agent-bundle-json <source-root> <entry-module> <key-code> --grant-output-dir <dir>\n\
+  nordoi agent-request-json <source-root> <entry-module> --grant-output-dir <dir>  # reads JSON stdin\n\
   nordoi conformance [--json]\n\
   nordoi package-info <package.npkg>\n\
   nordoi bindings <path|->\n\
@@ -156,6 +160,8 @@ Commands:\n\
   bundle-write     P2.7 publish 2..8 dynamic files as one bounded atomic bundle under exact per-target FileWrite authorities.\n\
   module-bundle-write APP-002 experimental native bridge: V1.3 module result INT(0/1) selects one of two prevalidated P2.7 branches with identical exact FileWrite targets and explicit host grant; no effectful imports.\n\
   integrated-bundle-run APP-003 bounded single-entry .noi: source imports pure V1.3 rules and declares both guarded P2.7 file-writing branches, executed with explicit grant; NOT general effectful imports.\n\
+  agent-bundle-json APP-004 native machine interface: run APP-003 engine with exact FileWrite grant and output one versioned JSON success/error object on stdout; native P2.7 receipt on stderr.\n\
+  agent-request-json APP-004-R2 native machine input: bounded strict JSON request from stdin, explicit source root and FileWrite grant only from CLI; identical agent JSON result.\n\
   conformance      G0.1 report constitutional evidence coverage, full-v1 delivery planning estimate and Future-Native Gate status.\n\
   package-info     V1.4 validate and inspect a deterministic .npkg package without source access.\n\
   bindings      Print the L0.8 pure named-binding semantic boundary.\n\
@@ -339,6 +345,49 @@ fn run() -> u8 {
             }
         };
         return run_conformance_g01_cli(json);
+    }
+
+    if command.as_ref() == "agent-request-json" {
+        // Source and output authority can only arrive via distinct explicit
+        // CLI arguments. JSON stdin data cannot grant any OS capabilities.
+        if arguments.len() == 3 {
+            return app003::emit_app004_error(EXIT_RUNTIME, "MISSING_EXPLICIT_GRANT");
+        }
+        if arguments.len() != 5 {
+            return app003::emit_app004_error(EXIT_USAGE, "BAD_ARGUMENT_COUNT");
+        }
+        if arguments[3].as_os_str() != OsStr::new("--grant-output-dir") {
+            return app003::emit_app004_error(EXIT_USAGE, "INVALID_GRANT_SYNTAX");
+        }
+        return agent_request::run_agent_request_json_cli(
+            Path::new(&arguments[1]),
+            &arguments[2].to_string_lossy(),
+            Path::new(&arguments[4]),
+        );
+    }
+
+    if command.as_ref() == "agent-bundle-json" {
+        // Exact, fail-closed machine protocol. Usage errors are JSON too:
+        // agents need never parse human-oriented diagnostics.
+        if arguments.len() == 4 {
+            return app003::emit_app004_error(EXIT_RUNTIME, "MISSING_EXPLICIT_GRANT");
+        }
+        if arguments.len() != 6 {
+            return app003::emit_app004_error(EXIT_USAGE, "BAD_ARGUMENT_COUNT");
+        }
+        let key_code = match arguments[3].to_string_lossy().parse::<u32>() {
+            Ok(value) => value,
+            Err(_) => return app003::emit_app004_error(EXIT_USAGE, "INVALID_KEY_CODE"),
+        };
+        if arguments[4].as_os_str() != OsStr::new("--grant-output-dir") {
+            return app003::emit_app004_error(EXIT_USAGE, "INVALID_GRANT_SYNTAX");
+        }
+        return app003::run_app004_agent_json_cli(
+            Path::new(&arguments[1]),
+            &arguments[2].to_string_lossy(),
+            key_code,
+            Some(Path::new(&arguments[5])),
+        );
     }
 
     if command.as_ref() == "integrated-bundle-run" {

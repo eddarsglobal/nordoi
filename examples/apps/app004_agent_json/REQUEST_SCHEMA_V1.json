@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "NORDOI AI agent input protocol V1",
+  "description": "Exactly two untrusted data fields. Source root, module and FileWrite grant are separate trusted CLI arguments, NEVER JSON keys.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "key_code"
+  ],
+  "properties": {
+    "schema": {
+      "const": "NORDOI_AGENT_REQUEST_V1"
+    },
+    "key_code": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295
+    }
+  },
+  "x-bounds": {
+    "bytes": 4096,
+    "encoding": "UTF-8",
+    "one_object": true,
+    "duplicate_keys": "REJECTED",
+    "unknown_keys": "REJECTED"
+  },
+  "x-authority": {
+    "json_may_grant_effects": false,
+    "required_flag": "--grant-output-dir",
+    "output_dir_source": "EXPLICIT_CLI_ONLY",
+    "source_root_source": "EXPLICIT_CLI_ONLY",
+    "entry_module_source": "EXPLICIT_CLI_ONLY"
+  }
+}

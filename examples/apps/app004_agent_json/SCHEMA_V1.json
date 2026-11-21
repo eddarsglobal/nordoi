@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/eddarsglobal/nordoi/blob/candidate/nordoi-app004-agent-native-json-contract-20261121/examples/apps/app004_agent_json/SCHEMA_V1.json",
+  "title": "NORDOI native agent bundle result V1",
+  "description": "Bounded native NORDOI V1.3-to-P2.7 agent command. A COMMITTED result is an actual published bundle receipt, not crash durability or independent admission.",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "status",
+        "entry_module",
+        "key_code",
+        "module_count",
+        "decision",
+        "selected",
+        "bundle",
+        "files",
+        "authority",
+        "publication",
+        "partial_final_state",
+        "crash_durability",
+        "rule_receipt_hex",
+        "bundle_receipt_sha256"
+      ],
+      "properties": {
+        "schema": {
+          "const": "NORDOI_AGENT_BUNDLE_RESULT_V1"
+        },
+        "status": {
+          "const": "COMMITTED"
+        },
+        "entry_module": {
+          "type": "string",
+          "minLength": 1
+        },
+        "key_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4294967295
+        },
+        "module_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "decision": {
+          "type": "integer",
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "selected": {
+          "type": "string",
+          "enum": [
+            "approved",
+            "rejected"
+          ]
+        },
+        "bundle": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "bytes",
+              "content",
+              "proof_sha256"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "content": {
+                "type": "string"
+              },
+              "proof_sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        "authority": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "mode",
+            "grant_count",
+            "ambient",
+            "overwrite"
+          ],
+          "properties": {
+            "mode": {
+              "const": "EXPLICIT"
+            },
+            "grant_count": {
+              "type": "integer",
+              "minimum": 2,
+              "maximum": 8
+            },
+            "ambient": {
+              "const": "NONE"
+            },
+            "overwrite": {
+              "const": "DENIED"
+            }
+          }
+        },
+        "publication": {
+          "const": "DIRECTORY_RENAME"
+        },
+        "partial_final_state": {
+          "const": "FORBIDDEN"
+        },
+        "crash_durability": {
+          "const": "UNCLAIMED"
+        },
+        "rule_receipt_hex": {
+          "type": "string",
+          "pattern": "^[a-f0-9]+$"
+        },
+        "bundle_receipt_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema",
+        "status",
+        "error_code",
+        "exit_code",
+        "publication"
+      ],
+      "properties": {
+        "schema": {
+          "const": "NORDOI_AGENT_BUNDLE_RESULT_V1"
+        },
+        "status": {
+          "const": "ERROR"
+        },
+        "error_code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 255
+        },
+        "publication": {
+          "const": "UNKNOWN"
+        }
+      }
+    }
+  ],
+  "x-security-boundaries": {
+    "file_proof": "P2.7 authentic per-file proof; not a standalone SHA256 hash of file content",
+    "error_publication": "UNKNOWN means post-error effects cannot be ruled out",
+    "crash_durability": "UNCLAIMED",
+    "authority": "EXPLICIT FileWrite only",
+    "human_testers": 0,
+    "production_admission": "NOT_AUTHORIZED"
+  }
+}
