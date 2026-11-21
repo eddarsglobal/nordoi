@@ -108,12 +108,8 @@ pub(super) fn run_agent_batch_jsonl_cli(
         if fs::create_dir(&output).is_err() {
             return app003::emit_app004_error(EXIT_IO, "BATCH_JOB_DIRECTORY_CREATE_DENIED");
         }
-        let status = app003::run_app004_agent_json_cli(
-            source_root,
-            entry_module,
-            code,
-            Some(&output),
-        );
+        let status =
+            app003::run_app004_agent_json_cli(source_root, entry_module, code, Some(&output));
         if status != EXIT_OK {
             return status;
         }
@@ -131,7 +127,10 @@ mod tests {
     #[test]
     fn accepts_two_requests_and_preserves_order() {
         let payload = format!("{A}\n{B}\n");
-        assert_eq!(parse_agent_batch_lines(payload.as_bytes()), Ok(vec![73, 59]));
+        assert_eq!(
+            parse_agent_batch_lines(payload.as_bytes()),
+            Ok(vec![73, 59])
+        );
     }
 
     #[test]
