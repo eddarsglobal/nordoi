@@ -1,0 +1,89 @@
+{
+  "schema": "NORDOI-AI-AGENTS-FIRST-AUTONOMOUS-CONTINUATION-V1",
+  "project": "eddarsglobal/nordoi",
+  "effective_date": "2026-11-21",
+  "basis": {
+    "owner_instruction": "NORDOI is developed by AI agents for AI agents; throughout remaining development never wait for a human intervention",
+    "predecessor_exact_head": "2d2049a03139ebfb0005d403792e915a35625d99",
+    "predecessor_qualification": "APP003_C20_13_OF_13_GREEN",
+    "existing_no_human_source": "governance/NORDOI_R6F_BUREAU001_E2_NO_HUMAN_TESTING_POLICY.json",
+    "constitutional_priority": [
+      "C3",
+      "C8",
+      "C11",
+      "C12",
+      "C13",
+      "C14",
+      "C20"
+    ]
+  },
+  "standing_execution_policy": {
+    "product_priority": "AI_AGENTS_BUILD_NORDOI_FOR_AI_AGENTS",
+    "human_testers_allowed": false,
+    "human_manual_tests_required": false,
+    "human_specialist_recruitment_allowed": false,
+    "human_reviewer_outreach_allowed": false,
+    "human_signature_solicitation_allowed": false,
+    "human_intervention_as_development_blocker_allowed": false,
+    "founder_manual_execution_as_quality_gate_allowed": false,
+    "actor": "ACTUAL_AI_AGENTS_AND_AUTOMATIONS_WHEN_EXECUTED",
+    "agent_count_must_be_observed_not_inferred": true,
+    "allowed_machine_actions": [
+      "PLAN_NEXT_RESEARCH_MILESTONE",
+      "DESIGN_NONPRIVILEGED_LANGUAGE_FEATURES",
+      "IMPLEMENT_CODE",
+      "BUILD_COMPILE",
+      "REAL_RUNTIME_TEST",
+      "CROSS_OS_CI",
+      "FUZZ_AND_NEGATIVE_TEST",
+      "AUTOMATED_SECURITY_REVIEW",
+      "BUILD_ARTIFACTS",
+      "VERIFY_PROVENANCE_AND_SHA",
+      "DOCUMENT_FINDINGS",
+      "OPEN_DRAFT_PR",
+      "PATCH_AND_RETEST",
+      "ADVANCE_AFTER_C20_PASS"
+    ],
+    "progress_contract": "WHEN_A_BLOCKER_IS_NOT_AUTOMATABLE_RECORD_IT_ACCURATELY_AND_ADVANCE_TO_NEXT_ELIGIBLE_USEFUL_DEVELOPMENT_MILESTONE",
+    "no_repeated_research_only_blocker_loops": true,
+    "normal_compiled_runtime_requires_AI_model": false
+  },
+  "qualification_tracks": {
+    "agent_development": {
+      "status": "ALLOWED_IN_RESEARCH_SCOPE",
+      "human_dependency": "NONE",
+      "source_and_ci": "REQUIRED_C20",
+      "release_label": "TECHNICALLY_VALIDATED_AGENT_RESEARCH_ARTIFACT"
+    },
+    "native_independent_attestation": {
+      "status": "REMAIN_BLOCKED_UNTIL_REAL_EVIDENCE",
+      "human_testers": "NEVER_REQUIRED",
+      "real_independence": "MUST_BE_ACTUALLY_MEASURABLE_NOT_ROLE_LABELS",
+      "manual_owner_request": "DO_NOT_USE_AS_A_DEVELOPMENT_HOLD",
+      "technical_work": "MAY_CONTINUE_SEPARATELY"
+    },
+    "privileged_activation_or_production": {
+      "status": "DENY_UNTIL_RELEVANT_GATES_AND_AUTHORIZATION_VERIFIED",
+      "fabricated_authority": "FORBIDDEN",
+      "automatic_unsafe_upgrade": "FORBIDDEN"
+    }
+  },
+  "immutable_predecessor_status": {
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "native_admission_external_gates_unmet": 12,
+    "production": "NOT_AUTHORIZED",
+    "merge_of_protected_chain": "NOT_AUTOMATICALLY_AUTHORIZED",
+    "independent_external_custodian": "NOT_ENROLLED"
+  },
+  "decision_rule": "NEVER_TREAT_A_MISSING_HUMAN_AS_A_RESEARCH_MILESTONE_STALL; NEVER_TREAT_MACHINE_OUTPUT_AS_INDEPENDENT_REAL_WORLD_AUTHORITY",
+  "governance_non_goals": [
+    "NO_REWRITE_OF_PINNED_ROADMAP_BUREAU_OR_CONSTITUTION",
+    "NO_FALSE_FORMAL_CERTIFICATION",
+    "NO_CLAIM_OF_NINE_INDEPENDENT_AGENTS_WHEN_ONE_PROCESS_REVIEWS",
+    "NO_DISABLE_OF_DEFAULT_DENY_EFFECT_CHECKS",
+    "NO_BYPASS_OF_REAL_NATIVE_SECURITY_GATES",
+    "NO_UNAUTHORIZED_PRODUCTION_RELEASE_OR_MERGE"
+  ],
+  "evidence_policy": "Every automated milestone must attach exact commit SHA, actual machine execution, negative tests, audited CI and explicit scope of what is unproven"
+}
