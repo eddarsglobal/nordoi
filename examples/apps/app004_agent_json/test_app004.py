@@ -22,7 +22,10 @@ def native(score,dir=None,root=SOURCE,module="app.main",grant_arg="--grant-outpu
     cmd=[str(EXE.resolve(strict=True)),"agent-bundle-json",str(root),
          module,str(score)]
     if dir is not None:cmd+=[grant_arg,str(dir)]
-    p=subprocess.run(cmd,cwd=REPO,capture_output=True,text=True,timeout=120)
+    p=subprocess.run(
+        cmd,cwd=REPO,capture_output=True,text=True,
+        encoding="utf-8",errors="strict",timeout=120,
+    )
     obj=run_app004.exact_native_response(p.stdout)
     return p,obj
 
@@ -190,6 +193,23 @@ class APP004NativeAgentJson(unittest.TestCase):
             self.assertEqual(p.returncode,0,p.stdout+p.stderr)
             self.assertIn(marker,x["files"][1]["content"])
             run_app004.verify_actual_files(out,73,x,p.stderr)
+
+    def test_20b_real_utf8_survives_machine_client_stdout_on_windows(self):
+        # A true non-ASCII source must remain U+00E9 after native stdout,
+        # Python subprocess decoding, and UTF-8 forwarding by the client.
+        with tempfile.TemporaryDirectory(prefix="app004_utf8_") as d:
+            root,out=copies(d)
+            marker=chr(0x00e9)+"preuve"
+            change(root/"app"/"main.noi",
+                   '"module-decision=approved, input="',
+                   '"'+marker+', input="')
+            native_process,native_record=native(73,out,root=root)
+            self.assertEqual(native_process.returncode,0,native_process.stderr)
+            observed=next(x["content"] for x in native_record["files"]
+                          if x["name"]=="report.txt")
+            self.assertIn(marker,observed)
+            self.assertNotIn(chr(0x00c3)+chr(0x00a9),observed)
+            run_app004.verify_actual_files(out,73,native_record,native_process.stderr)
 
     def test_21_proof_hashes_are_exact_64_lowercase_hex(self):
         x=self.score(73,1)
