@@ -4,6 +4,7 @@ on:
     paths:
       - 'src/bin/nordoi.rs'
       - 'src/bin/nordoi/app003.rs'
+      - 'src/bin/nordoi/agent_request.rs'
       - 'examples/apps/app004_agent_json/**'
       - '.github/workflows/nordoi_app004_agent_json.yml'
   workflow_dispatch:
@@ -43,6 +44,8 @@ jobs:
           cargo build --offline --bin nordoi
       - name: Thirty-one real APP004 Rust-to-JSON and denial tests
         run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Forty actual native JSON stdin request tests, no grant in request
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
       - name: Preserve thirty-eight APP003 true single-source tests
         run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
       - name: Preserve twenty-six APP002 Rust rule bridge tests
@@ -61,6 +64,10 @@ jobs:
             --score 73 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/approved.json"
           python -B examples/apps/app004_agent_json/run_app004.py \
             --score 59 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/rejected.json"
+          python -B examples/apps/app004_agent_json/run_agent_request.py \
+            --score 73 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/agent_request_approved.json"
+          python -B examples/apps/app004_agent_json/run_agent_request.py \
+            --score 59 --engine "$ENGINE" --output-parent "$BASE" > "$BASE/agent_request_rejected.json"
           python -B - "$BASE" <<'PY'
           import json, pathlib, sys
           p=pathlib.Path(sys.argv[1])
@@ -71,6 +78,10 @@ jobs:
           assert yes["decision"]==1 and yes["selected"]=="approved"
           assert no["decision"]==0 and no["selected"]=="rejected"
           assert len(yes["files"])==len(no["files"])==2
+          assert json.loads((p/"agent_request_approved.json").read_text())==yes
+          assert json.loads((p/"agent_request_rejected.json").read_text())==no
+          print("APP004_R2_NATIVE_JSON_STDIN_V1=PASS")
+          print("APP004_R2_JSON_ROUNDTRIPS=2")
           print("APP004_GENUINE_MACHINE_JSON=PASS")
           print("APP004_REAL_AGENT_DECISIONS=2")
           print("APP004_REAL_P27_FILES=4")
