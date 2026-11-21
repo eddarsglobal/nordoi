@@ -79,7 +79,7 @@ Le code de sortie POSIX reste non nul. En cas de syntaxe invalide : `BAD_ARGUMEN
 
 ## Validation et RoadMap / Bureau
 
-30 tests automatiques APP-004 sur le **vrai exécutable Rust**, sur quatre plateformes GitHub : Mac Intel, Apple Silicon, Windows, Linux. Ils exercent le contenu JSON, ses refus et sa détermination, les vraies permissions, les règles mutées, les fichiers exacts, l'intégrité des preuves, Unicode, l'absence d'écrasement, la continuité de la CLI APP-003 et l'utilisation par le client.
+31 tests automatiques APP-004 sur le **vrai exécutable Rust**, sur quatre plateformes GitHub : Mac Intel, Apple Silicon, Windows, Linux. Ils exercent le contenu JSON, ses refus et sa détermination, les vraies permissions, les règles mutées, les fichiers exacts, l'intégrité des preuves, Unicode, l'absence d'écrasement, la continuité de la CLI APP-003 et l'utilisation par le client.
 
 La CI effectue aussi les **38 tests APP-003**, les **26 APP-002**, les **16 APP-001**, les contrôles Rust généraux et l'adversarial E8. L'ensemble de la qualification est exécuté par machines ; aucun humain n'est sollicité pour la débloquer.
 
