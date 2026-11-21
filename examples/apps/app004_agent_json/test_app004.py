@@ -34,9 +34,10 @@ def copies(tmp):
     return source,out
 
 def change(path,old,new):
-    text=path.read_text()
+    # Explicit UTF-8 on every platform: Windows locale encoding is not NOI.
+    text=path.read_text(encoding="utf-8")
     if old not in text:raise AssertionError("fixture anchor missing")
-    path.write_text(text.replace(old,new,1))
+    path.write_text(text.replace(old,new,1),encoding="utf-8")
 
 class APP004NativeAgentJson(unittest.TestCase):
     def test_01_real_nordoi_binary_exists(self):
