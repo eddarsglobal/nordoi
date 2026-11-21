@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           cargo build --offline --bin nordoi
-      - name: Thirty real APP004 Rust-to-JSON and denial tests
+      - name: Thirty-one real APP004 Rust-to-JSON and denial tests
         run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
       - name: Preserve thirty-eight APP003 true single-source tests
         run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
