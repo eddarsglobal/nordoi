@@ -399,7 +399,7 @@ pub(super) fn run_app004_agent_json_cli(
 /// an error after a side effect, publication is UNKNOWN, never FALSE.
 pub(super) fn emit_app004_error(exit: u8, error_code: &str) -> u8 {
     let report = format!(
-        "{{\"schema\":\"NORDOI_AGENT_BUNDLE_RESULT_V1\",\"status\":\"ERROR\",\"error_code\":\"{}\",\"exit_code\":{},\"publication\":\"UNKNOWN\"}}\\n",
+        "{{\"schema\":\"NORDOI_AGENT_BUNDLE_RESULT_V1\",\"status\":\"ERROR\",\"error_code\":\"{}\",\"exit_code\":{},\"publication\":\"UNKNOWN\"}}\n",
         json_escape_cli(error_code),
         exit,
     );
@@ -556,7 +556,7 @@ fn run_app003_integrated_inner(
             .join(",");
         let decision: u8 = if branch_name == "approved" { 1 } else { 0 };
         let result = format!(
-            "{{\"schema\":\"NORDOI_AGENT_BUNDLE_RESULT_V1\",\"status\":\"COMMITTED\",\"entry_module\":\"{}\",\"key_code\":{},\"module_count\":{},\"decision\":{},\"selected\":\"{}\",\"bundle\":\"{}\",\"files\":[{}],\"authority\":{{\"mode\":\"EXPLICIT\",\"grant_count\":{},\"ambient\":\"NONE\",\"overwrite\":\"DENIED\"}},\"publication\":\"DIRECTORY_RENAME\",\"partial_final_state\":\"FORBIDDEN\",\"crash_durability\":\"UNCLAIMED\",\"rule_receipt_hex\":\"{}\",\"bundle_receipt_sha256\":\"{}\"}}\\n",
+            "{{\"schema\":\"NORDOI_AGENT_BUNDLE_RESULT_V1\",\"status\":\"COMMITTED\",\"entry_module\":\"{}\",\"key_code\":{},\"module_count\":{},\"decision\":{},\"selected\":\"{}\",\"bundle\":\"{}\",\"files\":[{}],\"authority\":{{\"mode\":\"EXPLICIT\",\"grant_count\":{},\"ambient\":\"NONE\",\"overwrite\":\"DENIED\"}},\"publication\":\"DIRECTORY_RENAME\",\"partial_final_state\":\"FORBIDDEN\",\"crash_durability\":\"UNCLAIMED\",\"rule_receipt_hex\":\"{}\",\"bundle_receipt_sha256\":\"{}\"}}\n",
             json_escape_cli(entry_module),
             key_code,
             rule.plan().module_count(),
