@@ -125,16 +125,23 @@ def main(argv=None):
         destination=Path(tempfile.mkdtemp(prefix="NORDOI_APP004_",dir=parent))
         cmd+=["agent-bundle-json",str(SOURCE_ROOT),"app.main",str(args.score),
               "--grant-output-dir",str(destination)]
-        outcome=subprocess.run(cmd,cwd=REPO,capture_output=True,text=True,timeout=180)
+        outcome=subprocess.run(
+            cmd,cwd=REPO,capture_output=True,text=True,
+            encoding="utf-8",errors="strict",timeout=180,
+        )
         native=exact_native_response(outcome.stdout)
         if outcome.returncode!=0:
             if native.get("status")!="ERROR":
                 emit(failure(outcome.returncode,"NATIVE_ERROR_ENVELOPE_INVALID"))
                 return 1
-            sys.stdout.write(outcome.stdout)
+            # Native JSON is UTF-8 even when Windows Python stdout uses
+            # the legacy ANSI codepage: preserve the exact UTF-8 bytes.
+            sys.stdout.buffer.write(outcome.stdout.encode("utf-8"))
+            sys.stdout.buffer.flush()
             return outcome.returncode
         verify_actual_files(destination,args.score,native,outcome.stderr)
-        sys.stdout.write(outcome.stdout)
+        sys.stdout.buffer.write(outcome.stdout.encode("utf-8"))
+        sys.stdout.buffer.flush()
         return 0
     except (OSError,ValueError,subprocess.SubprocessError) as error:
         emit(failure(1,"NATIVE_PROTOCOL_OR_REAL_FILE_VERIFICATION_FAILED"))
