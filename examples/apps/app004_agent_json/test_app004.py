@@ -180,12 +180,15 @@ class APP004NativeAgentJson(unittest.TestCase):
     def test_20_unicode_and_curly_brace_content_escaped_by_native_json(self):
         with tempfile.TemporaryDirectory(prefix="app004_real_") as d:
             root,out=copies(d)
+            # Compose the Unicode test marker from code points so Windows
+            # runner log/codepage handling cannot reinterpret a source literal.
+            marker=chr(0x00e9)+"preuve } machine"
             change(root/"app"/"main.noi",
                 '"module-decision=approved, input="',
-                '"épreuve } machine, input="')
+                '"'+marker+', input="')
             p,x=native(73,out,root=root)
             self.assertEqual(p.returncode,0,p.stdout+p.stderr)
-            self.assertIn("épreuve } machine",x["files"][1]["content"])
+            self.assertIn(marker,x["files"][1]["content"])
             run_app004.verify_actual_files(out,73,x,p.stderr)
 
     def test_21_proof_hashes_are_exact_64_lowercase_hex(self):
