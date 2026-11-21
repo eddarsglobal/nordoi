@@ -1,0 +1,100 @@
+name: NORDOI APP-005 genuine AI agent JSONL batch
+on:
+  pull_request:
+    paths:
+      - 'src/bin/nordoi.rs'
+      - 'src/bin/nordoi/agent_batch.rs'
+      - 'examples/apps/app005_agent_batch/**'
+      - '.github/workflows/nordoi_app005_agent_batch.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  real-agent-batch-four-os:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact C20 source and RoadMap / AI-only guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Compile actual Rust NORDOI agent batch CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty native APP005 real batch/security tests
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 actual request tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 actual JSON tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 real source tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 real native bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 real app tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Actual three-job agent batch, verify outputs and archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/nordoi_app005_real_evidence"
+          mkdir -p "$OUT"
+          ENGINE="$PWD/target/debug/nordoi"
+          if [ "$RUNNER_OS" = "Windows" ]; then ENGINE="$ENGINE.exe"; fi
+          python -B examples/apps/app005_agent_batch/run_app005.py \
+            --scores 73 59 60 --engine "$ENGINE" --output-parent "$OUT" \
+            > "$OUT/agent_batch_three.jsonl"
+          python -B - "$OUT" <<'PY'
+          import json, pathlib, sys
+          base=pathlib.Path(sys.argv[1])
+          records=[json.loads(s) for s in (base/"agent_batch_three.jsonl").read_text(encoding="utf-8").splitlines()]
+          assert len(records)==3
+          assert [r["decision"] for r in records]==[1,0,1]
+          assert [r["key_code"] for r in records]==[73,59,60]
+          assert all(r["status"]=="COMMITTED" for r in records)
+          assert all(len(r["files"])==2 for r in records)
+          assert len(list(base.glob("NORDOI_APP005_*/job-*/quality-decision/decision.txt")))==3
+          print("APP005_GENUINE_NATIVE_JSONL_BATCH=PASS")
+          print("APP005_ACTUAL_COMMITTED_JOBS=3")
+          print("APP005_ACTUAL_FILE_WRITES=6")
+          PY
+      - name: Source unchanged, Guardian C20 and AI-only no-human gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP005_GENUINE_BATCH_PROOFS=PASS"
+          echo "APP005_BATCH_ATOMICITY=PER_JOB_ONLY"
+          echo "APP005_HUMAN_TESTERS=0"
+          echo "APP005_PRODUCTION=NOT_AUTHORIZED"
+      - name: Keep actual native JSONL and P2.7 file artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP005_GENUINE_AGENT_BATCH_${{ matrix.os }}
+          path: ${{ runner.temp }}/nordoi_app005_real_evidence/
+          retention-days: 30
+          if-no-files-found: warn
