@@ -239,7 +239,9 @@ mod tests {
             Ok(73)
         );
         assert_eq!(
-            parse_agent_request(b" \t{\n\"key_code\" : 59, \"schema\" : \"NORDOI_AGENT_REQUEST_V1\"}\r\n"),
+            parse_agent_request(
+                b" \t{\n\"key_code\" : 59, \"schema\" : \"NORDOI_AGENT_REQUEST_V1\"}\r\n"
+            ),
             Ok(59)
         );
     }
@@ -265,12 +267,13 @@ mod tests {
             parse_agent_request(br#"{"sche\u006da":"NORDOI_AGENT_REQUEST_V1","key_code":100}"#),
             Ok(100)
         );
-        assert!(parse_agent_request(
-            br#"{"schema":"NORDOI_AGENT_REQUEST_V1","key_code":73}{}"#
-        ).is_err());
-        assert!(parse_agent_request(
-            br#"{"schema":"NORDOI_AGENT_REQUEST_V1","key_code":73,}"#
-        ).is_err());
+        assert!(
+            parse_agent_request(br#"{"schema":"NORDOI_AGENT_REQUEST_V1","key_code":73}{}"#)
+                .is_err()
+        );
+        assert!(
+            parse_agent_request(br#"{"schema":"NORDOI_AGENT_REQUEST_V1","key_code":73,}"#).is_err()
+        );
     }
 
     #[test]
