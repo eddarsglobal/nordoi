@@ -1,9 +1,9 @@
+#[path = "nordoi/agent_request.rs"]
+mod agent_request;
 #[path = "nordoi/app002_bridge.rs"]
 mod app002_bridge;
 #[path = "nordoi/app003.rs"]
 mod app003;
-#[path = "nordoi/agent_request.rs"]
-mod agent_request;
 
 use nordoi_kernel::{
     analyze_module_unit, compile_execution_plan_boundary, compile_minimal_body_boundary,
