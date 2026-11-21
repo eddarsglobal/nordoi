@@ -346,6 +346,9 @@ fn run() -> u8 {
     if command.as_ref() == "agent-bundle-json" {
         // Exact, fail-closed machine protocol. Usage errors are JSON too:
         // agents need never parse human-oriented diagnostics.
+        if arguments.len() == 4 {
+            return app003::emit_app004_error(EXIT_RUNTIME, "MISSING_EXPLICIT_GRANT");
+        }
         if arguments.len() != 6 {
             return app003::emit_app004_error(EXIT_USAGE, "BAD_ARGUMENT_COUNT");
         }
