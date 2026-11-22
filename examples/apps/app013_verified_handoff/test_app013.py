@@ -136,7 +136,7 @@ class RealVerifiedHandoff(unittest.TestCase):
         raw=handoff.encode(data)
         path.write_bytes(raw)
         self.anchor=hashlib.sha256(raw).hexdigest()
-        (self.bundle/"SEAL.sha256").write_text(self.anchor+"\n",encoding="ascii")
+        (self.bundle/"SEAL.sha256").write_bytes((self.anchor+"\n").encode("ascii"))
 
     def mutate_prefix(self,modify):
         events=[json.loads(x) for x in self.prefix.read_bytes().splitlines()]
@@ -342,7 +342,7 @@ class RealVerifiedHandoff(unittest.TestCase):
             b'"schema":"NORDOI_AGENT_CHECKPOINT_HANDOFF_V1","schema":"NORDOI_AGENT_CHECKPOINT_HANDOFF_V1"',1)
         path.write_bytes(raw)
         self.anchor=hashlib.sha256(raw).hexdigest()
-        (self.bundle/"SEAL.sha256").write_text(self.anchor+"\n")
+        (self.bundle/"SEAL.sha256").write_bytes((self.anchor+"\n").encode("ascii"))
         self.denied("verify","DUPLICATE_RECEIPT_FIELD")
 
     def test_31_forged_inventory_with_new_self_trusted_hash_rejected(self):
