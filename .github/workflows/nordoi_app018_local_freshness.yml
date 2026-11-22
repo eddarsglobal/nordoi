@@ -1,0 +1,836 @@
+name: NORDOI APP-018 local persistent receiver freshness and monotone journal
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app018_local_freshness/**'
+      - '.github/workflows/nordoi_app018_local_freshness.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: c048f1e17590b8d863d38a067fe6ac00d78e61c2
+jobs:
+  persistent-freshness-journal-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact HEAD, C20 APP017 parent, no-human RoadMapGuardian before effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Compile real native NORDOI Rust source without network
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty APP018 persistent local freshness ledger and native adversarial tests
+        run: python -B -m unittest discover -s examples/apps/app018_local_freshness -p test_app018.py -v
+      - name: Forty APP017 genuine receiver-roster rotation freeze and adversarial tests
+        run: python -B -m unittest discover -s examples/apps/app017_receiver_revocation -p test_app017.py -v
+      - name: Forty APP016 receiver-owned trust policy and real coherent-forgery tests
+        run: python -B -m unittest discover -s examples/apps/app016_receiver_trust_policy -p test_app016.py -v
+      - name: Twenty NEW independent CERT015-R1 adversarial tests on genuine Rust native proofs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/NORDOI_CERT015_R1_INDEPENDENT_PROOFS"
+          python -B -m unittest discover -s examples/apps/cert015_bureau_replay -p test_cert015_r1.py -v \
+            2>&1 | tee "$RUNNER_TEMP/NORDOI_CERT015_R1_INDEPENDENT_PROOFS/independent_adversarial_tests.log"
+          python -B - "$RUNNER_TEMP/NORDOI_CERT015_R1_INDEPENDENT_PROOFS" <<'PY'
+          import hashlib,json,pathlib,sys
+          area=pathlib.Path(sys.argv[1])
+          log=(area/"independent_adversarial_tests.log").read_bytes()
+          assert b"Ran 20 tests in" in log and b"\nOK" in log,log[-500:]
+          qualified={
+             "schema":"NORDOI_CERT015_R1_INDEPENDENT_EVIDENCE_V1",
+             "status":"TESTS_PASS_AWAIT_BUREAU_AND_13_JOB_CI",
+             "independent_tests":20,
+             "test_log_sha256":hashlib.sha256(log).hexdigest(),
+             "test_subject":"APP015_PORTABLE_NATIVE_EXACT_REPLAY",
+             "coherent_forgery_app014_accepts":"TESTED",
+             "coherent_forgery_app015_trusted_source_rejects":"TESTED",
+             "coherent_forgery_with_attacker_trusted_source_accepts":"DOCUMENTED_LIMIT",
+             "external_signatures":"NONE",
+             "external_security_certification":"NOT_CLAIMED",
+             "app016":"HOLD_UNTIL_BUREAU_REVIEW",
+          }
+          (area/"CERT015_R1_QUALIFICATION_EVIDENCE.json").write_text(
+             json.dumps(qualified,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+          print("CERT015_R1_INDEPENDENT_20_TESTS=PASS")
+          print("CERT015_R1_COHERENT_FORGERY_SEPARATED_BY_TRUSTED_PIN=PASS")
+          print("CERT015_R1_EXTERNAL_AUTHENTICATION=NOT_PERFORMED")
+          print("CERT015_R1_APP016=HOLD")
+          PY
+      - name: Forty APP015 real pinned Rust replay and adversarial admission tests
+        run: python -B -m unittest discover -s examples/apps/app015_independent_native_replay -p test_app015.py -v
+      - name: Forty APP014 real portable checkpoint and adversarial tests
+        run: python -B -m unittest discover -s examples/apps/app014_portable_checkpoint -p test_app014.py -v
+      - name: Preserve forty APP013 sealed native agent handoffs
+        run: python -B -m unittest discover -s examples/apps/app013_verified_handoff -p test_app013.py -v
+      - name: Preserve forty APP012 genuine native checkpoint tests
+        run: python -B -m unittest discover -s examples/apps/app012_clean_checkpoint -p test_app012.py -v
+      - name: Preserve forty APP011 verified native resumptions
+        run: python -B -m unittest discover -s examples/apps/app011_verified_resume -p test_app011.py -v
+      - name: Preserve forty APP010 independently audited DAGs
+        run: python -B -m unittest discover -s examples/apps/app010_readonly_dag_audit -p test_app010.py -v
+      - name: Preserve forty APP009 source-backed native DAG tests
+        run: python -B -m unittest discover -s examples/apps/app009_agent_dag -p test_app009.py -v
+      - name: Preserve thirty-three APP008 real conditional workflows
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned native independent replays
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 independent actual native file audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 actual native JSONL batches
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 genuine Rust JSON requests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 JSON receipts
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 actual imported Rust rules
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 native rules
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 actual P2.7 native files
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Genuine native checkpoint, APP013 seal, portable move, restore, APP011 resume, APP010 independent audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,shutil,subprocess,sys
+          repo=pathlib.Path.cwd()
+          proof=pathlib.Path(sys.argv[1])/"NORDOI_APP014_PORTABLE_NATIVE_EVIDENCE"
+          proof.mkdir(parents=True,exist_ok=True)
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          exe=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          sys.path.insert(0,str(repo/"examples/apps/app014_portable_checkpoint"))
+          import portable_app014 as portable
+          sys.path.insert(0,str(repo/"examples/apps/app012_clean_checkpoint"))
+          import run_app012 as checkpoint
+          plan=proof/"original-dag-plan.json"
+          plan.write_text(json.dumps({"schema":"NORDOI_AGENT_DAG_V1","nodes":[
+             {"key_code":73,"depends_on":[],"gate":"always"},
+             {"key_code":59,"depends_on":[],"gate":"always"},
+             {"key_code":60,"depends_on":[1,2],"gate":"all_committed"},
+             {"key_code":80,"depends_on":[3],"gate":"all_approved"}
+          ]},separators=(",",":")),encoding="utf-8")
+          plan_pin=hashlib.sha256(plan.read_bytes()).hexdigest()
+          engine_pin=checkpoint.pinned.engine_sha256(exe)
+          source_pin=checkpoint.pinned.source_tree_sha256(source)
+          original=proof/"original-native-p27"
+          original.mkdir()
+          produced=subprocess.run([sys.executable,"-B",
+            str(repo/"examples/apps/app012_clean_checkpoint/run_app012.py"),
+            "--plan",str(plan),"--engine",str(exe),"--source-root",str(source),
+            "--grant-output-dir",str(original),
+            "--expected-plan-sha256",plan_pin,
+            "--expected-engine-sha256",engine_pin,
+            "--expected-source-sha256",source_pin,
+            "--stop-after","2"],capture_output=True,cwd=repo,timeout=150)
+          assert produced.returncode==0,produced.stderr.decode("utf-8","replace")
+          prefix=proof/"original-native-prefix.jsonl"
+          prefix.write_bytes(produced.stdout)
+          assert len(produced.stdout.splitlines())==2
+          assert sorted(p.name for p in original.iterdir())==["job-0001","job-0002"]
+          handoff=proof/"app013-original-sealed"
+          base013=[sys.executable,"-B",
+              str(repo/"examples/apps/app013_verified_handoff/handoff_app013.py")]
+          sealed=subprocess.run(base013+["seal",
+              "--bundle-dir",str(handoff),"--native-root",str(original),
+              "--plan",str(plan),"--prefix-events",str(prefix),
+              "--expected-plan-sha256",plan_pin],
+              capture_output=True,cwd=repo,timeout=30)
+          assert sealed.returncode==0,sealed.stderr.decode("utf-8","replace")
+          inner_sha=json.loads(sealed.stdout.decode("utf-8"))["manifest_sha256"]
+          (proof/"app013-handoff-seal.json").write_bytes(sealed.stdout)
+          base014=[sys.executable,"-B",
+              str(repo/"examples/apps/app014_portable_checkpoint/portable_app014.py")]
+          packed=proof/"first-portable-export"
+          exported=subprocess.run(base014+["pack",
+              "--portable-dir",str(packed),
+              "--handoff-dir",str(handoff),
+              "--native-root",str(original),
+              "--expected-handoff-sha256",inner_sha],
+              capture_output=True,cwd=repo,timeout=35)
+          assert exported.returncode==0,exported.stderr.decode("utf-8","replace")
+          outer_sha=json.loads(exported.stdout.decode("utf-8"))["portable_sha256"]
+          (proof/"portable-pack-verdict.json").write_bytes(exported.stdout)
+          (proof/"externally-pinned-portable-manifest-sha256.txt").write_text(outer_sha+"\n")
+          relocated=proof/"RELOCATED_PORTABLE_CHECKPOINT"
+          shutil.copytree(packed,relocated)
+          # Eliminate the original path to prove APP014 does NOT require
+          # the original native root or original APP013 handoff to verify.
+          original.rename(proof/"original-native-moved-away")
+          handoff.rename(proof/"original-app013-moved-away")
+          validated=subprocess.run(base014+["verify",
+             "--portable-dir",str(relocated),
+             "--expected-portable-sha256",outer_sha],
+             capture_output=True,cwd=repo,timeout=30)
+          verified=json.loads(validated.stdout.decode("utf-8"))
+          assert validated.returncode==0 and verified["status"]=="VERIFIED",verified
+          (proof/"relocated-independent-verification.json").write_bytes(validated.stdout)
+          fresh=proof/"fresh-empty-native-grant"
+          fresh.mkdir()
+          restored=subprocess.run(base014+["restore",
+              "--portable-dir",str(relocated),
+              "--expected-portable-sha256",outer_sha,
+              "--restore-root",str(fresh)],
+              capture_output=True,cwd=repo,timeout=30)
+          result=json.loads(restored.stdout.decode("utf-8"))
+          assert restored.returncode==0 and result["status"]=="RESTORED",result
+          (proof/"verified-native-restore.json").write_bytes(restored.stdout)
+          initial={p.relative_to(fresh).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                   for p in fresh.rglob("*") if p.is_file()}
+          resume=base014+["resume",
+              "--portable-dir",str(relocated),
+              "--expected-portable-sha256",outer_sha,
+              "--restore-root",str(fresh),
+              "--engine",str(exe),"--source-root",str(source),
+              "--expected-engine-sha256",engine_pin,
+              "--expected-source-sha256",source_pin]
+          continued=subprocess.run(resume,capture_output=True,cwd=repo,timeout=155)
+          (proof/"real-native-app011-resume-suffix.jsonl").write_bytes(continued.stdout)
+          assert continued.returncode==0,continued.stderr.decode("utf-8","replace")
+          suffix=[json.loads(x) for x in continued.stdout.splitlines()]
+          assert [r["step"] for r in suffix]==[3,4],suffix
+          assert all(r["status"]=="COMMITTED" for r in suffix),suffix
+          for relative,pin in initial.items():
+              assert hashlib.sha256((fresh/relative).read_bytes()).hexdigest()==pin,relative
+          full=proof/"completed-authentic-native-events.jsonl"
+          full.write_bytes((relocated/"handoff/native-prefix.jsonl").read_bytes()
+                           +continued.stdout)
+          audit,code=portable.independent.audit(
+              fresh,relocated/"handoff/plan.json",full,plan_pin)
+          assert code==0 and audit["status"]=="PASS",audit
+          assert audit["committed_jobs_verified"]==4
+          (proof/"full-independent-app010-audit.json").write_text(
+              json.dumps(audit,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          again=subprocess.run(resume,capture_output=True,cwd=repo,timeout=30)
+          denial=json.loads(again.stdout.decode("utf-8"))
+          assert again.returncode==2 and denial["status"]=="REJECTED",denial
+          assert denial["error_code"]=="ROOT_UNEXPECTED_JOB_OR_FILE",denial
+          (proof/"duplicate-resume-refusal.json").write_bytes(again.stdout)
+          invalid=proof/"forged-portable-copy"
+          shutil.copytree(relocated,invalid)
+          manifest=invalid/"portable.json"
+          manifest.write_bytes(manifest.read_bytes()+b"malicious")
+          refused=subprocess.run(base014+["verify",
+              "--portable-dir",str(invalid),
+              "--expected-portable-sha256",outer_sha],
+              capture_output=True,cwd=repo,timeout=30)
+          verdict=json.loads(refused.stdout.decode("utf-8"))
+          assert refused.returncode==2 and verdict["error_code"]=="PORTABLE_EXTERNAL_PIN_MISMATCH",verdict
+          (proof/"forged-portable-refusal.json").write_bytes(refused.stdout)
+          print("APP014_REAL_APP012_CHECKPOINT=PASS")
+          print("APP014_APP013_HANDOFF_SEALED=PASS")
+          print("APP014_PORTABLE_NATIVE_EXPORT=PASS")
+          print("APP014_ORIGINAL_PATHS_DISCONNECTED=PASS")
+          print("APP014_RELOCATED_VERIFY_WITHOUT_ORIGINAL=PASS")
+          print("APP014_EMPTY_ROOT_RESTORE=PASS")
+          print("APP014_REAL_APP011_RESUME=PASS")
+          print("APP014_ORIGINAL_RESTORED_FILES_UNCHANGED=PASS")
+          print("APP014_INDEPENDENT_APP010_FINAL_AUDIT=PASS")
+          print("APP014_DUPLICATE_RESUME_DENIED=PASS")
+          print("APP014_PORTABLE_MANIFEST_TAMPER_DENIED=PASS")
+          print("APP014_EXTERNAL_SIGNATURE=NOT_CLAIMED")
+          print("APP014_HUMAN_TESTERS=0")
+          PY
+      - name: Real receiver admission with APP015 pinned replay before restoration and continuation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,shutil,subprocess,sys
+          repo=pathlib.Path.cwd()
+          previous=pathlib.Path(sys.argv[1])/"NORDOI_APP014_PORTABLE_NATIVE_EVIDENCE"
+          portable=previous/"RELOCATED_PORTABLE_CHECKPOINT"
+          expected=(previous/"externally-pinned-portable-manifest-sha256.txt").read_text().strip()
+          proof=pathlib.Path(sys.argv[1])/"NORDOI_APP015_INDEPENDENT_PINNED_NATIVE_REPLAY"
+          proof.mkdir(parents=True,exist_ok=True)
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          sys.path.insert(0,str(repo/"examples/apps/app015_independent_native_replay"))
+          import replay_app015 as app
+          engine_pin=app.pinned.engine_sha256(engine)
+          source_pin=app.pinned.source_tree_sha256(source)
+          base=[sys.executable,"-B",
+            str(repo/"examples/apps/app015_independent_native_replay/replay_app015.py")]
+          common=["--portable-dir",str(portable),
+            "--expected-portable-sha256",expected,
+            "--engine",str(engine),"--source-root",str(source),
+            "--expected-engine-sha256",engine_pin,
+            "--expected-source-sha256",source_pin]
+          def call(action, extras=None, timeout=150):
+            cmd=base+[action]+common+(extras or [])
+            return subprocess.run(cmd,cwd=repo,capture_output=True,timeout=timeout)
+          check=call("verify-replay")
+          (proof/"independent-native-historical-replay.json").write_bytes(check.stdout)
+          verified=json.loads(check.stdout.decode("utf-8"))
+          assert check.returncode==0 and verified["status"]=="PASS",verified
+          assert verified["native_jobs_recomputed"]==2,verified
+          assert verified["native_files_bytewise_equal"]==4,verified
+          assert verified["native_receipts_exactly_equal"] is True,verified
+          restored=proof/"genuine-restored-native-root"
+          restored.mkdir()
+          restored_run=call("restore-replay",["--restore-root",str(restored)])
+          (proof/"replay-gated-restore.json").write_bytes(restored_run.stdout)
+          restored_receipt=json.loads(restored_run.stdout.decode("utf-8"))
+          assert restored_run.returncode==0 and restored_receipt["status"]=="RESTORED",restored_receipt
+          assert restored_receipt["replay_qualification"]=="PASS_EXACT_NATIVE_RUST_REPLAY",restored_receipt
+          baseline={p.relative_to(restored).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+               for p in restored.rglob("*") if p.is_file()}
+          continuation=call("resume-replay",["--restore-root",str(restored)])
+          (proof/"native-replay-gated-resume-suffix.jsonl").write_bytes(continuation.stdout)
+          assert continuation.returncode==0,continuation.stderr.decode("utf-8","replace")
+          rows=[json.loads(x) for x in continuation.stdout.splitlines()]
+          assert [r["step"] for r in rows]==[3,4],rows
+          assert all(r["status"]=="COMMITTED" for r in rows),rows
+          for rel,previous_hash in baseline.items():
+            assert hashlib.sha256((restored/rel).read_bytes()).hexdigest()==previous_hash,rel
+          plan=portable/"handoff/plan.json"
+          full=proof/"verified-whole-native-dag.jsonl"
+          full.write_bytes((portable/"handoff/native-prefix.jsonl").read_bytes()
+                           +continuation.stdout)
+          completed,code=app.independent.audit(
+              restored,plan,full,hashlib.sha256(plan.read_bytes()).hexdigest())
+          assert code==0 and completed["status"]=="PASS",completed
+          (proof/"full-app010-native-audit.json").write_text(
+              json.dumps(completed,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          second=call("resume-replay",["--restore-root",str(restored)])
+          denied=json.loads(second.stdout.decode("utf-8"))
+          assert second.returncode==2 and denied["error_code"]=="ROOT_UNEXPECTED_JOB_OR_FILE",denied
+          (proof/"duplicate-replay-gated-resume-denied.json").write_bytes(second.stdout)
+          # Adversarial real .noi change: new explicitly pinned source computes
+          # a different genuine native receipt; reject BEFORE any restore effect.
+          forged=proof/"alternative-pinned-native-source"
+          shutil.copytree(source,forged)
+          rule=forged/"app/rules.noi"
+          original=rule.read_text(encoding="utf-8")
+          assert "score >= 60" in original
+          rule.write_text(original.replace("score >= 60","score >= 1000"),encoding="utf-8")
+          alternative=app.pinned.source_tree_sha256(forged)
+          empty=proof/"reject-before-restore-root"
+          empty.mkdir()
+          evil=base+["restore-replay"]+common[:-1]+[alternative,
+               "--restore-root",str(empty)]
+          # Replace source-root only; SHA corresponds to changed source.
+          evil[evil.index("--source-root")+1]=str(forged)
+          failed=subprocess.run(evil,capture_output=True,cwd=repo,timeout=150)
+          rejected=json.loads(failed.stdout.decode("utf-8"))
+          assert failed.returncode==2 and rejected["error_code"]=="INDEPENDENT_NATIVE_RECEIPT_MISMATCH",rejected
+          assert not any(empty.iterdir())
+          (proof/"changed-real-rust-rule-rejected-before-restore.json").write_bytes(failed.stdout)
+          print("APP015_REAL_PORTABLE_CHECKPOINT=PASS")
+          print("APP015_INDEPENDENT_PINNED_RUST_REPLAY=PASS")
+          print("APP015_COMPLETE_NATIVE_RECEIPTS_MATCH=PASS")
+          print("APP015_NATIVE_P27_FILE_BYTES_MATCH=PASS")
+          print("APP015_REPLAY_GATED_RESTORE=PASS")
+          print("APP015_REPLAY_GATED_REAL_RESUME=PASS")
+          print("APP015_ORIGINAL_NATIVE_FILES_PRESERVED=PASS")
+          print("APP015_FULL_APP010_DAG_AUDIT=PASS")
+          print("APP015_DUPLICATE_RESUME_DENIED=PASS")
+          print("APP015_ALTERNATIVE_NATIVE_RULE_REJECTED=PASS")
+          print("APP015_UNTRUSTED_SOURCE_RESTORE_NO_EFFECT=PASS")
+          print("APP015_EXTERNAL_SIGNATURE=NOT_CLAIMED")
+          print("APP015_INDEPENDENT_P27_CRYPTO=NOT_CLAIMED")
+          print("APP015_HUMAN_TESTERS=0")
+          PY
+      - name: Historical CERT015 research-only boundary remains in force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          echo "CERT015_R1_HISTORICAL_RESEARCH_ONLY=PASS"
+          echo "CERT015_R1_PR=DRAFT"
+          echo "CERT015_R1_PRODUCTION=NOT_AUTHORIZED"
+      - name: Receiver-controlled policy admission, replay, restore and resume real NORDOI DAG
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,shutil,subprocess,sys
+          repo=pathlib.Path.cwd()
+          prev=pathlib.Path(sys.argv[1])/"NORDOI_APP014_PORTABLE_NATIVE_EVIDENCE"
+          reference=prev/"RELOCATED_PORTABLE_CHECKPOINT"
+          assert reference.is_dir(),reference
+          original_anchor=(prev/"externally-pinned-portable-manifest-sha256.txt").read_text().strip()
+          proof=pathlib.Path(sys.argv[1])/"NORDOI_APP016_RECEIVER_TRUST_EVIDENCE"
+          proof.mkdir(parents=True,exist_ok=True)
+          package=proof/"UNTRUSTED_RECEIVED_PORTABLE_CHECKPOINT"
+          shutil.copytree(reference,package)
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          sys.path.insert(0,str(repo/"examples/apps/app016_receiver_trust_policy"))
+          import receiver_app016 as policyapp
+          plan=package/"handoff/plan.json"
+          policy={
+            "schema":policyapp.SCHEMA,
+            "policy_id":"qualified-receiver-policy-016",
+            "engine_sha256":policyapp.pinned.engine_sha256(engine),
+            "source_tree_sha256":policyapp.pinned.source_tree_sha256(source),
+            "portable_sha256":original_anchor,
+            "plan_sha256":hashlib.sha256(plan.read_bytes()).hexdigest(),
+            "allowed_actions":["inspect","restore","resume","verify"],
+            "release":"RESEARCH_ONLY",
+            "pin_origin":"RECEIVER_SUPPLIED_NOT_EXTERNALLY_ATTESTED",
+            "signature":"NOT_PRESENT",
+            "production":"NOT_AUTHORIZED",
+          }
+          external_policy=proof/"RECEIVER_OWNED_PIN_POLICY.json"
+          external_policy.write_bytes(policyapp.canonical_json(policy))
+          external_sha=hashlib.sha256(external_policy.read_bytes()).hexdigest()
+          (proof/"TRUSTED_EXTERNAL_POLICY_SHA256.txt").write_text(external_sha+"\n",encoding="ascii")
+          base=[sys.executable,"-B",str(repo/"examples/apps/app016_receiver_trust_policy/receiver_app016.py")]
+          inputs=["--receiver-policy",str(external_policy),
+                  "--expected-policy-sha256",external_sha,
+                  "--portable-dir",str(package)]
+          native=["--engine",str(engine),"--source-root",str(source)]
+          def execute(action,other=None,timeout=180):
+            return subprocess.run(base+[action]+inputs+(other or []),
+                                  capture_output=True,cwd=repo,timeout=timeout)
+          inspect=execute("inspect")
+          ins=json.loads(inspect.stdout.decode("utf-8"))
+          assert inspect.returncode==0 and ins["status"]=="POLICY_MATCH",ins
+          assert ins["native_replay"]=="NOT_PERFORMED",ins
+          (proof/"inspection-no-native-execution.json").write_bytes(inspect.stdout)
+          verified=execute("verify",native)
+          report=json.loads(verified.stdout.decode("utf-8"))
+          assert verified.returncode==0 and report["status"]=="PASS",report
+          assert report["native_jobs_recomputed"]==2 and report["native_files_bytewise_equal"]==4,report
+          (proof/"receiver-gated-real-native-replay.json").write_bytes(verified.stdout)
+          restored=proof/"EMPTY_NATIVE_DESTINATION"
+          restored.mkdir()
+          before={p.relative_to(package).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in package.rglob("*") if p.is_file()}
+          outcome=execute("restore",native+["--restore-root",str(restored)])
+          row=json.loads(outcome.stdout.decode("utf-8"))
+          assert outcome.returncode==0 and row["status"]=="RESTORED",row
+          (proof/"receiver-gated-exclusive-native-restore.json").write_bytes(outcome.stdout)
+          historic={p.relative_to(restored).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+                  for p in restored.rglob("*") if p.is_file()}
+          cont=execute("resume",native+["--restore-root",str(restored)])
+          (proof/"authorized-native-suffix.jsonl").write_bytes(cont.stdout)
+          assert cont.returncode==0,cont.stderr.decode("utf-8","replace")
+          events=[json.loads(x) for x in cont.stdout.splitlines()]
+          assert [e["step"] for e in events]==[3,4],events
+          assert all(e["status"]=="COMMITTED" for e in events),events
+          full=proof/"complete-native-agent-dag.jsonl"
+          full.write_bytes((package/"handoff/native-prefix.jsonl").read_bytes()+cont.stdout)
+          independent,code=policyapp.portable.independent.audit(
+                restored,plan,full,policy["plan_sha256"])
+          assert code==0 and independent["status"]=="PASS",independent
+          (proof/"independent-final-native-dag-audit.json").write_text(
+              json.dumps(independent,sort_keys=True,indent=2)+"\n",encoding="utf-8")
+          for rel,hash_before in historic.items():
+              assert hashlib.sha256((restored/rel).read_bytes()).hexdigest()==hash_before,rel
+          for rel,hash_before in before.items():
+              assert hashlib.sha256((package/rel).read_bytes()).hexdigest()==hash_before,rel
+          again=execute("resume",native+["--restore-root",str(restored)])
+          again_row=json.loads(again.stdout.decode("utf-8"))
+          assert again.returncode==2 and again_row["status"]=="REJECTED",again_row
+          assert again_row["error_code"]=="ROOT_UNEXPECTED_JOB_OR_FILE",again_row
+          (proof/"double-resume-refused.json").write_bytes(again.stdout)
+          # An attacker can create a legitimate alternative NOI source and
+          # matching SHA, but cannot change the receiver's anchored policy.
+          foreign=proof/"alternative-native-source"
+          shutil.copytree(source,foreign)
+          rule=foreign/"app/rules.noi"
+          raw=rule.read_text(encoding="utf-8")
+          assert "score >= 60" in raw
+          rule.write_text(raw.replace("score >= 60","score >= 1000"),encoding="utf-8")
+          denied_dest=proof/"denied-root"
+          denied_dest.mkdir()
+          alien=execute("restore",
+             ["--engine",str(engine),"--source-root",str(foreign),
+              "--restore-root",str(denied_dest)])
+          alien_result=json.loads(alien.stdout.decode("utf-8"))
+          assert alien.returncode==2 and alien_result["error_code"]=="SOURCE_PIN_MISMATCH",alien_result
+          assert not list(denied_dest.iterdir())
+          (proof/"untrusted-source-with-valid-own-hash-denied.json").write_bytes(alien.stdout)
+          policy["allowed_actions"]=["inspect","restore","verify"]
+          external_policy.write_bytes(policyapp.canonical_json(policy))
+          new_anchor=hashlib.sha256(external_policy.read_bytes()).hexdigest()
+          inputs[inputs.index("--expected-policy-sha256")+1]=new_anchor
+          disallowed=execute("resume",native+["--restore-root",str(denied_dest)])
+          deny=json.loads(disallowed.stdout.decode("utf-8"))
+          assert disallowed.returncode==2 and deny["error_code"]=="RECEIVER_POLICY_ACTION_DENIED",deny
+          assert not list(denied_dest.iterdir())
+          (proof/"receiver-permission-denial.json").write_bytes(disallowed.stdout)
+          print("APP016_RECEIVER_EXTERNAL_POLICY_PIN=PASS")
+          print("APP016_INSPECT_WITHOUT_NATIVE_RUN=PASS")
+          print("APP016_REAL_RUST_REPLAY_WITH_RECEIVER_PINS=PASS")
+          print("APP016_REPLAY_GATED_EXCLUSIVE_RESTORE=PASS")
+          print("APP016_REPLAY_GATED_REAL_NATIVE_RESUME=PASS")
+          print("APP016_ORIGINAL_NATIVE_BYTES_PRESERVED=PASS")
+          print("APP016_INDEPENDENT_APP010_FINAL_DAG=PASS")
+          print("APP016_DUPLICATE_RESUME_DENIED=PASS")
+          print("APP016_ALTERNATIVE_NOI_SOURCE_DENIED=PASS")
+          print("APP016_RECEIVER_PERMISSION_WITHHELD=PASS")
+          print("APP016_EXTERNAL_PIN_AUTHENTICATION=NOT_PERFORMED")
+          print("APP016_NATIVE_ENGINE_SANDBOX=NOT_PROVIDED")
+          print("APP016_HUMAN_TESTERS=0")
+          PY
+      - name: APP016 RoadMap and Bureau research-only gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          echo "APP016_C20_CERT015=PASS_PARENT"
+          echo "APP016_RESEARCH_START=AUTHORIZED_SEPARATE_BUREAU_REVIEW"
+          echo "APP016_CERTIFICATION=PENDING_THIS_COMMIT_13_JOBS"
+          echo "APP016_PR=DRAFT"
+          echo "APP016_MERGE=NONE"
+          echo "APP016_PRODUCTION=NOT_AUTHORIZED"\n          echo "APP017_C20_PARENT=APP016_13_OF_13_SUCCESS"\n          echo "APP017_BUREAU_VERDICT=PENDING_ALL_CI"\n          echo "APP017_PRODUCTION=NOT_AUTHORIZED"
+      - name: Genuine AI receiver policy rotation, revocation and frozen admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,pathlib,sys
+          repo=pathlib.Path.cwd()
+          work=pathlib.Path(sys.argv[1])/"NORDOI_APP017_REAL_REVOCATION_ROSTER"
+          work.mkdir(parents=True,exist_ok=True)
+          sys.path.insert(0,str(repo/"examples/apps/app017_receiver_revocation"))
+          import test_app017
+          import roster_app017 as roster
+          cls=test_app017.ReceiverRevocationRoster
+          cls.setUpClass()
+          try:
+            # Receiver policy A, generation 1. Real Rust from APP012 produces
+            # native historical receipts. APP013/014 carry exact evidence.
+            first=cls("test_01_v1_roster_status_active_without_native_engine")
+            first.setUp()
+            try:
+              state=first.good("status")[1][0]
+              assert state["status"]=="ACTIVE" and state["generation"]==1
+              (work/"V1_ACTIVE.json").write_text(json.dumps(state,sort_keys=True)+"\n",encoding="utf-8")
+              inspect=first.good("inspect")[1][0]
+              assert inspect["native_engine"]=="NOT_EXECUTED"
+              (work/"V1_INSPECT_NO_RUST.json").write_text(json.dumps(inspect,sort_keys=True)+"\n",encoding="utf-8")
+              verified=first.good("verify")[1][0]
+              assert verified["native_jobs_recomputed"]==2,verified
+              (work/"V1_GENUINE_RUST_REPLAY.json").write_text(json.dumps(verified,sort_keys=True)+"\n",encoding="utf-8")
+              created=first.good("restore")[1][0]
+              assert created["status"]=="RESTORED",created
+              suffix,rows=first.good("resume")
+              assert [x["step"] for x in rows]==[3,4],rows
+              combined=work/"V1_REAL_COMPLETE_DAG.jsonl"
+              combined.write_bytes((first.fx.portable/"handoff/native-prefix.jsonl").read_bytes()+suffix.stdout)
+              audited,status=roster.portable.independent.audit(
+                first.fx.dest,first.fx.portable/"handoff/plan.json",
+                combined,first.fx.policy["plan_sha256"])
+              assert status==0 and audited["status"]=="PASS",audited
+              (work/"V1_APP010_INDEPENDENT_AUDIT.json").write_text(
+                  json.dumps(audited,sort_keys=True)+"\n",encoding="utf-8")
+              first.rejected("ROOT_UNEXPECTED_JOB_OR_FILE","resume")
+            finally:
+              first.tearDown()
+
+            # A new sender cannot override the receiver's chosen policy.
+            # Rotate to generation 2: active policy B, A explicitly revoked.
+            second=cls("test_01_v1_roster_status_active_without_native_engine")
+            second.setUp()
+            try:
+              old_pin=second.original_policy_sha
+              old_roster_pin=second.anchor
+              new_pin=second.rotated()
+              assert new_pin!=old_pin
+              current=second.good("status")[1][0]
+              assert current["status"]=="ACTIVE" and current["generation"]==2
+              assert current["revoked_count"]==1
+              (work/"V2_ROTATED_REVOCATION.json").write_text(
+                  json.dumps(current,sort_keys=True)+"\n",encoding="utf-8")
+              second.rejected("ROSTER_EXTERNAL_PIN_MISMATCH",
+                              anchor=old_roster_pin)
+              second.rejected("RECEIVER_POLICY_EXTERNAL_PIN_MISMATCH",
+                              policy_file=second.original_policy,
+                              package=second.original_pkg)
+              second.good("inspect",min_generation=2)
+              second.rejected("ROSTER_BELOW_RECEIVER_MINIMUM_GENERATION",
+                              min_generation=3)
+              alt=second.good("verify",source=second.fx.alt_source,
+                              min_generation=2)[1][0]
+              assert alt["native_jobs_recomputed"]==2,alt
+              (work/"V2_ALTERNATIVE_PINNED_RUST_REPLAY.json").write_text(
+                  json.dumps(alt,sort_keys=True)+"\n",encoding="utf-8")
+              second.rejected("SOURCE_PIN_MISMATCH","verify")
+              r=second.good("restore",source=second.fx.alt_source,
+                            min_generation=2)[1][0]
+              assert r["status"]=="RESTORED",r
+              continued,rows=second.good("resume",source=second.fx.alt_source,
+                                         min_generation=2)
+              assert [x["step"] for x in rows]==[3,4],rows
+              joined=work/"V2_REAL_ALTERNATIVE_COMPLETE_DAG.jsonl"
+              joined.write_bytes((second.fx.portable/"handoff/native-prefix.jsonl").read_bytes()+continued.stdout)
+              checked,code=roster.portable.independent.audit(
+                second.fx.dest,second.fx.portable/"handoff/plan.json",
+                joined,second.fx.policy["plan_sha256"])
+              assert code==0 and checked["status"]=="PASS",checked
+              (work/"V2_APP010_INDEPENDENT_AUDIT.json").write_text(
+                  json.dumps(checked,sort_keys=True)+"\n",encoding="utf-8")
+              frozen_before=second.fx.native_hashes(second.fx.dest)
+              second.frozen()
+              state=second.good("status")[1][0]
+              assert state["status"]=="FROZEN" and state["active_policy_sha256"] is None
+              second.rejected("ROSTER_FROZEN_DENIES_ADMISSION","inspect")
+              second.rejected("ROSTER_FROZEN_DENIES_ADMISSION","verify")
+              second.rejected("ROSTER_FROZEN_DENIES_ADMISSION","restore")
+              second.rejected("ROSTER_FROZEN_DENIES_ADMISSION","resume")
+              assert frozen_before==second.fx.native_hashes(second.fx.dest)
+              (work/"V2_FROZEN_NO_EFFECT.json").write_text(
+                  json.dumps(state,sort_keys=True)+"\n",encoding="utf-8")
+            finally:
+              second.tearDown()
+
+            # Independent stale roster; receiver requires generation >= 2.
+            stale=cls("test_01_v1_roster_status_active_without_native_engine")
+            stale.setUp()
+            try:
+              stale.rejected("ROSTER_BELOW_RECEIVER_MINIMUM_GENERATION",
+                             min_generation=2)
+              (work/"RECEIVER_MINIMUM_GENERATION_ENFORCED.txt").write_text(
+                  "stale roster generation 1 rejected under minimum 2\n",encoding="utf-8")
+            finally:
+              stale.tearDown()
+          finally:
+            cls.tearDownClass()
+          print("APP017_RECEIVER_ROSTER_EXTERNAL_PIN=PASS")
+          print("APP017_GENERATION1_NATIVE_REPLAY_AND_RESUME=PASS")
+          print("APP017_GENERATION2_RECEIVER_ROTATION=PASS")
+          print("APP017_OLD_POLICY_REVOKED_BY_NEW_ROSTER=PASS")
+          print("APP017_OLD_ROSTER_SHA_REFUSED=PASS")
+          print("APP017_ALTERNATIVE_NATIVE_RULES_PINNED=PASS")
+          print("APP017_GENERATION2_APP010_FINAL_DAG=PASS")
+          print("APP017_FROZEN_DENIES_ALL_ADMISSIONS=PASS")
+          print("APP017_FROZEN_PRESERVES_NATIVE_FILES=PASS")
+          print("APP017_MINIMUM_GENERATION_ENFORCED=PASS")
+          print("APP017_DURABLE_ANTI_ROLLBACK=NOT_CLAIMED")
+          print("APP017_EXTERNAL_SIGNATURE=NOT_CLAIMED")
+          print("APP017_HUMAN_TESTERS=0")
+          PY
+      - name: Real receiver journal survives process restart and blocks stale trusted roster
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,pathlib,sys
+          repo=pathlib.Path.cwd()
+          proofs=pathlib.Path(sys.argv[1])/"NORDOI_APP018_LOCAL_FRESHNESS_EVIDENCE"
+          proofs.mkdir(parents=True,exist_ok=True)
+          sys.path.insert(0,str(repo/"examples/apps/app018_local_freshness"))
+          from test_app018 import LocalReceiverFreshness
+          import freshness_app018 as freshness
+          cls=LocalReceiverFreshness
+          cls.setUpClass()
+          def write(name,value):
+            (proofs/name).write_text(json.dumps(value,sort_keys=True)+"\n",encoding="utf-8")
+          try:
+            # Genuine original NORDOI APP012/013/014 native checkpoint.
+            first=cls("test_01_bootstrap_creates_exactly_one_local_head")
+            first.setUp()
+            try:
+              one=first.good("status")[1][0]
+              assert one["sequence"]==1 and one["roster_generation"]==1,one
+              assert one["native_engine"]=="NOT_EXECUTED",one
+              write("01-original-bootstrap-after-process-restart.json",one)
+              before=first.native_snapshot(first.fx.fx.portable)
+              qualified=first.good("verify")[1][0]
+              assert qualified["native_jobs_recomputed"]==2,qualified
+              write("02-original-real-rust-replay.json",qualified)
+              accepted=first.good("restore")[1][0]
+              assert accepted["status"]=="RESTORED",accepted
+              suffix,events=first.good("resume")
+              assert [x["step"] for x in events]==[3,4],events
+              full=proofs/"03-original-native-dag.jsonl"
+              full.write_bytes((first.fx.fx.portable/"handoff/native-prefix.jsonl").read_bytes()+suffix.stdout)
+              report,status=freshness.portable.independent.audit(
+                  first.fx.fx.dest,first.fx.fx.portable/"handoff/plan.json",
+                  full,first.fx.fx.policy["plan_sha256"])
+              assert status==0 and report["status"]=="PASS",report
+              write("04-original-dag-full-audit.json",report)
+              assert before==first.native_snapshot(first.fx.fx.portable)
+              first.denied("ROOT_UNEXPECTED_JOB_OR_FILE","resume")
+            finally:
+              first.tearDown()
+
+            # A newer receiver state is written in a SHA-256 linked file.
+            # The OLD trusted roster AND its authentic OLD SHA are rejected
+            # after restart even when both remain internally consistent.
+            second=cls("test_01_bootstrap_creates_exactly_one_local_head")
+            second.setUp()
+            try:
+              old_roster=second.old_roster_file
+              old_policy=second.fx.original_policy
+              old_package=second.fx.original_pkg
+              old_anchor=second.old_roster_pin
+              new=second.rotate()
+              assert new["sequence"]==2 and new["roster_generation"]==2,new
+              live=second.good("status")[1][0]
+              assert live["sequence"]==2 and live["local_journal"]=="SHA256_CHAIN_VALID",live
+              write("05-receiver-persisted-generation-two.json",live)
+              assert old_anchor!=live["roster_sha256"]
+              second.denied("ROSTER_EXTERNAL_PIN_MISMATCH","inspect",
+                  roster_file=old_roster,policy_file=old_policy,package=old_package)
+              second.denied("RECEIVER_POLICY_EXTERNAL_PIN_MISMATCH","inspect",
+                  policy_file=old_policy,package=old_package)
+              latest=second.good("verify",source=second.fx.fx.alt_source)[1][0]
+              assert latest["native_jobs_recomputed"]==2,latest
+              write("06-alternative-pinned-real-rust-replay.json",latest)
+              second.denied("SOURCE_PIN_MISMATCH","verify")
+              r=second.good("restore",source=second.fx.fx.alt_source)[1][0]
+              assert r["status"]=="RESTORED",r
+              suffix,events=second.good("resume",source=second.fx.fx.alt_source)
+              assert [x["step"] for x in events]==[3,4],events
+              full=proofs/"07-rotated-native-dag.jsonl"
+              full.write_bytes((second.fx.fx.portable/"handoff/native-prefix.jsonl").read_bytes()+suffix.stdout)
+              complete,status=freshness.portable.independent.audit(
+                  second.fx.fx.dest,second.fx.fx.portable/"handoff/plan.json",
+                  full,second.fx.fx.policy["plan_sha256"])
+              assert status==0 and complete["status"]=="PASS",complete
+              write("08-rotated-dag-full-audit.json",complete)
+              second.denied("ROOT_UNEXPECTED_JOB_OR_FILE","resume",
+                            source=second.fx.fx.alt_source)
+              # The old policy is permanently retired in the local journal.
+              old=second.fx.original_policy_sha
+              current=second.fx.fx.anchor
+              second.fx.roster.update({
+                  "generation":3,"state":"ACTIVE",
+                  "active_policy_sha256":old,
+                  "revoked_policy_sha256":[current],
+              })
+              second.fx.write_roster()
+              second.denied("ANCHOR_PREVIOUSLY_REVOKED_POLICY_READMITTED",
+                            "advance")
+            finally:
+              second.tearDown()
+
+            # Persistent frozen state aborts all new native work and preserves
+            # the filesystem. Reboot is modeled by a new Python process.
+            frozen=cls("test_01_bootstrap_creates_exactly_one_local_head")
+            frozen.setUp()
+            try:
+              frozen.freeze()
+              state=frozen.good("status")[1][0]
+              assert state["status"]=="FROZEN" and state["sequence"]==2,state
+              frozen.denied("ROSTER_FROZEN_DENIES_ADMISSION","inspect")
+              frozen.denied("ROSTER_FROZEN_DENIES_ADMISSION","verify")
+              frozen.denied("ROSTER_FROZEN_DENIES_ADMISSION","restore")
+              frozen.denied("ROSTER_FROZEN_DENIES_ADMISSION","resume")
+              assert not list(frozen.fx.fx.dest.iterdir())
+              write("09-receiver-frozen-without-native-effect.json",state)
+            finally:
+              frozen.tearDown()
+          finally:
+            cls.tearDownClass()
+          print("APP018_EXCLUSIVE_BOOTSTRAP=PASS")
+          print("APP018_PROCESS_RESTART_MONOTONE_HEAD=PASS")
+          print("APP018_SHA256_LINKED_JOURNAL=PASS")
+          print("APP018_GENERATION_ONE_REAL_RUST_RESUME=PASS")
+          print("APP018_GENERATION_TWO_PERSISTED=PASS")
+          print("APP018_OLD_ROSTER_AND_OLD_SHA_REJECTED=PASS")
+          print("APP018_REVOKED_POLICY_CANNOT_BE_READMITTED=PASS")
+          print("APP018_GENERATION_TWO_REAL_RUST_RESUME=PASS")
+          print("APP018_APP010_NATIVE_FINAL_AUDITS=PASS")
+          print("APP018_PERSISTENT_FREEZE_DENIES_ALL_ADMISSIONS=PASS")
+          print("APP018_HOST_ADVERSARY=NOT_PROTECTED")
+          print("APP018_POWERLOSS_CERTIFICATION=NOT_CLAIMED")
+          print("APP018_EXTERNAL_SIGNATURE=NOT_CLAIMED")
+          print("APP018_HUMAN_TESTERS=0")
+          PY
+      - name: APP018 Bureau and research-only C20 admission controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          echo "APP018_C20_PARENT=APP017_13_OF_13_SUCCESS"
+          echo "APP018_BUREAU_VERDICT=PENDING_ALL_CI"
+          echo "APP018_R6G=LOCKED_BY_SEQUENCE"
+          echo "APP018_PRODUCTION=NOT_AUTHORIZED"
+      - name: Final C20 Guardian, immutable source HEAD and research-only authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP014_TRUE_NATIVE_PORTABLE_AGENT_HANDOFF=PASS"\n          echo "APP015_PINNED_RUST_REPLAY_QUALIFICATION=PASS"
+          echo "APP014_ZERO_HUMAN_TESTERS=PASS"
+          echo "APP014_MERGE=NONE"
+          echo "APP014_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive original and relocated native checkpoint packages and proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP014_GENUINE_PORTABLE_CHECKPOINT_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP014_PORTABLE_NATIVE_EVIDENCE/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Archive new APP015 independent Rust replay evidence and adversarial receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP015_PINNED_NATIVE_REPLAY_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP015_INDEPENDENT_PINNED_NATIVE_REPLAY/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Archive CERT015 independent tests and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_CERT015_R1_INDEPENDENT_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_CERT015_R1_INDEPENDENT_PROOFS/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Archive APP016 receiver-owned policy and genuine native execution proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP016_RECEIVER_TRUST_POLICY_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP016_RECEIVER_TRUST_EVIDENCE/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Archive APP017 genuine Rust revocation, rotation and frozen receiver proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP017_NATIVE_REVOCATION_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP017_REAL_REVOCATION_ROSTER/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Archive APP018 persistently anchored native freshness and revocation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP018_LOCAL_FRESHNESS_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP018_LOCAL_FRESHNESS_EVIDENCE/
+          retention-days: 30
+          if-no-files-found: warn
