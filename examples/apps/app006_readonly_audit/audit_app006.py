@@ -128,6 +128,9 @@ def load_receipts(path: Path) -> tuple[bytes, list[dict]]:
             obj = json.loads(
                 line, object_pairs_hook=no_duplicate_keys, parse_constant=no_constants
             )
+        except AuditRejected:
+            # Do not erase an intentionally precise duplicate-key rejection.
+            raise
         except (ValueError, TypeError, OverflowError):
             raise AuditRejected("INVALID_RECEIPT_JSON") from None
         require(type(obj) is dict, "INVALID_RECEIPT_JSON")
