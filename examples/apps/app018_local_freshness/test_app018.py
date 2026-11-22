@@ -24,20 +24,20 @@ REPO=HERE.parents[2]
 sys.path.insert(0,str(HERE))
 import freshness_app018 as freshness
 sys.path.insert(0,str(HERE.parent/"app017_receiver_revocation"))
-from test_app017 import ReceiverRevocationRoster, ENGINE, SOURCE
+import test_app017 as original_fixture
 
 
 class LocalReceiverFreshness(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        ReceiverRevocationRoster.setUpClass()
+        original_fixture.ReceiverRevocationRoster.setUpClass()
 
     @classmethod
     def tearDownClass(cls):
-        ReceiverRevocationRoster.tearDownClass()
+        original_fixture.ReceiverRevocationRoster.tearDownClass()
 
     def setUp(self):
-        self.fx=ReceiverRevocationRoster(
+        self.fx=original_fixture.ReceiverRevocationRoster(
             "test_01_v1_roster_status_active_without_native_engine")
         self.fx.setUp()
         self.root=self.fx.fx.work/"receiver-private-freshness-anchor"
@@ -75,8 +75,8 @@ class LocalReceiverFreshness(unittest.TestCase):
             ])
             if action in ("verify","restore","resume"):
                 args.extend([
-                    "--engine",str(ENGINE if engine is None else engine),
-                    "--source-root",str(SOURCE if source is None else source),
+                    "--engine",str(original_fixture.ENGINE if engine is None else engine),
+                    "--source-root",str(original_fixture.SOURCE if source is None else source),
                 ])
             if action in ("restore","resume"):
                 args.extend([
