@@ -1,0 +1,129 @@
+name: NORDOI APP-008 real conditional AI agent workflow
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app008_conditional_workflow/**'
+      - '.github/workflows/nordoi_app008_conditional_workflow.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: 3d1da54a1539d34f03de4be94daf3b00f78ec9f1
+jobs:
+  agent-workflow-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact-head C20 and no-human RoadMapGuardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build true offline Rust NORDOI CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Thirty-three APP008 real conditional workflows and negative tests
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned native replay tests
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 JSONL batch tests
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 native JSON tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 JSON tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 integrated Rust tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 native rule bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Real conditional three-step workflow and authentic published file evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          repo=pathlib.Path.cwd()
+          evidence=pathlib.Path(sys.argv[1])/"NORDOI_APP008_REAL_WORKFLOW"
+          evidence.mkdir(parents=True,exist_ok=True)
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          parent=evidence/"actual-native-jobs"
+          parent.mkdir()
+          plan=evidence/"real-conditional-workflow.json"
+          plan.write_text(json.dumps({"schema":"NORDOI_AGENT_WORKFLOW_V1","steps":[
+              {"key_code":73,"when":"always"},
+              {"key_code":59,"when":"if_previous_approved"},
+              {"key_code":60,"when":"if_previous_rejected"}]},separators=(",",":")))
+          sys.path.insert(0,str(repo/"examples/apps/app008_conditional_workflow"))
+          import run_app008 as workflow
+          cmd=[sys.executable,"-B",str(repo/"examples/apps/app008_conditional_workflow/run_app008.py"),
+              "--plan",str(plan),"--engine",str(engine),
+              "--source-root",str(source),"--grant-output-dir",str(parent),
+              "--expected-engine-sha256",workflow.pinned.engine_sha256(engine),
+              "--expected-source-sha256",workflow.pinned.source_tree_sha256(source)]
+          completed=subprocess.run(cmd,capture_output=True,cwd=repo,timeout=140)
+          evidence.joinpath("real-machine-receipts.jsonl").write_bytes(completed.stdout)
+          assert completed.returncode==0,completed.stderr.decode("utf-8","replace")
+          rows=[json.loads(line) for line in completed.stdout.decode().splitlines()]
+          assert [row["status"] for row in rows]==["COMMITTED"]*3,rows
+          assert [row["decision"] for row in rows]==[1,0,1],rows
+          for i,row in enumerate(rows,1):
+              checked=workflow.audit.verify_native_record(row["native_receipt"],i,parent)
+              assert checked["decision"]==row["decision"],checked
+          report={"schema":"NORDOI_APP008_REAL_EVIDENCE_V1",
+                  "status":"PASS","committed_jobs":3,"published_files":6,
+                  "native_receipts_sha256":hashlib.sha256(completed.stdout).hexdigest(),
+                  "authority":"EXPLICIT","human_testers":0,
+                  "production":"NOT_AUTHORIZED"}
+          evidence.joinpath("machine-audit.json").write_text(
+              json.dumps(report,sort_keys=True,separators=(",",":")))
+          print("APP008_REAL_CONDITIONAL_FLOW=PASS")
+          print("APP008_REAL_COMMITTED_JOBS=3")
+          print("APP008_REAL_PUBLISHED_FILES=6")
+          print("APP008_NETWORK=NONE")
+          PY
+      - name: Final exact-head C20 and protected governance gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP008_REAL_CONDITIONAL_WORKFLOW=PASS"
+          echo "APP008_HUMAN_TESTERS=0"
+          echo "APP008_NATIVE_RUNTIME=AUTHENTIC_RUST_P27"
+          echo "APP008_PRODUCTION=NOT_AUTHORIZED"
+          echo "APP008_MERGE=NONE"
+      - name: Archive genuine job files and original native receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP008_ACTUAL_AGENT_WORKFLOW_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP008_REAL_WORKFLOW/
+          retention-days: 30
+          if-no-files-found: warn
