@@ -189,7 +189,10 @@ def main(argv=None) -> int:
                    Path(args.source_root), args.expected_plan_sha256,
                    args.expected_prefix_sha256, args.expected_engine_sha256,
                    args.expected_source_sha256)
-    except pinned.Denied as e:
+    except (pinned.Denied, native_audit.AuditRejected) as e:
+        # APP-010 and APP-006 deliberately use AuditRejected for untrusted
+        # plan, JSONL and file input. Reject in the SAME machine contract,
+        # rather than leaking a traceback or claiming an effect occurred.
         emit({"schema": RESUME_ERROR, "status": "REJECTED",
               "error_code": e.code, "publication": "NOT_STARTED"}, b"\n")
         return 2
