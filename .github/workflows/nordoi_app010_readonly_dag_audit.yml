@@ -1,0 +1,163 @@
+name: NORDOI APP-010 real readonly native DAG audit for AI agents
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app010_readonly_dag_audit/**'
+      - '.github/workflows/nordoi_app010_readonly_dag_audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: c18b3ca7c0c2ae9ccc1dadbda127ec0367fd859c
+jobs:
+  real-readonly-dag-audit-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact C20 parent, source HEAD and unchanged RoadMapGuardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build genuine offline NORDOI Rust application binary for source fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty APP010 read-only independent DAG and tamper audits on real native evidence
+        run: python -B -m unittest discover -s examples/apps/app010_readonly_dag_audit -p test_app010.py -v
+      - name: Preserve forty APP009 native DAG dependency regression tests
+        run: python -B -m unittest discover -s examples/apps/app009_agent_dag -p test_app009.py -v
+      - name: Preserve thirty-three APP008 real conditional workflows
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned native proof replays
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 source-backed file audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 real native JSONL batches
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 native JSON request tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 JSON tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 imported Rust rule tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 rule bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 authentic file tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Real native full DAG, real skipped DAG and independent readonly audit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          repo=pathlib.Path.cwd()
+          evidence=pathlib.Path(sys.argv[1])/"NORDOI_APP010_REAL_NATIVE_EVIDENCE"
+          evidence.mkdir(parents=True,exist_ok=True)
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          sys.path.insert(0,str(repo/"examples/apps/app009_agent_dag"))
+          import run_app009 as native_dag
+          sys.path.insert(0,str(repo/"examples/apps/app010_readonly_dag_audit"))
+          import audit_app010 as auditor
+          for name,nodes,expected in (
+             ("complete",[
+                 {"key_code":73,"depends_on":[],"gate":"always"},
+                 {"key_code":59,"depends_on":[],"gate":"always"},
+                 {"key_code":60,"depends_on":[1,2],"gate":"all_committed"}
+              ],(3,0)),
+             ("one-skipped",[
+                 {"key_code":59,"depends_on":[],"gate":"always"},
+                 {"key_code":73,"depends_on":[1],"gate":"all_approved"},
+                 {"key_code":73,"depends_on":[],"gate":"always"}
+              ],(2,1)),
+          ):
+              root=evidence/name
+              root.mkdir()
+              plan=root/"plan.json"
+              plan.write_text(json.dumps({"schema":"NORDOI_AGENT_DAG_V1","nodes":nodes},
+                  separators=(",",":")),encoding="utf-8")
+              out=root/"published"
+              out.mkdir()
+              events=root/"native-events.jsonl"
+              native_cmd=[sys.executable,"-B",str(repo/"examples/apps/app009_agent_dag/run_app009.py"),
+                  "--plan",str(plan),"--engine",str(engine),
+                  "--source-root",str(source),"--grant-output-dir",str(out),
+                  "--expected-engine-sha256",native_dag.pinned.engine_sha256(engine),
+                  "--expected-source-sha256",native_dag.pinned.source_tree_sha256(source)]
+              native=subprocess.run(native_cmd,capture_output=True,cwd=repo,timeout=150)
+              events.write_bytes(native.stdout)
+              assert native.returncode==0,native.stderr.decode("utf-8","replace")
+              audit_cmd=[sys.executable,"-B",
+                  str(repo/"examples/apps/app010_readonly_dag_audit/audit_app010.py"),
+                  "--dag-root",str(out),"--plan",str(plan),
+                  "--events",str(events),
+                  "--expected-plan-sha256",hashlib.sha256(plan.read_bytes()).hexdigest()]
+              checked=subprocess.run(audit_cmd,capture_output=True,cwd=repo,timeout=30)
+              (root/"independent-readonly-audit.json").write_bytes(checked.stdout)
+              result=json.loads(checked.stdout.decode("utf-8"))
+              assert checked.returncode==0 and result["status"]=="PASS",result
+              assert (result["committed_jobs_verified"],result["skipped_nodes_verified"])==expected,result
+              assert result["p27_native_proof"]=="SHAPE_ONLY_NOT_CRYPTOGRAPHICALLY_RECOMPUTED"
+              print("APP010_NATIVE_DAG_"+name.upper()+"=PASS")
+          # Adversarial copy only: never modify real published files or native receipts.
+          original=evidence/"complete"
+          tampered=original/"tampered-event-copy.jsonl"
+          lines=[json.loads(x) for x in (original/"native-events.jsonl").read_text(encoding="utf-8").splitlines()]
+          lines[0]["decision"]=0 if lines[0]["decision"]==1 else 1
+          tampered.write_text("".join(json.dumps(x,separators=(",",":"))+"\n" for x in lines),
+              encoding="utf-8")
+          denied=subprocess.run([sys.executable,"-B",
+              str(repo/"examples/apps/app010_readonly_dag_audit/audit_app010.py"),
+              "--dag-root",str(original/"published"),
+              "--plan",str(original/"plan.json"),
+              "--events",str(tampered),
+              "--expected-plan-sha256",hashlib.sha256((original/"plan.json").read_bytes()).hexdigest()],
+              capture_output=True,cwd=repo,timeout=30)
+          verdict=json.loads(denied.stdout.decode("utf-8"))
+          assert denied.returncode==2 and verdict["error_code"]=="NATIVE_DECISION_CONTRADICTION",verdict
+          (original/"adversarial-rejection.json").write_bytes(denied.stdout)
+          print("APP010_REAL_NATIVE_DECISION_TAMPER_DETECTION=PASS")
+          print("APP010_NATIVE_RECEIPTS_CRYPTO_SIGNATURE=NOT_CLAIMED")
+          print("APP010_NO_HUMAN_TESTERS=PASS")
+          PY
+      - name: Preserve exact HEAD, zero-human Guardian and research-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP010_INDEPENDENT_DAG_CONSISTENCY=PASS"
+          echo "APP010_RUNTIME_EFFECTS=NONE"
+          echo "APP010_HUMAN_TESTERS=0"
+          echo "APP010_PRODUCTION=NOT_AUTHORIZED"
+          echo "APP010_MERGE=NONE"
+      - name: Archive genuine native DAGs and read-only audit findings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP010_REAL_NATIVE_READONLY_DAG_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP010_REAL_NATIVE_EVIDENCE/
+          retention-days: 30
+          if-no-files-found: warn
