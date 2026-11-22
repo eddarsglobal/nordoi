@@ -117,6 +117,13 @@ class ReadOnlyAgentDagAudit(unittest.TestCase):
                          hashlib.sha256(self.plan.read_bytes()).hexdigest())
         self.assertEqual(r["original_events_sha256"],
                          hashlib.sha256(self.events.read_bytes()).hexdigest())
+        # Test the authentic Windows CRLF transport on all four operating systems.
+        # The auditor must preserve exact raw bytes for its SHA-256 report.
+        normalized = self.events.read_bytes().replace(b"\r\n", b"\n")
+        self.events.write_bytes(normalized.replace(b"\n", b"\r\n"))
+        again = self.accepted()
+        self.assertEqual(again["original_events_sha256"],
+                         hashlib.sha256(self.events.read_bytes()).hexdigest())
 
     def test_04_audit_is_byte_deterministic(self):
         first, a = self.check()

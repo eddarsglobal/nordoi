@@ -93,6 +93,10 @@ def event_records(path: Path) -> tuple[list[dict], bytes]:
     require(lines[-1] == b"", "EVENTS_NOT_NEWLINE_TERMINATED")
     lines.pop()
     require(1 <= len(lines) <= MAX_NODES, "EVENT_LINE_COUNT_INVALID")
+    # Native Python stdout on Windows uses CRLF. Accept uniform LF or
+    # uniform CRLF, but never normalize the original bytes used in SHA-256.
+    if all(line.endswith(b"\r") for line in lines):
+        lines = [line[:-1] for line in lines]
     records = []
     for line in lines:
         require(bool(line) and b"\r" not in line, "EVENT_LINE_INVALID")
