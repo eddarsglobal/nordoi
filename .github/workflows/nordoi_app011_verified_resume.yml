@@ -1,0 +1,168 @@
+name: NORDOI APP-011 verified native DAG resume for AI agents
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app011_verified_resume/**'
+      - '.github/workflows/nordoi_app011_verified_resume.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: d3f038fbed15d5080281375acb00586c92a2ab36
+jobs:
+  real-verified-resume-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact C20 parent and no-human Guardian before any native tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build genuine NORDOI Rust executable offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty genuine APP011 safe checkpoint resume and tamper tests
+        run: python -B -m unittest discover -s examples/apps/app011_verified_resume -p test_app011.py -v
+      - name: Preserve forty APP010 real readonly audits
+        run: python -B -m unittest discover -s examples/apps/app010_readonly_dag_audit -p test_app010.py -v
+      - name: Preserve forty APP009 real dependency DAG tests
+        run: python -B -m unittest discover -s examples/apps/app009_agent_dag -p test_app009.py -v
+      - name: Preserve thirty-three APP008 real conditional workflows
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned native replay tests
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 independent readonly audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 real native JSONL batches
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 native JSON requests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 JSON receipts
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 imported Rust rules
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 native rule bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 genuine P2.7 file tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce source-backed original native files, real resumed suffix and independent final audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,shutil,subprocess,sys
+          repo=pathlib.Path.cwd()
+          evidence=pathlib.Path(sys.argv[1])/"NORDOI_APP011_REAL_CHECKPOINT_RESUME"
+          evidence.mkdir(parents=True,exist_ok=True)
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          sys.path.insert(0,str(repo/"examples/apps/app011_verified_resume"))
+          import run_app011 as resumed
+          root=evidence/"native-published"
+          root.mkdir()
+          plan=evidence/"trusted-original-plan.json"
+          plan.write_text(json.dumps({"schema":"NORDOI_AGENT_DAG_V1","nodes":[
+             {"key_code":73,"depends_on":[],"gate":"always"},
+             {"key_code":59,"depends_on":[],"gate":"always"},
+             {"key_code":60,"depends_on":[1,2],"gate":"all_committed"},
+             {"key_code":80,"depends_on":[3],"gate":"all_approved"}]},
+             separators=(",",":")),encoding="utf-8")
+          original=subprocess.run([sys.executable,"-B",
+             str(repo/"examples/apps/app009_agent_dag/run_app009.py"),
+             "--plan",str(plan),"--engine",str(engine),"--source-root",str(source),
+             "--grant-output-dir",str(root),
+             "--expected-engine-sha256",resumed.pinned.engine_sha256(engine),
+             "--expected-source-sha256",resumed.pinned.source_tree_sha256(source)],
+             capture_output=True,cwd=repo,timeout=150)
+          assert original.returncode==0,original.stderr.decode("utf-8","replace")
+          lines=original.stdout.splitlines(keepends=True)
+          assert len(lines)==4
+          prefix=evidence/"real-native-committed-prefix.jsonl"
+          prefix.write_bytes(b"".join(lines[:2]))
+          (evidence/"original-all-native-events.jsonl").write_bytes(original.stdout)
+          shutil.rmtree(root/"job-0003")
+          shutil.rmtree(root/"job-0004")
+          originals={}
+          for job in (root/"job-0001",root/"job-0002"):
+              for f in job.rglob("*"):
+                  if f.is_file():
+                      originals[f.relative_to(root).as_posix()]=hashlib.sha256(f.read_bytes()).hexdigest()
+          cmd=[sys.executable,"-B",
+             str(repo/"examples/apps/app011_verified_resume/run_app011.py"),
+             "--plan",str(plan),"--prefix-events",str(prefix),
+             "--grant-output-dir",str(root),
+             "--engine",str(engine),"--source-root",str(source),
+             "--expected-plan-sha256",hashlib.sha256(plan.read_bytes()).hexdigest(),
+             "--expected-prefix-sha256",hashlib.sha256(prefix.read_bytes()).hexdigest(),
+             "--expected-engine-sha256",resumed.pinned.engine_sha256(engine),
+             "--expected-source-sha256",resumed.pinned.source_tree_sha256(source)]
+          executed=subprocess.run(cmd,capture_output=True,cwd=repo,timeout=155)
+          (evidence/"authentic-resumed-suffix.jsonl").write_bytes(executed.stdout)
+          assert executed.returncode==0,executed.stderr.decode("utf-8","replace")
+          suffix=[json.loads(x) for x in executed.stdout.splitlines()]
+          assert [x["status"] for x in suffix]==["COMMITTED","COMMITTED"],suffix
+          assert [x["step"] for x in suffix]==[3,4],suffix
+          for path,oldhash in originals.items():
+              assert hashlib.sha256((root/path).read_bytes()).hexdigest()==oldhash,path
+          merged=evidence/"verified-complete-events.jsonl"
+          merged.write_bytes(prefix.read_bytes()+executed.stdout)
+          full,exit_code=resumed.independent.audit(root,plan,merged,hashlib.sha256(plan.read_bytes()).hexdigest())
+          assert exit_code==0 and full["status"]=="PASS",full
+          assert full["committed_jobs_verified"]==4 and full["events_checked"]==4,full
+          (evidence/"independent-complete-audit.json").write_text(
+              json.dumps(full,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          # Idempotence is denied, never overwrites existing resumed tasks.
+          replay=subprocess.run(cmd,capture_output=True,cwd=repo,timeout=30)
+          check=json.loads(replay.stdout.decode("utf-8"))
+          assert replay.returncode==2 and check["status"]=="REJECTED",check
+          assert check["error_code"]=="HISTORY_ROOT_UNEXPECTED_JOB_OR_FILE",check
+          (evidence/"refused-duplicate-resume.json").write_bytes(replay.stdout)
+          print("APP011_REAL_NATIVE_VERIFIED_RESUME=PASS")
+          print("APP011_HISTORICAL_NATIVE_JOBS_PRESERVED=2")
+          print("APP011_RESUMED_NATIVE_JOBS=2")
+          print("APP011_INDEPENDENT_FINAL_AUDIT=PASS")
+          print("APP011_DUPLICATE_RESUME_DENIED=PASS")
+          print("APP011_EXTERNAL_CRYPTO_SIGNATURE=NOT_CLAIMED")
+          PY
+      - name: Final C20 Guardian, read only historical data, no human nor production
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP011_NATIVE_RESUME_RESEARCH=PASS"
+          echo "APP011_PREVIOUS_JOBS_OVERWRITE=DENIED"
+          echo "APP011_HUMAN_TESTERS=0"
+          echo "APP011_MERGE=NONE"
+          echo "APP011_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive real native original, continuation and auditable proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP011_NATIVE_VERIFIED_RESUME_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP011_REAL_CHECKPOINT_RESUME/
+          retention-days: 30
+          if-no-files-found: warn
