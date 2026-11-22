@@ -144,7 +144,7 @@ class IndependentPinnedNativeReplay(unittest.TestCase):
         current=rules.read_text(encoding="utf-8")
         self.assertIn("score >= 60",current)
         if broken:
-            current=current.replace("else { 0 }","else { 2 }")
+            current="this is not valid Nordoi source syntax ???\n"
         else:
             current=current.replace("score >= 60","score >= 1000")
         rules.write_text(current,encoding="utf-8")
@@ -332,7 +332,7 @@ class IndependentPinnedNativeReplay(unittest.TestCase):
         self.assertEqual(self.native_files(self.restored),prior)
 
     def test_38_resume_missing_historical_restore_rejected(self):
-        self.rejected("ROOT_UNEXPECTED_JOB_OR_FILE","resume-replay")
+        self.rejected("MISSING_OR_SYMLINKED_JOB_DIRECTORY","resume-replay")
         self.assertFalse((self.restored/"job-0003").exists())
 
     def test_39_changed_restored_historical_file_blocks_qualified_resume(self):
