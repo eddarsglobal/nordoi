@@ -1,0 +1,174 @@
+name: NORDOI APP-012 deliberate clean native DAG checkpoint
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app012_clean_checkpoint/**'
+      - '.github/workflows/nordoi_app012_clean_checkpoint.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: 57207b8ce9481040743d8ae9acf6f314ae993190
+jobs:
+  native-clean-checkpoint-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact HEAD, C20 parent and AI-only RoadMapGuardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build the genuine NORDOI Rust native engine offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty APP012 real clean-checkpoint and adversarial tests
+        run: python -B -m unittest discover -s examples/apps/app012_clean_checkpoint -p test_app012.py -v
+      - name: Preserve forty APP011 source-backed real DAG resume tests
+        run: python -B -m unittest discover -s examples/apps/app011_verified_resume -p test_app011.py -v
+      - name: Preserve forty APP010 independent readonly DAG audits
+        run: python -B -m unittest discover -s examples/apps/app010_readonly_dag_audit -p test_app010.py -v
+      - name: Preserve forty APP009 genuine native DAG tests
+        run: python -B -m unittest discover -s examples/apps/app009_agent_dag -p test_app009.py -v
+      - name: Preserve thirty-three APP008 native conditional workflows
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned native replays
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 readonly file audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 authentic JSONL batches
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 genuine Rust native JSON requests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 real JSON receipts
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 imported native Rust rule tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 genuine native rule tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 actual P2.7 publication tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce real two-job pause then resume without any synthetic deleted job
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          repo=pathlib.Path.cwd()
+          ev=pathlib.Path(sys.argv[1])/"NORDOI_APP012_REAL_CLEAN_CHECKPOINT"
+          ev.mkdir(parents=True,exist_ok=True)
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          sys.path.insert(0,str(repo/"examples/apps/app012_clean_checkpoint"))
+          import run_app012 as paused
+          sys.path.insert(0,str(repo/"examples/apps/app011_verified_resume"))
+          import run_app011 as resumed
+          original_plan=ev/"original-dag.json"
+          original_plan.write_text(json.dumps({"schema":"NORDOI_AGENT_DAG_V1","nodes":[
+              {"key_code":73,"depends_on":[],"gate":"always"},
+              {"key_code":59,"depends_on":[],"gate":"always"},
+              {"key_code":60,"depends_on":[1,2],"gate":"all_committed"},
+              {"key_code":80,"depends_on":[3],"gate":"all_approved"}]},
+              separators=(",",":")),encoding="utf-8")
+          digest=hashlib.sha256(original_plan.read_bytes()).hexdigest()
+          native_root=ev/"authentic-p27-native-jobs"
+          native_root.mkdir()
+          common=["--plan",str(original_plan),"--engine",str(engine),
+              "--source-root",str(source),"--grant-output-dir",str(native_root),
+              "--expected-plan-sha256",digest,
+              "--expected-engine-sha256",paused.pinned.engine_sha256(engine),
+              "--expected-source-sha256",paused.pinned.source_tree_sha256(source)]
+          original=subprocess.run([sys.executable,"-B",
+              str(repo/"examples/apps/app012_clean_checkpoint/run_app012.py"),
+              *common,"--stop-after","2"],cwd=repo,capture_output=True,timeout=150)
+          prefix=ev/"authentic-native-clean-prefix.jsonl"
+          prefix.write_bytes(original.stdout)
+          assert original.returncode==0,original.stderr.decode("utf-8","replace")
+          starts=[json.loads(x) for x in original.stdout.splitlines()]
+          assert len(starts)==2 and all(x["status"]=="COMMITTED" for x in starts),starts
+          assert sorted(x.name for x in native_root.iterdir())==["job-0001","job-0002"]
+          from audit_app010 import audit as independent_audit
+          paused_report,paused_exit=independent_audit(native_root,original_plan,prefix,digest)
+          assert paused_exit==3 and paused_report["status"]=="INCONCLUSIVE",paused_report
+          assert paused_report["committed_jobs_verified"]==2
+          (ev/"clean-prefix-readonly-audit.json").write_text(
+              json.dumps(paused_report,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          initial_hashes={p.relative_to(native_root).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in native_root.rglob("*") if p.is_file()}
+          resume_cmd=[sys.executable,"-B",str(repo/"examples/apps/app011_verified_resume/run_app011.py"),
+              "--plan",str(original_plan),"--prefix-events",str(prefix),
+              "--grant-output-dir",str(native_root),
+              "--engine",str(engine),"--source-root",str(source),
+              "--expected-plan-sha256",digest,
+              "--expected-prefix-sha256",hashlib.sha256(original.stdout).hexdigest(),
+              "--expected-engine-sha256",paused.pinned.engine_sha256(engine),
+              "--expected-source-sha256",paused.pinned.source_tree_sha256(source)]
+          continued=subprocess.run(resume_cmd,cwd=repo,capture_output=True,timeout=150)
+          (ev/"authentic-native-resumed-suffix.jsonl").write_bytes(continued.stdout)
+          assert continued.returncode==0,continued.stderr.decode("utf-8","replace")
+          suffix=[json.loads(x) for x in continued.stdout.splitlines()]
+          assert [x["status"] for x in suffix]==["COMMITTED","COMMITTED"],suffix
+          assert [x["step"] for x in suffix]==[3,4],suffix
+          for name,oldhash in initial_hashes.items():
+              assert hashlib.sha256((native_root/name).read_bytes()).hexdigest()==oldhash,name
+          complete=ev/"full-native-events-exact-concatenation.jsonl"
+          complete.write_bytes(original.stdout+continued.stdout)
+          result,code=independent_audit(native_root,original_plan,complete,digest)
+          assert code==0 and result["status"]=="PASS",result
+          assert result["committed_jobs_verified"]==4 and result["events_checked"]==4
+          (ev/"full-independent-audit.json").write_text(
+              json.dumps(result,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          replay=subprocess.run(resume_cmd,cwd=repo,capture_output=True,timeout=30)
+          denied=json.loads(replay.stdout.decode("utf-8"))
+          assert replay.returncode==2 and denied["error_code"]=="HISTORY_ROOT_UNEXPECTED_JOB_OR_FILE",denied
+          (ev/"duplicate-resume-denied.json").write_bytes(replay.stdout)
+          print("APP012_REAL_STOP_AFTER_TWO=PASS")
+          print("APP012_NO_FUTURE_JOB_BEFORE_RESUME=PASS")
+          print("APP012_REAL_PREFIX_APP010_STATUS=INCONCLUSIVE_EXPECTED")
+          print("APP012_NATIVE_RESUMPTION_APP011=PASS")
+          print("APP012_HISTORICAL_FILES_PRESERVED=PASS")
+          print("APP012_FULL_DAG_APP010_AUDIT=PASS")
+          print("APP012_DUPLICATE_RESUME_REJECTED=PASS")
+          print("APP012_HUMAN_TESTERS=0")
+          PY
+      - name: Final exact HEAD and no-human RoadMapGuardian; no privileged activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP012_NATIVE_CLEAN_CHECKPOINT_RESEARCH=PASS"
+          echo "APP012_TRUE_NATIVE_PREFIX_NOT_SYNTHETIC=PASS"
+          echo "APP012_HUMAN_TESTERS=0"
+          echo "APP012_PRODUCTION=NOT_AUTHORIZED"
+          echo "APP012_MERGE=NONE"
+      - name: Archive actual native checkpoint, source-backed receipts and final proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP012_ACTUAL_NATIVE_CHECKPOINT_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP012_REAL_CLEAN_CHECKPOINT/
+          retention-days: 30
+          if-no-files-found: warn
