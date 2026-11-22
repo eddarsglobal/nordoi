@@ -1,0 +1,122 @@
+name: NORDOI APP-007 pinned native proof replay for AI agents
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app007_pinned_replay/**'
+      - '.github/workflows/nordoi_app007_pinned_replay.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: eaaf334dc742ad957ca33d9507f65bec8f896386
+jobs:
+  pinned-native-replay-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact-head C20, RoadMapGuardian and AI-only policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build actual offline NORDOI Rust engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Twenty-four APP007 native proof replay and tamper tests
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 real read-only adversarial audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 native JSONL tests
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 native JSON request tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 JSON tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 tests
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Real three-job APP005 output and APP007 pinned replay evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib, json, os, pathlib, subprocess, sys
+          repo=pathlib.Path.cwd()
+          evidence=pathlib.Path(sys.argv[1])/"NORDOI_APP007_NATIVE_EVIDENCE"
+          evidence.mkdir(parents=True,exist_ok=True)
+          root=evidence/"actual-native-batch"
+          root.mkdir()
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          requests=evidence/"original-requests.jsonl"
+          raw=b"".join(json.dumps({"schema":"NORDOI_AGENT_REQUEST_V1","key_code":v},
+              separators=(",",":")).encode()+b"\n" for v in (73,59,60))
+          requests.write_bytes(raw)
+          proc=subprocess.run([str(engine),"agent-batch-jsonl",str(source),"app.main",
+              "--grant-output-dir",str(root)],input=raw,capture_output=True,
+              timeout=120,cwd=repo)
+          assert proc.returncode==0,proc.stderr.decode(errors="replace")
+          receipts=evidence/"original-native-receipts.jsonl"
+          receipts.write_bytes(proc.stdout)
+          sys.path.insert(0,str(repo/"examples/apps/app007_pinned_replay"))
+          import verify_app007 as v
+          check=subprocess.run([sys.executable,"-B",str(repo/"examples/apps/app007_pinned_replay/verify_app007.py"),
+              "--batch-root",str(root),"--receipts",str(receipts),
+              "--requests",str(requests),"--engine",str(engine),"--source-root",str(source),
+              "--expected-engine-sha256",v.engine_sha256(engine),
+              "--expected-source-sha256",v.source_tree_sha256(source),
+              "--expected-requests-sha256",hashlib.sha256(raw).hexdigest()],
+              capture_output=True,timeout=140,cwd=repo)
+          evidence.joinpath("pinned-native-replay.json").write_bytes(check.stdout)
+          report=json.loads(check.stdout)
+          assert check.returncode==0 and report["status"]=="PASS",report
+          assert report["jobs_replayed"]==3 and report["files_replayed"]==6,report
+          print("APP007_REAL_NATIVE_V13_P27_REPRODUCTION=PASS")
+          print("APP007_REAL_JOBS=3")
+          print("APP007_REAL_PUBLISHED_FILES=6")
+          print("APP007_INDEPENDENT_SIGNER=NOT_CLAIMED")
+          PY
+      - name: Final exact-HEAD Guardian, machine-only and research-scope checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP007_REPLAY_NATIVE_V13_P27=PASS"
+          echo "APP007_NO_HUMAN_TESTERS=PASS"
+          echo "APP007_EXTERNAL_CRYPTO_AUTHORITY=NOT_CLAIMED"
+          echo "APP007_MERGE=NONE"
+          echo "APP007_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive original native and reproduced evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP007_PINNED_REPLAY_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP007_NATIVE_EVIDENCE/
+          retention-days: 30
+          if-no-files-found: warn
