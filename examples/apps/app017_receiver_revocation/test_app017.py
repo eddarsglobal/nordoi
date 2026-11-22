@@ -18,6 +18,8 @@ import unittest
 sys.dont_write_bytecode = True
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
+ENGINE = REPO / "target/debug" / ("nordoi.exe" if sys.platform == "win32" else "nordoi")
+SOURCE = REPO / "examples/apps/app003_integrated_quality/src"
 sys.path.insert(0, str(HERE))
 import roster_app017 as roster
 
@@ -86,8 +88,8 @@ class ReceiverRevocationRoster(unittest.TestCase):
             ])
         if action in ("verify","restore","resume"):
             cmd.extend([
-                "--engine", str(self.fx.engine if engine is None else engine),
-                "--source-root", str(self.fx.source if source is None else source),
+                "--engine", str(ENGINE if engine is None else engine),
+                "--source-root", str(SOURCE if source is None else source),
             ])
         if action in ("restore","resume"):
             cmd.extend(["--restore-root",str(self.fx.dest if dest is None else dest)])
