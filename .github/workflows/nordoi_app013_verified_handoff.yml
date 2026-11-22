@@ -1,0 +1,204 @@
+name: NORDOI APP-013 verified inter-agent native checkpoint handoff
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app013_verified_handoff/**'
+      - '.github/workflows/nordoi_app013_verified_handoff.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: 32e81d21cf5232c0d1de2e9be3df564cbf55241e
+jobs:
+  native-agent-checkpoint-handoff-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact C20 parent, source head and AI-only Guardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build genuine NORDOI native Rust engine offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty APP013 real sealed checkpoint and adversarial transfer tests
+        run: python -B -m unittest discover -s examples/apps/app013_verified_handoff -p test_app013.py -v
+      - name: Preserve forty APP012 genuine native clean checkpoints
+        run: python -B -m unittest discover -s examples/apps/app012_clean_checkpoint -p test_app012.py -v
+      - name: Preserve forty APP011 verified native checkpoint resumptions
+        run: python -B -m unittest discover -s examples/apps/app011_verified_resume -p test_app011.py -v
+      - name: Preserve forty APP010 independent read-only DAG audits
+        run: python -B -m unittest discover -s examples/apps/app010_readonly_dag_audit -p test_app010.py -v
+      - name: Preserve forty APP009 genuine native DAG graphs
+        run: python -B -m unittest discover -s examples/apps/app009_agent_dag -p test_app009.py -v
+      - name: Preserve thirty-three APP008 native conditional workflows
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned independent native replays
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 native file audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 native JSONL batches
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 native JSON requests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 native JSON receipts
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 native imported Rust rules
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 native rule bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 genuine P2.7 file tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce genuine APP012 then APP013 sealed/verified handoff and APP011 resume
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,shutil,subprocess,sys
+          repo=pathlib.Path.cwd()
+          evidence=pathlib.Path(sys.argv[1])/"NORDOI_APP013_REAL_NATIVE_HANDOFF"
+          evidence.mkdir(parents=True,exist_ok=True)
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          sys.path.insert(0,str(repo/"examples/apps/app013_verified_handoff"))
+          import handoff_app013 as handoff
+          sys.path.insert(0,str(repo/"examples/apps/app012_clean_checkpoint"))
+          import run_app012 as checkpoint
+          native=evidence/"native-real-p27-files"
+          native.mkdir()
+          plan=evidence/"original-plan.json"
+          plan.write_text(json.dumps({"schema":"NORDOI_AGENT_DAG_V1","nodes":[
+            {"key_code":73,"depends_on":[],"gate":"always"},
+            {"key_code":59,"depends_on":[],"gate":"always"},
+            {"key_code":60,"depends_on":[1,2],"gate":"all_committed"},
+            {"key_code":80,"depends_on":[3],"gate":"all_approved"}]},
+            separators=(",",":")),encoding="utf-8")
+          plan_pin=hashlib.sha256(plan.read_bytes()).hexdigest()
+          exe_pin=checkpoint.pinned.engine_sha256(engine)
+          src_pin=checkpoint.pinned.source_tree_sha256(source)
+          produced=subprocess.run([sys.executable,"-B",
+            str(repo/"examples/apps/app012_clean_checkpoint/run_app012.py"),
+            "--plan",str(plan),"--engine",str(engine),
+            "--source-root",str(source),"--grant-output-dir",str(native),
+            "--expected-plan-sha256",plan_pin,
+            "--expected-engine-sha256",exe_pin,
+            "--expected-source-sha256",src_pin,
+            "--stop-after","2"],capture_output=True,cwd=repo,timeout=150)
+          assert produced.returncode==0,produced.stderr.decode("utf-8","replace")
+          prefix=evidence/"authentic-original-native-prefix.jsonl"
+          prefix.write_bytes(produced.stdout)
+          assert len(produced.stdout.splitlines())==2
+          assert sorted(x.name for x in native.iterdir())==["job-0001","job-0002"]
+          bundle=evidence/"sealed-agent-handoff"
+          base=[sys.executable,"-B",
+                str(repo/"examples/apps/app013_verified_handoff/handoff_app013.py")]
+          sealed=subprocess.run(base+["seal",
+             "--bundle-dir",str(bundle),"--native-root",str(native),
+             "--plan",str(plan),"--prefix-events",str(prefix),
+             "--expected-plan-sha256",plan_pin],
+             capture_output=True,cwd=repo,timeout=30)
+          assert sealed.returncode==0,sealed.stderr.decode("utf-8","replace")
+          record=json.loads(sealed.stdout.decode("utf-8"))
+          assert record["status"]=="SEALED" and record["native_jobs_verified"]==2
+          seal_sha=record["manifest_sha256"]
+          (evidence/"seal-verdict-untrusted-origin.json").write_bytes(sealed.stdout)
+          (evidence/"external-observed-seal-sha256.txt").write_text(seal_sha+"\n")
+          verified=subprocess.run(base+["verify",
+             "--bundle-dir",str(bundle),"--native-root",str(native),
+             "--expected-seal-sha256",seal_sha],
+             capture_output=True,cwd=repo,timeout=30)
+          verdict=json.loads(verified.stdout.decode("utf-8"))
+          assert verified.returncode==0 and verdict["status"]=="VERIFIED",verdict
+          (evidence/"independent-handoff-verification.json").write_bytes(verified.stdout)
+          history={p.relative_to(native).as_posix():hashlib.sha256(p.read_bytes()).hexdigest()
+              for p in native.rglob("*") if p.is_file()}
+          to_resume=base+["resume",
+             "--bundle-dir",str(bundle),"--native-root",str(native),
+             "--expected-seal-sha256",seal_sha,
+             "--engine",str(engine),"--source-root",str(source),
+             "--expected-engine-sha256",exe_pin,
+             "--expected-source-sha256",src_pin]
+          native_run=subprocess.run(to_resume,capture_output=True,cwd=repo,timeout=150)
+          (evidence/"native-only-resumed-suffix.jsonl").write_bytes(native_run.stdout)
+          assert native_run.returncode==0,native_run.stderr.decode("utf-8","replace")
+          rows=[json.loads(x) for x in native_run.stdout.splitlines()]
+          assert [x["status"] for x in rows]==["COMMITTED","COMMITTED"],rows
+          assert [x["step"] for x in rows]==[3,4],rows
+          for name,pin in history.items():
+              assert hashlib.sha256((native/name).read_bytes()).hexdigest()==pin,name
+          full=evidence/"combined-original-native-dag.jsonl"
+          full.write_bytes(produced.stdout+native_run.stdout)
+          result,code=handoff.independent.audit(native,plan,full,plan_pin)
+          assert code==0 and result["status"]=="PASS",result
+          assert result["committed_jobs_verified"]==4
+          (evidence/"full-readonly-dag-audit.json").write_text(
+             json.dumps(result,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          duplicate=subprocess.run(to_resume,capture_output=True,cwd=repo,timeout=30)
+          denied=json.loads(duplicate.stdout.decode("utf-8"))
+          assert duplicate.returncode==2 and denied["status"]=="REJECTED",denied
+          assert denied["error_code"]=="ROOT_UNEXPECTED_JOB_OR_FILE",denied
+          (evidence/"replay-rejected.json").write_bytes(duplicate.stdout)
+          # Tampered manifest copy: changed source is never accepted with old pin.
+          altered=evidence/"forged-handoff"
+          shutil.copytree(bundle,altered)
+          path=altered/"manifest.json"
+          path.write_bytes(path.read_bytes()+b"forged")
+          tampered=subprocess.run(base+["verify",
+             "--bundle-dir",str(altered),"--native-root",str(native),
+             "--expected-seal-sha256",seal_sha],
+             capture_output=True,cwd=repo,timeout=30)
+          changed=json.loads(tampered.stdout.decode("utf-8"))
+          assert tampered.returncode==2 and changed["error_code"]=="HANDOFF_SEAL_PIN_MISMATCH",changed
+          (evidence/"adversarial-fake-manifest-denied.json").write_bytes(tampered.stdout)
+          print("APP013_REAL_APP012_CHECKPOINT=PASS")
+          print("APP013_NATIVE_HANDOFF_SEAL=PASS")
+          print("APP013_READONLY_VERIFICATION=PASS")
+          print("APP013_RESUME_APP011_NATIVE=PASS")
+          print("APP013_ORIGINAL_NATIVE_FILES_PRESERVED=PASS")
+          print("APP013_APP010_FINAL_DAG_AUDIT=PASS")
+          print("APP013_DUPLICATE_RESUME_DENIED=PASS")
+          print("APP013_FORGED_MANIFEST_DENIED=PASS")
+          print("APP013_EXTERNAL_AUTHENTICATION=NOT_PERFORMED")
+          print("APP013_HUMAN_TESTERS=0")
+          PY
+      - name: Verify immutable source HEAD and no-human RoadMapGuardian boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP013_REAL_NATIVE_AGENT_HANDOFF=PASS"
+          echo "APP013_PR_MERGE=NONE"
+          echo "APP013_PRODUCTION=NOT_AUTHORIZED"
+          echo "APP013_HUMAN_TESTERS=0"
+      - name: Archive authentic native checkpoint, handoff and adversarial proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP013_NATIVE_HANDOFF_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP013_REAL_NATIVE_HANDOFF/
+          retention-days: 30
+          if-no-files-found: warn
