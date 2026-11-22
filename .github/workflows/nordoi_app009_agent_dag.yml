@@ -1,0 +1,133 @@
+name: NORDOI APP-009 real bounded agent dependency DAG
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app009_agent_dag/**'
+      - '.github/workflows/nordoi_app009_agent_dag.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: e15eb88d6e67652f3206d423d4a4b7d83ae8cd3e
+jobs:
+  real-agent-dag-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: C20 exact-head and unchanged RoadMapGuardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build authentic offline Rust NORDOI engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Forty native APP009 DAG joins and adversarial preflight tests
+        run: python -B -m unittest discover -s examples/apps/app009_agent_dag -p test_app009.py -v
+      - name: Preserve thirty-three APP008 real conditional workflows
+        run: python -B -m unittest discover -s examples/apps/app008_conditional_workflow -p test_app008.py -v
+      - name: Preserve twenty-four APP007 pinned native proof replays
+        run: python -B -m unittest discover -s examples/apps/app007_pinned_replay -p test_app007.py -v
+      - name: Preserve forty APP006 independent read-only audits
+        run: python -B -m unittest discover -s examples/apps/app006_readonly_audit -p test_app006.py -v
+      - name: Preserve forty APP005 native bounded JSONL batches
+        run: python -B -m unittest discover -s examples/apps/app005_agent_batch -p test_app005.py -v
+      - name: Preserve forty APP004-R2 native request JSON tests
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_agent_request.py -v
+      - name: Preserve thirty-one APP004-R1 native JSON receipts
+        run: python -B -m unittest discover -s examples/apps/app004_agent_json -p test_app004.py -v
+      - name: Preserve thirty-eight APP003 imported real Rust rules
+        run: python -B -m unittest discover -s examples/apps/app003_integrated_quality -p test_app003.py -v
+      - name: Preserve twenty-six APP002 real native rule bridge tests
+        run: python -B -m unittest discover -s examples/apps/app002_rule_bundle -p test_app002.py -v
+      - name: Preserve sixteen APP001 authentic P2.7 file tests
+        run: python -B -m unittest discover -s examples/apps/app001_quality_gate -p test_app001.py -v
+      - name: Produce real three-node dependency join, native receipts and disk artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B - "$RUNNER_TEMP" <<'PY'
+          import hashlib,json,os,pathlib,subprocess,sys
+          repo=pathlib.Path.cwd()
+          evidence=pathlib.Path(sys.argv[1])/"NORDOI_APP009_REAL_DAG"
+          evidence.mkdir(parents=True,exist_ok=True)
+          source=repo/"examples/apps/app003_integrated_quality/src"
+          engine=repo/"target/debug"/("nordoi.exe" if os.name=="nt" else "nordoi")
+          root=evidence/"actual-native-bundles"
+          root.mkdir()
+          plan=evidence/"original-agent-dag.json"
+          plan.write_text(json.dumps({"schema":"NORDOI_AGENT_DAG_V1","nodes":[
+              {"key_code":73,"depends_on":[],"gate":"always"},
+              {"key_code":59,"depends_on":[],"gate":"always"},
+              {"key_code":60,"depends_on":[1,2],"gate":"all_committed"}]},
+              separators=(",",":")),encoding="utf-8")
+          sys.path.insert(0,str(repo/"examples/apps/app009_agent_dag"))
+          import run_app009 as dag
+          cmd=[sys.executable,"-B",str(repo/"examples/apps/app009_agent_dag/run_app009.py"),
+               "--plan",str(plan),"--engine",str(engine),
+               "--source-root",str(source),"--grant-output-dir",str(root),
+               "--expected-engine-sha256",dag.pinned.engine_sha256(engine),
+               "--expected-source-sha256",dag.pinned.source_tree_sha256(source)]
+          proc=subprocess.run(cmd,capture_output=True,cwd=repo,timeout=150)
+          evidence.joinpath("actual-native-dag-receipts.jsonl").write_bytes(proc.stdout)
+          assert proc.returncode==0,proc.stderr.decode("utf-8","replace")
+          rows=[json.loads(x) for x in proc.stdout.decode("utf-8").splitlines()]
+          assert len(rows)==3 and all(x["status"]=="COMMITTED" for x in rows),rows
+          assert [x["decision"] for x in rows]==[1,0,1],rows
+          assert rows[2]["depends_on"]==[1,2],rows
+          for i,row in enumerate(rows,1):
+              proof=dag.audit.verify_native_record(row["native_receipt"],i,root)
+              assert proof["decision"]==row["decision"],proof
+          summary={"schema":"NORDOI_APP009_ACTUAL_DAG_EVIDENCE_V1",
+                   "status":"PASS","native_jobs":3,"actual_p27_files":6,
+                   "sha256_native_receipts":hashlib.sha256(proc.stdout).hexdigest(),
+                   "sha256_plan":hashlib.sha256(plan.read_bytes()).hexdigest(),
+                   "human_testers":0,"external_authority":"NOT_ATTESTED",
+                   "production":"NOT_AUTHORIZED"}
+          (evidence/"actual-dag-audit.json").write_text(
+              json.dumps(summary,sort_keys=True,separators=(",",":")),encoding="utf-8")
+          print("APP009_REAL_NATIVE_DEPENDENCY_DAG=PASS")
+          print("APP009_NATIVE_JOBS=3")
+          print("APP009_NATIVE_P27_FILES=6")
+          print("APP009_HUMAN_TESTERS=0")
+          PY
+      - name: Final exact-head C20 and zero-human governance gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test -z "$(git status --porcelain)"
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "APP009_NATIVE_DAG_RESEARCH_TEST=PASS"
+          echo "APP009_HUMAN_TESTERS=0"
+          echo "APP009_MERGE=NONE"
+          echo "APP009_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive actual native source-backed DAG evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP009_AUTHENTIC_NATIVE_DAG_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP009_REAL_DAG/
+          retention-days: 30
+          if-no-files-found: warn
