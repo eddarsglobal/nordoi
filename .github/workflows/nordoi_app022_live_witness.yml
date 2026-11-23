@@ -13,7 +13,7 @@ env:
   EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
   C20_PARENT: 9f18af45ff64695137e8e7c8d0874034803b521b
 jobs:
-  authority-rotation-four-os:
+  freshness-witness-four-os:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
@@ -110,11 +110,11 @@ jobs:
           set -euo pipefail
           python -B examples/apps/app022_live_freshness_witness/demo_app022.py \
             "$RUNNER_TEMP/NORDOI_APP022_LIVE_WITNESS_PROOFS" \
-            2>&1 | tee "$RUNNER_TEMP/NORDOI_APP022_EXTERNAL_HEAD_PROOFS/demo.log"
+            2>&1 | tee "$RUNNER_TEMP/NORDOI_APP022_LIVE_WITNESS_PROOFS/demo.log"
       - name: Archive independently inspectable APP022 evidence for Bureau
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: NORDOI_APP022_EXTERNAL_HEAD_${{ matrix.os }}
-          path: ${{ runner.temp }}/NORDOI_APP022_EXTERNAL_HEAD_PROOFS/
+          name: NORDOI_APP022_LIVE_WITNESS_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP022_LIVE_WITNESS_PROOFS/
           retention-days: 30
