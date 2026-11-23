@@ -22,6 +22,7 @@ HERE=Path(__file__).resolve().parent
 REPO=HERE.parents[2]
 sys.path.insert(0,str(HERE.parent/"app021_authority_rotation"))
 import test_app021 as legacy
+baseline=legacy.baseline
 sys.path.insert(0,str(HERE))
 import receiver_app022 as receiver
 import witness_app022 as witness
