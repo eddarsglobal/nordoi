@@ -336,9 +336,11 @@ class SignedProvenance(unittest.TestCase):
     def test_34_old_complete_journal_and_old_valid_signature_pass_without_floor(self):
         oldroot = self.work / "original-complete-anchor"
         shutil.copytree(self.fx.root, oldroot)
+        old_statement = self.document.read_bytes()
+        old_signature = self.signature.read_bytes()
         self.rotated_signed()
-        self.statement = self.build_statement()
-        self.sign()  # genuinely signed original state
+        self.document.write_bytes(old_statement)
+        self.signature.write_bytes(old_signature)
         shutil.rmtree(self.fx.root)
         shutil.copytree(oldroot, self.fx.root)
         result = self.good()[1][0]
@@ -360,7 +362,7 @@ class SignedProvenance(unittest.TestCase):
     def test_37_statement_embedded_in_journal_is_refused(self):
         embedded = self.fx.root / "attacker.json"
         embedded.write_bytes(self.document.read_bytes())
-        self.refused("SSHSIG_TRUST_FILES_OVERLAP_UNTRUSTED_ROOT",
+        self.refused("ANCHOR_NOT_SEPARATE_FROM_UNTRUSTED_INPUT",
                      statement=embedded)
 
     def test_38_missing_sshsig_verifier_is_fail_closed(self):
