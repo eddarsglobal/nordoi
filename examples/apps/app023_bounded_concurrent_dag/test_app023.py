@@ -221,12 +221,23 @@ class NativeConcurrentDAG(unittest.TestCase):
         self.assertEqual(len(events),1)
         self.assertFalse(list(self.grant.iterdir()))
 
-    def test_23_no_source_or_engine_mutation(self):
-        before_source=self.source_pin
-        before_engine=self.engine_pin
-        self.good(["COMMITTED"]*3)
-        self.assertEqual(concurrent.pinned.engine_sha256(self.engine),before_engine)
-        self.assertEqual(concurrent.pinned.source_tree_sha256(self.source),before_source)
+    def test_23_real_native_failure_drains_wave_and_blocks_children(self):
+        # Same real-NORDOI failure used by APP-009 regression test 35,
+        # now with two genuine native tasks admitted concurrently.
+        self.source=self.root/"modified-noi-source"
+        shutil.copytree(SOURCE,self.source)
+        rule=self.source/"app/rules.noi"
+        previous=rule.read_text(encoding="utf-8")
+        self.assertIn("else { 0 }",previous)
+        rule.write_text(previous.replace("else { 0 }","else { 2 }"),
+                        encoding="utf-8")
+        self.source_pin=concurrent.pinned.source_tree_sha256(self.source)
+        process,events=self.run_cli(limit=2)
+        self.assertEqual(process.returncode,3,(events,process.stderr))
+        self.assertEqual([x["status"] for x in events],["COMMITTED","ERROR"])
+        self.assertEqual(events[1]["publication"],"UNKNOWN")
+        self.assertTrue((self.grant/"job-0001/quality-decision/report.txt").is_file())
+        self.assertFalse((self.grant/"job-0003").exists())
 
     def test_24_max_two_worker_limit_checked_before_launch(self):
         # Direct Python public entry rejects bypass of CLI validation.
