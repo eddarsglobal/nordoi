@@ -16,6 +16,7 @@ import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import socketserver
 import re
 import shutil
 import subprocess
@@ -68,6 +69,19 @@ def state_from_disk(path: Path) -> tuple[dict,bytes]:
 class Witness(ThreadingHTTPServer):
     daemon_threads = True
     allow_reuse_address = False
+
+    def server_bind(self):
+        """Bind numeric loopback without HTTPServer's reverse DNS getfqdn().
+
+        On macOS CI, synchronous 127.0.0.1 reverse DNS can block a witness
+        process before it is listening. We never need a hostname here:
+        NORDOI only authorizes the exact numeric 127.0.0.1 endpoint.
+        """
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = "127.0.0.1"
+        self.server_port = self.server_address[1]
+        check(self.server_address[0] == "127.0.0.1",
+              "WITNESS_NON_LOOPBACK_BIND_REFUSED")
 
     def __init__(self, state_file:Path, private_key:Path, port:int):
         self.state_file=state_file
