@@ -63,6 +63,8 @@ def witness_pubkey(args,root):
     require(args.witness_public_key is not None,
             "WITNESS_PUBLIC_KEY_REQUIRED")
     path=Path(args.witness_public_key)
+    require(path.is_file() and not path.is_symlink(),
+            "WITNESS_PUBLIC_KEY_NOT_REGULAR_BOUNDED")
     package=Path(args.portable_dir) if args.portable_dir else None
     dest=Path(args.restore_root) if args.restore_root else None
     signed.nonoverlap(root,package,dest,[path])
