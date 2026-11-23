@@ -23,6 +23,7 @@ HANDOFF = legacy.HANDOFF
 SOURCE = legacy.SOURCE
 ROLE_IDS = legacy.ROLE_IDS
 Blocked = legacy.Blocked
+deny_transition = legacy.deny_transition
 require = legacy.require
 read = legacy.read
 read_json = legacy.read_json
