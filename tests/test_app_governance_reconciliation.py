@@ -16,11 +16,12 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from scripts import roadmap_guardian as guard
+from scripts import app_research_guardian as guard
 
 FILES = (guard.PLAN, guard.HANDOFF, guard.SOURCE, guard.TRACK,
          "RoadMap.md", "Bureau.md", "CONSTITUTION.md",
-         "governance/future_native_gate_v1.tsv")
+         "governance/future_native_gate_v1.tsv", guard.EXTENSION,
+         guard.ROADMAP_DOC, guard.BUREAU_DOC)
 
 
 class AppGovernanceReconciliation(unittest.TestCase):
@@ -133,11 +134,11 @@ class AppGovernanceReconciliation(unittest.TestCase):
         self.refused()
 
     def test_19_plan_without_app_pointer_is_rejected(self):
-        self.edit(guard.PLAN, lambda d:d.pop("research_application_track"))
+        self.edit(guard.EXTENSION, lambda d:d.pop("register"))
         self.refused()
 
     def test_20_plan_app_order_mismatch_is_rejected(self):
-        self.edit(guard.PLAN, lambda d:d["research_application_track"].update(
+        self.edit(guard.EXTENSION, lambda d:d.update(
             ids_in_strict_c20_order=["APP-021","APP-020","APP-019","APP-018","APP-017","APP-016"]))
         self.refused()
 
@@ -151,7 +152,7 @@ class AppGovernanceReconciliation(unittest.TestCase):
         self.refused()
 
     def test_23_missing_roadmap_app_section_is_rejected(self):
-        p = self.root / "RoadMap.md"
+        p = self.root / guard.ROADMAP_DOC
         s = p.read_text("utf-8")
         p.write_text(s.split("## 7. Branche applicative IA")[0], "utf-8")
         self.refused()
