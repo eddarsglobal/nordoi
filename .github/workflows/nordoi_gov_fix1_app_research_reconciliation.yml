@@ -1,0 +1,127 @@
+name: NORDOI GOV-FIX1 RoadMap Bureau APP016-021 reconciliation and machine reviews
+on:
+  pull_request:
+    paths:
+      - 'RoadMap.md'
+      - 'Bureau.md'
+      - 'governance/NORDOI_BUREAU_PLAN_v1.json'
+      - 'governance/NORDOI_APP_RESEARCH_TRACK_V1.json'
+      - 'scripts/roadmap_guardian.py'
+      - 'scripts/app_governance_role_review.py'
+      - 'tests/test_roadmap_guardian.py'
+      - 'tests/test_app_governance_reconciliation.py'
+      - '.github/workflows/nordoi_gov_fix1_app_research_reconciliation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PREDECESSOR: 6e9c300922348d0ebab4318c7f9c2b4dd4cd76b4
+jobs:
+  bureau-nine-actual-machine-function-reviews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [ATLAS, FERRUM, BOUNDARY, CIPHER, LEDGER, CAPSTONE, ADVERSARY, VERITY, GUARDIAN]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin exact C20 HEAD and preserve Rust plus earlier APP implementations
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PREDECESSOR" HEAD
+          git diff --exit-code "$C20_PREDECESSOR" -- src/ examples/apps/ Cargo.toml Cargo.lock
+          test -z "$(git status --porcelain)"
+      - name: Read-only Guardian audit and specific machine function checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          python -B scripts/app_governance_role_review.py \
+            --role "${{ matrix.role }}" \
+            --proof-dir "$RUNNER_TEMP/NORDOI_GOV_FIX1_MACHINE_PROOFS"
+      - name: Archive executed machine evidence (NOT an independent AI reviewer)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_GOV_FIX1_MACHINE_${{ matrix.role }}
+          path: ${{ runner.temp }}/NORDOI_GOV_FIX1_MACHINE_PROOFS/
+          retention-days: 30
+
+  guardian-adversarial-reconciliation-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Pin exact governance source and preserve Rust plus APP code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PREDECESSOR" HEAD
+          git diff --exit-code "$C20_PREDECESSOR" -- src/ examples/apps/ Cargo.toml Cargo.lock
+          test -z "$(git status --porcelain)"
+      - name: Run 24 old Guardian regression tests plus 24 new adversarial checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROOFS="$RUNNER_TEMP/NORDOI_GOV_FIX1_GUARDIAN_PROOFS"
+          mkdir -p "$PROOFS"
+          python -B -m unittest discover -s tests -p test_roadmap_guardian.py -v \
+            2>&1 | tee "$PROOFS/guardian-original.log"
+          python -B -m unittest discover -s tests -p test_app_governance_reconciliation.py -v \
+            2>&1 | tee "$PROOFS/guardian-app-reconciliation.log"
+          python - "$PROOFS/guardian-original.log" "$PROOFS/guardian-app-reconciliation.log" <<'PY'
+          import pathlib,re,sys
+          total=0
+          for path in sys.argv[1:]:
+              s=pathlib.Path(path).read_text(encoding="utf-8")
+              nums=re.findall(r"^Ran (\d+) tests in ",s,re.MULTILINE)
+              assert len(nums)==1 and int(nums[0])==24,(path,nums)
+              assert re.search(r"^OK$",s,re.MULTILINE),s[-2000:]
+              assert not re.search(r"^FAILED(?: |$)",s,re.MULTILINE),s[-2000:]
+              total+=int(nums[0])
+          assert total==48,total
+          print("GOV_FIX1_GUARDIAN_REGRESSIONS_AND_NEGATIVE=48_OF_48_PASS")
+          PY
+      - name: Validate dual governance locks and source preservation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          echo "GOV_FIX1_APP_CODE=UNCHANGED"
+          echo "GOV_FIX1_APP022=LOCKED_BY_GOVERNANCE_REVIEW"
+          echo "GOV_FIX1_R6F=UNCERTIFIED"
+          echo "GOV_FIX1_R6G=LOCKED"
+          echo "GOV_FIX1_NATIVE_GATES=12_UNMET"
+          echo "GOV_FIX1_PRODUCTION=NOT_AUTHORIZED"
+      - name: Archive four-OS Guardian evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_GOV_FIX1_GUARDIAN_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_GOV_FIX1_GUARDIAN_PROOFS/
+          retention-days: 30
