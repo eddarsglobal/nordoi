@@ -79,7 +79,13 @@ def main(proof: Path):
             current = second.good(minimum_sequence=2)[1][0]
             assert current["roster_generation"] == 2
             observations.append("APP020_SIGNED_NEW_GENERATION_AND_RECEIVER_FLOOR=PASS")
+            latest_signature = second.signature.read_bytes()
+            latest_statement = second.document.read_bytes()
+            second.document.write_bytes(statement)
+            second.signature.write_bytes(signature)
             second.refused("SSHSIG_SIGNED_STATE_NOT_CURRENT")
+            second.document.write_bytes(latest_statement)
+            second.signature.write_bytes(latest_signature)
             observations.append("APP020_PREVIOUS_SIGNED_HEAD_REJECTED_AFTER_ROTATION=PASS")
             replay = second.good(
                 "verify", minimum_sequence=2,
