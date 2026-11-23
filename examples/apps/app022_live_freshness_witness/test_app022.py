@@ -102,6 +102,7 @@ class LiveWitness(unittest.TestCase):
              "--port",str(port)],
             cwd=REPO,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
         self.witness_url="http://127.0.0.1:"+str(port)+"/attest"
+        last_error="NOT_ATTEMPTED"
         for _ in range(100):
             if self.server.poll() is not None:
                 self.fail("WITNESS_START_FAILED:"+
@@ -109,9 +110,12 @@ class LiveWitness(unittest.TestCase):
             try:
                 with socket.create_connection(("127.0.0.1",port),timeout=.1):
                     return
-            except OSError:
+            except OSError as exc:
+                last_error=f"{type(exc).__name__}:{exc}"
                 time.sleep(.05)
-        self.fail("WITNESS_START_TIMEOUT")
+        self.fail("WITNESS_START_TIMEOUT:"
+                  f"port={port},child_status={self.server.poll()},"
+                  f"last_connect_error={last_error}")
 
     def stop_server(self):
         p=getattr(self,"server",None)
