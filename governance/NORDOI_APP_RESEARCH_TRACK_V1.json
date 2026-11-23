@@ -1,0 +1,138 @@
+{
+  "schema": "NORDOI_APP_RESEARCH_GOVERNANCE_RECONCILIATION_V1",
+  "project": "eddarsglobal/nordoi",
+  "source_of_truth": "governance/NORDOI_BUREAU_PLAN_v1.json",
+  "scope": "NONPRIVILEGED_AGENT_RESEARCH_ONLY",
+  "audit_date": "2026-11-23",
+  "reference_baseline": {
+    "milestone": "CERT-015-R1",
+    "head": "f8455e602076ffabc49abf4f123cb8d1e70bc639",
+    "state": "RESEARCH_ONLY"
+  },
+  "bureau_roles": [
+    "ATLAS",
+    "FERRUM",
+    "BOUNDARY",
+    "CIPHER",
+    "LEDGER",
+    "CAPSTONE",
+    "ADVERSARY",
+    "VERITY",
+    "GUARDIAN"
+  ],
+  "bureau_semantics": {
+    "role_report_requirement": "EXACT_SOURCE_PIN_EXECUTION_LOG_ADVERSARIAL_EVIDENCE_FORMAL_VERDICT",
+    "machine_function_checks": "SEPARATE_DETERMINISTIC_AUTOMATED_CHECKS_NOT_INDEPENDENT_AI_AGENTS",
+    "independent_agent_reports": "NOT_SUBMITTED",
+    "formal_certification": "NOT_CERTIFIED",
+    "previous_pr_comments": "SINGLE_COORDINATOR_TECHNICAL_SUMMARIES_NOT_FORMAL_BUREAU_SIGNOFF"
+  },
+  "chronology_rule": "C20_EXACT_COMMIT_PARENT_AND_ALL_CHECKS_SUCCESS_AT_HEAD",
+  "observed_checks_source": "GITHUB_CHECK_RUNS_EXACT_HEAD_VERIFIED_ON_2026_11_23_NOT_AN_INDEPENDENT_CUSTODIAN",
+  "milestones": [
+    {
+      "id": "APP-016",
+      "objective": "Trust policy détenue par le destinataire, rejeu Rust épinglé et reprise native",
+      "parent_exact_sha": "f8455e602076ffabc49abf4f123cb8d1e70bc639",
+      "head_exact_sha": "e988b214c8daa2b37c6abc36e351ce988bea7880",
+      "pr_number": 168,
+      "pr_state": "DRAFT_OPEN_UNMERGED",
+      "current_technical_status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "exact_head_github_success": 13,
+      "exact_head_github_total": 13,
+      "external_security_certification": "NOT_PROVEN",
+      "independent_bureau_review": "NOT_SUBMITTED",
+      "formal_bureau_certification": "NOT_CERTIFIED",
+      "production": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "APP-017",
+      "objective": "Révocation et rotation de roster de politiques hors ligne du destinataire",
+      "parent_exact_sha": "e988b214c8daa2b37c6abc36e351ce988bea7880",
+      "head_exact_sha": "c048f1e17590b8d863d38a067fe6ac00d78e61c2",
+      "pr_number": 169,
+      "pr_state": "DRAFT_OPEN_UNMERGED",
+      "current_technical_status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "exact_head_github_success": 13,
+      "exact_head_github_total": 13,
+      "external_security_certification": "NOT_PROVEN",
+      "independent_bureau_review": "NOT_SUBMITTED",
+      "formal_bureau_certification": "NOT_CERTIFIED",
+      "production": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "APP-018",
+      "objective": "Journal de fraîcheur local à séquence monotone",
+      "parent_exact_sha": "c048f1e17590b8d863d38a067fe6ac00d78e61c2",
+      "head_exact_sha": "0aa1fe01fe9391ed67a0fa20f8af7280af56a1ad",
+      "pr_number": 170,
+      "pr_state": "DRAFT_OPEN_UNMERGED",
+      "current_technical_status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "exact_head_github_success": 13,
+      "exact_head_github_total": 13,
+      "external_security_certification": "NOT_PROVEN",
+      "independent_bureau_review": "NOT_SUBMITTED",
+      "formal_bureau_certification": "NOT_CERTIFIED",
+      "production": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "APP-019",
+      "objective": "Empreinte HEAD détenue hors du paquet par le destinataire",
+      "parent_exact_sha": "0aa1fe01fe9391ed67a0fa20f8af7280af56a1ad",
+      "head_exact_sha": "fa89752c1a62f3577134017d6a90b62d46a25cf7",
+      "pr_number": 171,
+      "pr_state": "DRAFT_OPEN_UNMERGED",
+      "current_technical_status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "exact_head_github_success": 13,
+      "exact_head_github_total": 13,
+      "external_security_certification": "NOT_PROVEN",
+      "independent_bureau_review": "NOT_SUBMITTED",
+      "formal_bureau_certification": "NOT_CERTIFIED",
+      "production": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "APP-020",
+      "objective": "Provenance du HEAD signée par Ed25519 SSHSIG",
+      "parent_exact_sha": "fa89752c1a62f3577134017d6a90b62d46a25cf7",
+      "head_exact_sha": "6f0f5625e282b4cd5a9ad5d527087502f5842f71",
+      "pr_number": 172,
+      "pr_state": "DRAFT_OPEN_UNMERGED",
+      "current_technical_status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "exact_head_github_success": 13,
+      "exact_head_github_total": 13,
+      "external_security_certification": "NOT_PROVEN",
+      "independent_bureau_review": "NOT_SUBMITTED",
+      "formal_bureau_certification": "NOT_CERTIFIED",
+      "production": "NOT_AUTHORIZED"
+    },
+    {
+      "id": "APP-021",
+      "objective": "Rotation et révocation d'autorité à double SSHSIG",
+      "parent_exact_sha": "6f0f5625e282b4cd5a9ad5d527087502f5842f71",
+      "head_exact_sha": "6e9c300922348d0ebab4318c7f9c2b4dd4cd76b4",
+      "pr_number": 173,
+      "pr_state": "DRAFT_OPEN_UNMERGED",
+      "current_technical_status": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+      "exact_head_github_success": 13,
+      "exact_head_github_total": 13,
+      "external_security_certification": "NOT_PROVEN",
+      "independent_bureau_review": "NOT_SUBMITTED",
+      "formal_bureau_certification": "NOT_CERTIFIED",
+      "production": "NOT_AUTHORIZED"
+    }
+  ],
+  "next_candidate": {
+    "id": "APP-022",
+    "state": "LOCKED_BY_GOVERNANCE_REVIEW",
+    "goal": "Actual externally protected freshness root or fail-closed research protocol without attestation",
+    "no_external_custody_claim": true
+  },
+  "protected_baseline": {
+    "r6f": "IN_PROGRESS_UNCERTIFIED",
+    "r6g": "LOCKED_BY_SEQUENCE",
+    "native_gates_remaining": 12,
+    "global_monotonic_antirollback": "NOT_VERIFIED",
+    "release": "NOT_AUTHORIZED",
+    "merge": "NONE"
+  }
+}
