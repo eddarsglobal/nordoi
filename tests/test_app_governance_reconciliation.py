@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT))
 from scripts import app_research_guardian as guard
 
 FILES = (guard.PLAN, guard.HANDOFF, guard.SOURCE, guard.TRACK,
+         "scripts/roadmap_guardian.py",
          "RoadMap.md", "Bureau.md", "CONSTITUTION.md",
          "governance/future_native_gate_v1.tsv", guard.EXTENSION,
          guard.ROADMAP_DOC, guard.BUREAU_DOC)
