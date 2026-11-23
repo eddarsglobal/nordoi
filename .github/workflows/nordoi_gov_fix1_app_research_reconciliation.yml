@@ -3,10 +3,14 @@ on:
   pull_request:
     paths:
       - 'RoadMap.md'
+      - 'RoadMap_APP_RESEARCH.md'
       - 'Bureau.md'
+      - 'Bureau_APP_RESEARCH.md'
       - 'governance/NORDOI_BUREAU_PLAN_v1.json'
       - 'governance/NORDOI_APP_RESEARCH_TRACK_V1.json'
+      - 'governance/NORDOI_APP_RESEARCH_ROADMAP_V1.json'
       - 'scripts/roadmap_guardian.py'
+      - 'scripts/app_research_guardian.py'
       - 'scripts/app_governance_role_review.py'
       - 'tests/test_roadmap_guardian.py'
       - 'tests/test_app_governance_reconciliation.py'
@@ -40,13 +44,15 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           git merge-base --is-ancestor "$C20_PREDECESSOR" HEAD
-          git diff --exit-code "$C20_PREDECESSOR" -- src/ examples/apps/ Cargo.toml Cargo.lock
+          git diff --exit-code "$C20_PREDECESSOR" -- src/ examples/apps/ Cargo.toml Cargo.lock RoadMap.md Bureau.md scripts/roadmap_guardian.py governance/NORDOI_BUREAU_PLAN_v1.json
           test -z "$(git status --porcelain)"
       - name: Read-only Guardian audit and specific machine function checks
         shell: bash
         run: |
           set -euo pipefail
           python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/bureau_001_r1_audit.py --audit
+          python -B scripts/app_research_guardian.py --audit
           python -B scripts/verify_ai_only_continuation.py --audit
           python -B scripts/app_governance_role_review.py \
             --role "${{ matrix.role }}" \
@@ -81,7 +87,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           git merge-base --is-ancestor "$C20_PREDECESSOR" HEAD
-          git diff --exit-code "$C20_PREDECESSOR" -- src/ examples/apps/ Cargo.toml Cargo.lock
+          git diff --exit-code "$C20_PREDECESSOR" -- src/ examples/apps/ Cargo.toml Cargo.lock RoadMap.md Bureau.md scripts/roadmap_guardian.py governance/NORDOI_BUREAU_PLAN_v1.json
           test -z "$(git status --porcelain)"
       - name: Run 24 old Guardian regression tests plus 24 new adversarial checks
         shell: bash
@@ -111,6 +117,8 @@ jobs:
         run: |
           set -euo pipefail
           python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/bureau_001_r1_audit.py --audit
+          python -B scripts/app_research_guardian.py --audit
           python -B scripts/verify_ai_only_continuation.py --audit
           echo "GOV_FIX1_APP_CODE=UNCHANGED"
           echo "GOV_FIX1_APP022=LOCKED_BY_GOVERNANCE_REVIEW"
