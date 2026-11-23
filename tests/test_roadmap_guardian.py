@@ -18,7 +18,7 @@ sys.path.insert(0, str(ROOT))
 from scripts import roadmap_guardian as guard
 
 FILES = (guard.PLAN, guard.HANDOFF, guard.SOURCE, "RoadMap.md", "Bureau.md",
-         "CONSTITUTION.md", "governance/future_native_gate_v1.tsv", guard.TRACK)
+         "CONSTITUTION.md", "governance/future_native_gate_v1.tsv")
 
 class BureauGuardianTests(unittest.TestCase):
     def setUp(self):
