@@ -36,8 +36,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          git merge-base --is-ancestor "$PARENT_GOVFIX1" HEAD
-          git diff --exit-code "$PARENT_GOVFIX1" -- src/ Cargo.toml Cargo.lock RoadMap.md Bureau.md scripts/roadmap_guardian.py governance/NORDOI_BUREAU_PLAN_v1.json
+          git merge-base --is-ancestor "$PARENT_APP022" HEAD
+          git diff --exit-code "$PARENT_APP022" -- src/ Cargo.toml Cargo.lock RoadMap.md Bureau.md scripts/roadmap_guardian.py governance/NORDOI_BUREAU_PLAN_v1.json
           test -z "$(git status --porcelain)"
       - name: Execute independently inspectable role-specific MACHINE checks
         shell: bash
