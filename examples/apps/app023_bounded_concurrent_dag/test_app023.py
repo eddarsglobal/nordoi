@@ -160,9 +160,11 @@ class NativeConcurrentDAG(unittest.TestCase):
     def test_13_executed_native_receipts_verify_true_files(self):
         rows=self.good(["COMMITTED"]*3)
         for x in rows:
-            self.assertEqual(
-                concurrent.audit.verify_native_record(
-                    x["native_receipt"],x["step"],self.grant),None)
+            verified=concurrent.audit.verify_native_record(
+                x["native_receipt"],x["step"],self.grant)
+            self.assertEqual(verified["job"],x["job"])
+            self.assertEqual(verified["decision"],x["decision"])
+            self.assertEqual(len(verified["files"]),2)
             self.assertTrue((self.grant/x["job"]).is_dir())
 
     def test_14_native_event_order_and_content_host_independent(self):
