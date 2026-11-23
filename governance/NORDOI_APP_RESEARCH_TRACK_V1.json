@@ -1,7 +1,7 @@
 {
   "schema": "NORDOI_APP_RESEARCH_GOVERNANCE_RECONCILIATION_V1",
   "project": "eddarsglobal/nordoi",
-  "source_of_truth": "governance/NORDOI_BUREAU_PLAN_v1.json",
+  "source_of_truth": "governance/NORDOI_APP_RESEARCH_ROADMAP_V1.json",
   "scope": "NONPRIVILEGED_AGENT_RESEARCH_ONLY",
   "audit_date": "2026-11-23",
   "reference_baseline": {
@@ -134,5 +134,9 @@
     "global_monotonic_antirollback": "NOT_VERIFIED",
     "release": "NOT_AUTHORIZED",
     "merge": "NONE"
-  }
+  },
+  "historical_roadmap": "RoadMap.md",
+  "historical_roadmap_immutability": "GIT_BLOB_IDENTITY_PRESERVED",
+  "historical_bureau": "Bureau.md",
+  "historical_plan": "governance/NORDOI_BUREAU_PLAN_v1.json"
 }
