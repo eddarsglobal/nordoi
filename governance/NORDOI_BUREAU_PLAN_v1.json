@@ -185,5 +185,29 @@
     "NO_PRODUCTION_OR_NATIVE_RUNTIME_CHANGES",
     "NO_PR_MERGE",
     "NO_KERNEL_OR_CERTIFIED_BASELINE_MUTATION"
-  ]
+  ],
+  "research_application_track": {
+    "schema": "NORDOI_APP_RESEARCH_TRACK_POINTER_V1",
+    "register": "governance/NORDOI_APP_RESEARCH_TRACK_V1.json",
+    "ids_in_strict_c20_order": [
+      "APP-016",
+      "APP-017",
+      "APP-018",
+      "APP-019",
+      "APP-020",
+      "APP-021"
+    ],
+    "reference_predecessor_head": "f8455e602076ffabc49abf4f123cb8d1e70bc639",
+    "qualified_recent_head": "6e9c300922348d0ebab4318c7f9c2b4dd4cd76b4",
+    "observed_history": "SIX_DRAFT_PRS_WITH_13_OF_13_EXACT_HEAD_CI",
+    "app_track_technical_verdict": "TECHNICAL_VALIDATED_RESEARCH_ONLY",
+    "app_track_formal_bureau_certification": "NOT_CERTIFIED",
+    "historical_bureau_reviews": "NOT_SUBMITTED",
+    "app_next_candidate": "APP-022",
+    "app_next_status": "LOCKED_BY_GOVERNANCE_REVIEW",
+    "governance_correction": "GOV-FIX1_IN_PROGRESS",
+    "governance_correction_pr": "DRAFT_PENDING",
+    "native_admission": "DENIED",
+    "production": "NOT_AUTHORIZED"
+  }
 }
