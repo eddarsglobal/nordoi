@@ -5,7 +5,7 @@ on:
       - 'examples/apps/app023_bounded_concurrent_dag/**'
       - 'scripts/app023_bureau_machine_review.py'
       - 'RoadMap_APP023.md'
-      - 'governance/NORDOI_APP023_RESEARCH_GATE_V1.json'
+      - 'governance/NORDOI_APP023_CONCURRENT_DAG_RESEARCH_V1.json'
       - '.github/workflows/nordoi_app023_bureau_machine.yml'
   workflow_dispatch:
 permissions:
@@ -14,7 +14,7 @@ env:
   EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
   PARENT_APP022: 1fd98f87a776ef41a2367df0857c1a075e4a5d1a
 jobs:
-  app022-nine-real-machine-function-review:
+  app023-nine-real-machine-function-review:
     name: APP023 MACHINE BUREAU ${{ matrix.role }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
