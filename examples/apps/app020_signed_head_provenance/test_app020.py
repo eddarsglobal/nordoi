@@ -222,7 +222,7 @@ class SignedProvenance(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         fields = Path(str(other_key) + ".pub").read_text().split()
         pub = self.work / "other-public.pub"
-        pub.write_text(fields[0] + " " + fields[1] + "\n", encoding="ascii")
+        pub.write_bytes((fields[0] + " " + fields[1] + "\n").encode("ascii"))
         self.refused("SSHSIG_SIGNATURE_VERIFICATION_FAILED",
                      public=pub, key_hash=hashlib.sha256(pub.read_bytes()).hexdigest())
 
