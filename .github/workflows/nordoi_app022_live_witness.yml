@@ -46,6 +46,11 @@ jobs:
         run: |
           set -euo pipefail
           cargo build --offline --bin nordoi
+      - name: Native loopback bind and DNS-free APP-022 witness preflight on exact OS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B examples/apps/app022_live_freshness_witness/preflight_app022_loopback.py
       - name: 26 live-witness tests and all 828 prior native APP regressions
         shell: bash
         run: |
