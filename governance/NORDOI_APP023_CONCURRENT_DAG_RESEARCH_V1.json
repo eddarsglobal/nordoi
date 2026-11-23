@@ -1,0 +1,50 @@
+{
+  "schema": "NORDOI_APP023_CONCURRENT_DAG_RESEARCH_V1",
+  "id": "APP-023",
+  "project": "eddarsglobal/nordoi",
+  "base_c20_exact_sha": "1fd98f87a776ef41a2367df0857c1a075e4a5d1a",
+  "previous_qualification": "APP022_22_OF_22_SUCCESS_3416_TESTS_56_DEMO_ASSERTIONS",
+  "previous_evidence_url": "https://github.com/eddarsglobal/nordoi/pull/175#issuecomment-7109534873",
+  "start_decision_url": "https://github.com/eddarsglobal/nordoi/pull/175#issuecomment-7109571196",
+  "owner_policy": "AI_AGENTS_BUILD_NORDOI_FOR_AI_AGENTS",
+  "permission": "NONPRIVILEGED_RESEARCH_ONLY",
+  "fng": {
+    "FNG1": "C5_C9_C11_C13_C19_STRUCTURED_TASKS",
+    "FNG2": "NOT_POSIX_OR_HISTORICAL_PARITY",
+    "FNG3": "ONE_EXPLICIT_LIMIT_1_OR_2_NATIVE_WORKERS",
+    "FNG4": "HOST_GRANTED_PINS_AND_NATIVE_RECEIPT_VERIFICATION",
+    "FNG5": "PORTABLE_DAG_SEMANTICS_ACROSS_FOUR_OS",
+    "FNG6": "CERTIFIED_RUST_AND_R6F_BLOBS_UNCHANGED"
+  },
+  "jobs": "ONE_GENUINE_NORDOI_RUST_PROCESS_PER_ACTUAL_EXECUTED_NODE",
+  "task_limit": 8,
+  "max_native_in_flight": 2,
+  "scheduler": "PYTHON_THREADPOOLEXECUTOR_BOUNDED_TO_2_NON_PRIVILEGED",
+  "invariants": [
+    "VALIDATE_ENTIRE_HOSTILE_PLAN_BEFORE_ANY_EFFECT",
+    "FIXED_JOB_DIRECTORIES_NEVER_SUPPLIED_BY_PLAN",
+    "NO_CHILD_STARTS_BEFORE_VERIFIED_NATIVE_PARENTS",
+    "DRAIN_STARTED_WORKERS_BEFORE_FAILURE_RETURN",
+    "NO_ADMISSIONS_AFTER_NATIVE_ERROR",
+    "DETERMINISTIC_EVENTS_SORTED_BY_GRAPH_INDEX"
+  ],
+  "new_tests_per_os": 24,
+  "old_app_regressions_per_os": 854,
+  "total_tests_per_os": 878,
+  "platforms": [
+    "macos-15-intel",
+    "macos-15",
+    "ubuntu-latest",
+    "windows-latest"
+  ],
+  "demo_assertions_per_os": 14,
+  "status": "CANDIDATE_PENDING_REAL_GITHUB_CI",
+  "bureau_machine_functions": "NINE_EXECUTABLE_CODE_CHECKS_NOT_NINE_INDEPENDENT_AGENTS",
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "independent_custody": "NOT_PROVEN",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "external_native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED",
+  "merge": "NONE"
+}
