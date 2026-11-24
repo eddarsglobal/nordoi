@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP030_VERIFIED_RESERVATION_ARCHIVE_V1",
+  "parent_exact_sha": "ad0c08d2fe718d5fceb976678a846a375c47e707",
+  "prior_app_regressions_per_os": 974,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 986,
+  "total_expected_four_os_tests": 3944,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
