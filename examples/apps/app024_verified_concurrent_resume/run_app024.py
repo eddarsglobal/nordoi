@@ -62,11 +62,25 @@ def error(index:int,node:dict,plan_sha:str,reason:str):
 
 
 def check_history(portable_dir:Path,sha:str,restored:Path,
-                  manifest:dict,original:list[dict]):
+                  manifest:dict,original:list[dict],*,allow_new_jobs=False):
     current,_,events=portable.verify(portable_dir,sha)
     need(current==manifest and events==original,
          "CHECKPOINT_CHANGED_DURING_RESUME")
-    portable.restored_root_matches(restored,portable_dir,events,manifest)
+    if allow_new_jobs:
+        # After verified new native publications exist, the *historical*
+        # prefix remains fixed but the restored directory is no longer
+        # identical to the prefix inventory. Verify every original receipt
+        # and byte without erroneously rejecting the new job directories.
+        for index,row in enumerate(events,1):
+            if row["status"]=="COMMITTED":
+                observed=native_audit.verify_native_record(
+                    row["native_receipt"],index,restored)
+                need(observed["decision"]==row["decision"],
+                     "HISTORICAL_NATIVE_DECISION_CHANGED")
+        need(portable.native_inventory(restored,events)==manifest["native_files"],
+             "HISTORICAL_NATIVE_BYTES_CHANGED")
+    else:
+        portable.restored_root_matches(restored,portable_dir,events,manifest)
 
 
 def run(checkpoint:Path,expected_checkpoint:str,restored:Path,
@@ -104,8 +118,9 @@ def run(checkpoint:Path,expected_checkpoint:str,restored:Path,
     need(pinned.engine_sha256(engine)==engine_sha,"ENGINE_PIN_MISMATCH")
     need(pinned.source_tree_sha256(source)==source_sha,"SOURCE_PIN_MISMATCH")
     newline=b"\r\n" if raw.endswith(b"\r\n") else b"\n"
-    decisions=[x["native_receipt"]["decision"]
-               if x["status"]=="COMMITTED" else None for x in historical]
+    decisions=([x["native_receipt"]["decision"]
+                if x["status"]=="COMMITTED" else None for x in historical]
+               +[None]*(len(nodes)-len(historical)))
     finished=set(range(1,len(historical)+1))
     new_events={}
     in_flight={}
@@ -152,7 +167,7 @@ def run(checkpoint:Path,expected_checkpoint:str,restored:Path,
             # admission, rather than relying on cached JSON.
             try:
                 check_history(checkpoint,expected_checkpoint,restored,
-                              manifest,historical)
+                              manifest,historical,allow_new_jobs=effect_started)
                 need(pinned.engine_sha256(engine)==engine_sha and
                      pinned.source_tree_sha256(source)==source_sha,
                      "TRUSTED_ENGINE_OR_SOURCE_CHANGED")
@@ -189,7 +204,7 @@ def run(checkpoint:Path,expected_checkpoint:str,restored:Path,
         # Candidate suffix is NOT emitted until this full audit succeeds.
         try:
             check_history(checkpoint,expected_checkpoint,restored,
-                          manifest,historical)
+                          manifest,historical,allow_new_jobs=effect_started)
             with tempfile.TemporaryDirectory(prefix="nordoi_app024_full_audit_") as t:
                 joined=Path(t)/"joined.jsonl"
                 joined.write_bytes(raw+suffix)
