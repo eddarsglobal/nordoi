@@ -228,7 +228,7 @@ class NativeInterruptedForensicTests(unittest.TestCase):
         raw=resumer.json_line(rows[0])
         raw=raw.replace(b'"step":3',b'"step":3,"step":3')
         self.write_suffix(raw+b"".join(resumer.json_line(x) for x in rows[1:]))
-        self.blocked("EVENT_INVALID_JSON")
+        self.blocked("DUPLICATE_RECEIPT_FIELD")
 
     def test_23_mixed_line_endings_refused_in_same_verified_capture(self):
         rows=self.capture_success()
