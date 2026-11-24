@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP029_RESERVATION_FORENSICS_V1",
+  "parent_exact_sha": "e6f83420f01806c9adb457632c3148a7a1eaea96",
+  "prior_app_regressions_per_os": 962,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 974,
+  "total_expected_four_os_tests": 3896,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
