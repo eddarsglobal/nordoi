@@ -60,7 +60,7 @@ def reconcile(checkpoint:Path,checkpoint_pin:str,root:Path,
         prefix_file,audit.MAX_EVENTS_BYTES,"ORIGINAL_PREFIX_FILE_INVALID")
     must(sha256(prefix)==manifest["prefix_sha256"],
          "ORIGINAL_PREFIX_HASH_CHANGED")
-    must(0<len(historical)<manifest["events"]+9,
+    must(len(historical)==manifest["events"] and len(historical)>0,
          "ORIGINAL_PREFIX_INVALID")
     nodes,plan_sha=audit.plan_nodes(plan,manifest["plan_sha256"])
     must(len(historical)<len(nodes),
