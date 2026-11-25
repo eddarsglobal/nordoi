@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP033_LOCAL_NONCE_CONSUMPTION_V1",
+  "parent_exact_sha": "2210c7029ccc5c8d23a4e8161c78434b15ee94ae",
+  "prior_app_regressions_per_os": 1010,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 1022,
+  "total_expected_four_os_tests": 4088,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
