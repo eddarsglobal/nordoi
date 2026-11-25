@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP036_SIGNED_RECEPTION_ACK_V1",
+  "parent_exact_sha": "48e908a93c4266d24563dad4afdc23a07c2951d5",
+  "prior_app_regressions_per_os": 1046,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 1058,
+  "total_expected_four_os_tests": 4232,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
