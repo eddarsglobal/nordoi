@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP035_DESTINATION_BOUND_RECEPTION_V1",
+  "parent_exact_sha": "c85657b5cdf91d7d6d078ab40b2a31c3c4d2d95a",
+  "prior_app_regressions_per_os": 1034,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 1046,
+  "total_expected_four_os_tests": 4184,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
