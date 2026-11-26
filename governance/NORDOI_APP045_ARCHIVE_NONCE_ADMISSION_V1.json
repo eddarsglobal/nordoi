@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP045_ARCHIVE_NONCE_ADMISSION_V1",
+  "parent_exact_sha": "0af591eda95db4d397a935c997a97689b43f36c6",
+  "prior_app_regressions_per_os": 1154,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 1166,
+  "total_expected_four_os_tests": 4664,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
