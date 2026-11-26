@@ -1,0 +1,58 @@
+name: NORDOI APP-040 Bureau nine executed non-independent machine reviews
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app040_journal_seal_continuity/**'
+      - 'scripts/app040_bureau_machine_review.py'
+      - 'RoadMap_APP040.md'
+      - 'governance/NORDOI_APP040_JOURNAL_SEAL_CONTINUITY_V1.json'
+      - '.github/workflows/nordoi_app040_bureau_machine.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  PARENT_APP039: 22891c1bcd4677cfc43069e2ff76fbecabd341ef
+jobs:
+  app040-nine-real-machine-function-review:
+    name: APP040 MACHINE BUREAU ${{ matrix.role }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [ATLAS, FERRUM, BOUNDARY, CIPHER, LEDGER, CAPSTONE, ADVERSARY, VERITY, GUARDIAN]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact research source parent and immutability
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$PARENT_APP039" HEAD
+          git diff --exit-code "$PARENT_APP039" -- src/ Cargo.toml Cargo.lock RoadMap.md Bureau.md scripts/roadmap_guardian.py governance/NORDOI_BUREAU_PLAN_v1.json
+          test -z "$(git status --porcelain)"
+      - name: Execute independently inspectable role-specific MACHINE checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/app_research_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+          python -B scripts/app040_bureau_machine_review.py \
+            --role "${{ matrix.role }}" \
+            --proof-dir "$RUNNER_TEMP/NORDOI_APP040_BUREAU_MACHINE_PROOFS"
+      - name: Archive source-pinned role receipt (NOT third-party Bureau certification)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP040_BUREAU_MACHINE_${{ matrix.role }}
+          path: ${{ runner.temp }}/NORDOI_APP040_BUREAU_MACHINE_PROOFS/
+          retention-days: 30
