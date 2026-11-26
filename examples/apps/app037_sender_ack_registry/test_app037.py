@@ -107,14 +107,27 @@ class Registry(unittest.TestCase):
 
     def test_09_injected_write_failure_permanent(self):
         real=app.portable.safe_write
+        # The application resolves the registry root. Compare canonical paths,
+        # not the fixture's spelling (macOS /var vs /private/var, Windows aliases).
+        destination=self.marker.resolve(strict=False)/"ACK.json"
+        injected=[]
         def fail(path,raw):
-            if path==self.marker/"ACK.json": raise OSError("injected registry failure")
+            if Path(path).resolve(strict=False)==destination:
+                injected.append(destination)
+                raise OSError("injected registry failure")
             return real(path,raw)
         with patch.object(app.portable,"safe_write",side_effect=fail):
-            with self.assertRaises(Exception): self.accept()
-        self.assertTrue(self.marker.exists())
+            with self.assertRaisesRegex(OSError,"^injected registry failure$"):
+                self.accept()
+        self.assertEqual(injected,[destination])
+        self.assertTrue(self.marker.is_dir())
+        self.assertTrue((self.marker/"START.json").is_file())
+        self.assertFalse((self.marker/"ACK.json").exists())
         self.assertFalse((self.marker/"COMPLETE.json").exists())
+        before={p.name:p.read_bytes() for p in self.marker.iterdir()}
         with self.assertRaises(Exception): self.accept()
+        with self.assertRaises(Exception): self.audit()
+        self.assertEqual({p.name:p.read_bytes() for p in self.marker.iterdir()},before)
 
     def test_10_stored_signature_tamper(self):
         self.accept()
