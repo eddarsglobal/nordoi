@@ -1,0 +1,143 @@
+name: NORDOI APP-040 journal seal continuity
+on:
+  pull_request:
+    paths:
+      - 'examples/apps/app040_journal_seal_continuity/**'
+      - 'governance/NORDOI_APP040_JOURNAL_SEAL_CONTINUITY_V1.json'
+      - 'RoadMap_APP040.md'
+      - '.github/workflows/nordoi_app040_journal_seal_continuity.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+  C20_PARENT: 22891c1bcd4677cfc43069e2ff76fbecabd341ef
+jobs:
+  seal-continuity-four-os:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15-intel, macos-15, ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact APP040 source and APP039 C20 parent with Guardian
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$C20_PARENT" HEAD
+          test -z "$(git status --porcelain)"
+          git diff --exit-code "$C20_PARENT" -- src/ Cargo.toml Cargo.lock RoadMap.md Bureau.md scripts/roadmap_guardian.py governance/NORDOI_BUREAU_PLAN_v1.json
+          python -B scripts/roadmap_guardian.py --audit
+          python -B scripts/app_research_guardian.py --audit
+          python -B scripts/verify_ai_only_continuation.py --audit
+      - name: Build authentic NORDOI Rust P2.7 engine
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --offline --bin nordoi
+      - name: Regression preflight on actual OS for APP022 live witness
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B examples/apps/app022_live_freshness_witness/preflight_app022_loopback.py
+      - name: 12 seal continuity tests and 1094 prior native APP regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROOF="$RUNNER_TEMP/NORDOI_APP040_TRANSFER_PROOFS"
+          mkdir -p "$PROOF"
+          index=0
+          total=0
+          while IFS='|' read -r folder script expected; do
+            test -n "$folder" || continue
+            index=$((index+1))
+            log="$PROOF/suite-$(printf '%02d' "$index")-$script.log"
+            python -B -m unittest discover -s "$folder" -p "$script" -v 2>&1 | tee "$log"
+            python - "$log" "$expected" <<'PY'
+          import pathlib,re,sys
+          log=pathlib.Path(sys.argv[1]).read_text(encoding="utf-8")
+          want=int(sys.argv[2])
+          tests=re.findall(r"^Ran (\d+) tests in ",log,re.MULTILINE)
+          assert len(tests)==1 and int(tests[0])==want,(sys.argv[1],tests,want)
+          assert re.search(r"^OK$",log,re.MULTILINE),log[-2000:]
+          assert not re.search(r"^FAILED(?: |$)",log,re.MULTILINE),log[-2000:]
+          PY
+            printf '%s|%s|%s\n' "$folder" "$script" "$expected" >> "$PROOF/manifest.txt"
+            total=$((total+expected))
+          done <<'SUITES'
+          examples/apps/app040_journal_seal_continuity|test_app040.py|12
+          examples/apps/app039_conflict_journal_seal|test_app039.py|12
+          examples/apps/app038_signed_conflict_journal|test_app038.py|12
+          examples/apps/app037_sender_ack_registry|test_app037.py|12
+          examples/apps/app036_signed_reception_ack|test_app036.py|12
+          examples/apps/app035_destination_bound_reception|test_app035.py|12
+          examples/apps/app034_reception_forensics|test_app034.py|12
+          examples/apps/app033_local_nonce_consumption|test_app033.py|12
+          examples/apps/app032_signed_evidence_transfer|test_app032.py|12
+          examples/apps/app031_pinned_evidence_transfer|test_app031.py|12
+          examples/apps/app030_verified_reservation_archive|test_app030.py|12
+          examples/apps/app029_reservation_forensics|test_app029.py|12
+          examples/apps/app028_local_exclusive_resume|test_app028.py|12
+          examples/apps/app027_verified_reconstructed_resume|test_app027.py|12
+          examples/apps/app026_verified_checkpoint_reconstruction|test_app026.py|12
+          examples/apps/app025_interrupted_dag_forensics|test_app025.py|24
+          examples/apps/app024_verified_concurrent_resume|test_app024.py|24
+          examples/apps/app023_bounded_concurrent_dag|test_app023.py|24
+          examples/apps/app022_live_freshness_witness|test_app022.py|26
+          examples/apps/app021_authority_rotation|test_app021.py|40
+          examples/apps/app020_signed_head_provenance|test_app020.py|40
+          examples/apps/app019_external_head_pin|test_app019.py|40
+          examples/apps/app018_local_freshness|test_app018.py|40
+          examples/apps/app017_receiver_revocation|test_app017.py|40
+          examples/apps/app016_receiver_trust_policy|test_app016.py|40
+          examples/apps/cert015_bureau_replay|test_cert015_r1.py|20
+          examples/apps/app015_independent_native_replay|test_app015.py|40
+          examples/apps/app014_portable_checkpoint|test_app014.py|40
+          examples/apps/app013_verified_handoff|test_app013.py|40
+          examples/apps/app012_clean_checkpoint|test_app012.py|40
+          examples/apps/app011_verified_resume|test_app011.py|40
+          examples/apps/app010_readonly_dag_audit|test_app010.py|40
+          examples/apps/app009_agent_dag|test_app009.py|40
+          examples/apps/app008_conditional_workflow|test_app008.py|33
+          examples/apps/app007_pinned_replay|test_app007.py|24
+          examples/apps/app006_readonly_audit|test_app006.py|40
+          examples/apps/app005_agent_batch|test_app005.py|40
+          examples/apps/app004_agent_json|test_agent_request.py|40
+          examples/apps/app004_agent_json|test_app004.py|31
+          examples/apps/app003_integrated_quality|test_app003.py|38
+          examples/apps/app002_rule_bundle|test_app002.py|26
+          examples/apps/app001_quality_gate|test_app001.py|16
+          SUITES
+          test "$index" -eq 42
+          test "$total" -eq 1106
+          echo "APP040_SUITE_COUNT=42" | tee "$PROOF/qualification.txt"
+          echo "APP040_TESTS_PER_OS=1106" | tee -a "$PROOF/qualification.txt"
+          echo "APP040_NEW_TESTS=12" | tee -a "$PROOF/qualification.txt"
+          echo "APP040_REGRESSIONS=1094" | tee -a "$PROOF/qualification.txt"
+          echo "APP040_UNLOGGED_NATIVE_EFFECTS=BLOCKED" | tee -a "$PROOF/qualification.txt"
+          echo "APP040_PRODUCTION=NOT_AUTHORIZED" | tee -a "$PROOF/qualification.txt"
+      - name: Real append-only journal seal continuity demonstration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B examples/apps/app040_journal_seal_continuity/demo_app040.py \
+            "$RUNNER_TEMP/NORDOI_APP040_TRANSFER_PROOFS" \
+            2>&1 | tee "$RUNNER_TEMP/NORDOI_APP040_TRANSFER_PROOFS/demo.log"
+      - name: Archive native continuation evidence for Bureau
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NORDOI_APP040_TRANSFER_${{ matrix.os }}
+          path: ${{ runner.temp }}/NORDOI_APP040_TRANSFER_PROOFS/
+          retention-days: 30
