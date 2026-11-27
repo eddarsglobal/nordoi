@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP050_CONFLICT_JOURNAL_SEAL_V1",
+  "parent_exact_sha": "97601775ad43d8bdf76df5c203df7cd67d8ac3f7",
+  "prior_app_regressions_per_os": 1214,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 1226,
+  "total_expected_four_os_tests": 4904,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
