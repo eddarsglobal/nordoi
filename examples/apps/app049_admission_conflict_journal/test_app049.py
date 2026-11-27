@@ -95,9 +95,9 @@ class Conflict(unittest.TestCase):
 
     def test_08_interrupted_complete_blocks(self):
         real=app.portable.safe_write
-        target=self.folder()/"COMPLETE.json"
+        target=(self.folder()/"COMPLETE.json").resolve(strict=False)
         def fail(path,raw):
-            if Path(path)==target: raise OSError("injected conflict completion failure")
+            if Path(path).resolve(strict=False)==target: raise OSError("injected conflict completion failure")
             return real(path,raw)
         with patch.object(app.portable,"safe_write",side_effect=fail):
             with self.assertRaisesRegex(OSError,"injected conflict completion failure"): self.preserve()
