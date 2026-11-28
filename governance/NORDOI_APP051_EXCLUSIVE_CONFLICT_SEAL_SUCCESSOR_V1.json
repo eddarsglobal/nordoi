@@ -1,0 +1,14 @@
+{
+  "schema": "NORDOI_APP051_EXCLUSIVE_CONFLICT_SEAL_SUCCESSOR_V1",
+  "parent_exact_sha": "9bce3a96da2b5f549119bd0ad49ade72f6f452fc",
+  "prior_app_regressions_per_os": 1226,
+  "new_tests_per_os": 12,
+  "total_tests_per_os": 1238,
+  "total_expected_four_os_tests": 4952,
+  "demo_assertions_per_os": 8,
+  "formal_bureau_certification": "NOT_CERTIFIED",
+  "r6f": "IN_PROGRESS_UNCERTIFIED",
+  "r6g": "LOCKED_BY_SEQUENCE",
+  "native_admission_gates_unmet": 12,
+  "production": "NOT_AUTHORIZED"
+}
