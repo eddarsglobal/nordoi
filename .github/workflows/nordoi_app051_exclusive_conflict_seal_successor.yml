@@ -15,7 +15,8 @@ env:
 jobs:
   exclusive-successor-four-os:
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    # Windows performs the same nested native proof replay; preserve all suites.
+    timeout-minutes: ${{ matrix.os == 'windows-latest' && 240 || 120 }}
     strategy:
       fail-fast: false
       matrix:
